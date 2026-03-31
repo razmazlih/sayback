@@ -1,0 +1,212 @@
+import type { NextRequest } from "next/server";
+import type Stripe from "stripe";
+import { requireAuthenticatedUser, UnauthorizedError } from "@/lib/auth";
+import { getBillingSnapshot, setStripeCustomerId } from "@/lib/billing";
+import {
+  StripeConfigError,
+  getCheckoutPlan,
+  getStripe,
+  isCheckoutPlan,
+} from "@/lib/stripe";
+
+export const runtime = "nodejs";
+
+interface CheckoutRequestBody {
+  plan?: unknown;
+}
+
+const JSON_HEADERS = {
+  "Cache-Control": "no-store",
+} as const;
+
+export async function POST(request: NextRequest) {
+  let body: CheckoutRequestBody;
+  let authenticatedUser: Awaited<ReturnType<typeof requireAuthenticatedUser>> | null = null;
+
+  try {
+    authenticatedUser = await requireAuthenticatedUser(request);
+  } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return json(
+        {
+          error: error.message,
+        },
+        error.status,
+      );
+    }
+    throw error;
+  }
+
+  try {
+    const parsed = await request.json();
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return json(
+        {
+          error: "Request body must be a JSON object.",
+        },
+        400,
+      );
+    }
+
+    body = parsed as CheckoutRequestBody;
+  } catch {
+    return json(
+      {
+        error: "Request body must be valid JSON.",
+      },
+      400,
+    );
+  }
+
+  if (!isCheckoutPlan(body.plan)) {
+    return json(
+      {
+        error: "plan must be one of: credits_50, unlimited_monthly.",
+      },
+      400,
+    );
+  }
+
+  try {
+    if (!authenticatedUser) {
+      throw new UnauthorizedError();
+    }
+
+    const stripe = getStripe();
+    const selectedPlan = getCheckoutPlan(body.plan);
+    const origin = getRequestOrigin(request);
+    const customer = await ensureStripeCustomer({
+      stripe,
+      email: authenticatedUser.email,
+      uid: authenticatedUser.uid,
+    });
+
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
+      mode: selectedPlan.mode,
+      line_items: [selectedPlan.lineItem],
+      success_url: `${origin}/?checkout=success&plan=${body.plan}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/?checkout=cancelled&plan=${body.plan}`,
+      customer: customer.id,
+      client_reference_id: authenticatedUser.uid,
+      metadata: {
+        ...selectedPlan.metadata,
+        userId: authenticatedUser.uid,
+      },
+      locale: "auto",
+      billing_address_collection: "auto",
+      allow_promotion_codes: true,
+      payment_method_types: ["card"],
+      wallet_options: {
+        link: {
+          display: "never",
+        },
+      },
+      ...(selectedPlan.mode === "payment"
+        ? {
+            payment_intent_data: {
+              metadata: {
+                ...selectedPlan.metadata,
+                userId: authenticatedUser.uid,
+              },
+            },
+          }
+        : {
+            subscription_data: {
+              metadata: {
+                ...selectedPlan.metadata,
+                userId: authenticatedUser.uid,
+              },
+            },
+          }),
+    };
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
+
+    if (!session.url) {
+      throw new Error("Stripe Checkout session did not include a redirect URL.");
+    }
+
+    return json(
+      {
+        url: session.url,
+      },
+      200,
+    );
+  } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return json(
+        {
+          error: error.message,
+        },
+        error.status,
+      );
+    }
+
+    if (error instanceof StripeConfigError) {
+      return json(
+        {
+          error: error.message,
+        },
+        500,
+      );
+    }
+
+    console.error("Unhandled checkout route error", error);
+
+    return json(
+      {
+        error: "Unable to start checkout right now.",
+      },
+      500,
+    );
+  }
+}
+
+function getRequestOrigin(request: NextRequest) {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+
+  if (forwardedHost && forwardedProto) {
+    return `${forwardedProto}://${forwardedHost}`;
+  }
+
+  return request.nextUrl.origin;
+}
+
+function json(body: Record<string, string>, status: number) {
+  return Response.json(body, {
+    status,
+    headers: JSON_HEADERS,
+  });
+}
+
+async function ensureStripeCustomer({
+  stripe,
+  email,
+  uid,
+}: {
+  stripe: Stripe;
+  email: string | null;
+  uid: string;
+}) {
+  const billing = await getBillingSnapshot(uid);
+
+  if (billing.stripeCustomerId) {
+    const existingCustomer = await stripe.customers.retrieve(billing.stripeCustomerId);
+
+    if (!("deleted" in existingCustomer && existingCustomer.deleted)) {
+      return existingCustomer;
+    }
+  }
+
+  const customer = await stripe.customers.create({
+    email: email ?? undefined,
+    metadata: {
+      userId: uid,
+    },
+  });
+
+  await setStripeCustomerId(uid, customer.id);
+  return customer;
+}
