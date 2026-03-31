@@ -1,25 +1,30 @@
 import Stripe from "stripe";
+import {
+  CREDIT_PACK_CURRENCY,
+  CREDIT_PACK_MAX_REPLIES,
+  CREDIT_PACK_PRICE_AGOROT,
+  CREDIT_PACK_REPLIES_PER_USE,
+  CREDIT_PACK_USES,
+  getCreditPackCheckoutMetadata,
+} from "@/lib/pricing";
 
 const APP_NAME = "SayBack";
-const CURRENCY = "ils";
+const CURRENCY = CREDIT_PACK_CURRENCY;
 const STRIPE_API_VERSION: Stripe.LatestApiVersion = "2026-03-25.dahlia";
 
 export const checkoutPlans = {
   credits_50: {
     mode: "payment",
-    displayName: "20 uses (up to 60 replies)",
-    metadata: {
-      plan: "credits_50",
-      billing: "one_time",
-    },
+    displayName: `${CREDIT_PACK_USES} uses (up to ${CREDIT_PACK_MAX_REPLIES} replies)`,
+    metadata: getCreditPackCheckoutMetadata(),
     lineItem: {
       quantity: 1,
       price_data: {
         currency: CURRENCY,
-        unit_amount: 990,
+        unit_amount: CREDIT_PACK_PRICE_AGOROT,
         product_data: {
-          name: "SayBack 20 Uses (Up to 60 Replies)",
-          description: "One-time pack of 20 generations, up to 60 reply options.",
+          name: `SayBack ${CREDIT_PACK_USES} Uses (Up to ${CREDIT_PACK_MAX_REPLIES} Replies)`,
+          description: `One-time pack of ${CREDIT_PACK_USES} generations, ${CREDIT_PACK_REPLIES_PER_USE} reply options per generation.`,
         },
       },
     },

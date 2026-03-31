@@ -1,13 +1,32 @@
+import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
+import { getAuth, type Auth } from "firebase-admin/auth";
+import { getFirestore as getAdminFirestore, type Firestore } from "firebase-admin/firestore";
+
 type FirebaseCredential = {
   projectId: string;
   clientEmail: string;
   privateKey: string;
 };
 
+type AdminAuth = {
+  verifyIdToken: (token: string) => Promise<Record<string, unknown>>;
+};
+
+type AdminFirestore = {
+  collection: (path: string) => unknown;
+  runTransaction: <T>(
+    updateFunction: (transaction: {
+      get: (ref: unknown) => Promise<{ exists: boolean; data: () => unknown }>;
+      set: (ref: unknown, data: unknown, options?: unknown) => void;
+      update: (ref: unknown, data: unknown) => void;
+    }) => Promise<T>,
+  ) => Promise<T>;
+};
+
 type FirebaseAdminCache = {
-  app?: unknown;
-  auth?: unknown;
-  firestore?: unknown;
+  app?: App;
+  auth?: Auth;
+  firestore?: Firestore;
 };
 
 const globalCache = globalThis as typeof globalThis & {
@@ -65,14 +84,7 @@ export async function getFirebaseAdminApp() {
     return cache.app;
   }
 
-  const moduleName = "firebase-admin/app";
-  const adminAppModule = (await import(moduleName)) as {
-    cert: (credential: FirebaseCredential) => unknown;
-    getApps: () => unknown[];
-    initializeApp: (options: { credential: unknown; projectId: string }) => unknown;
-  };
-
-  const existingApp = adminAppModule.getApps()[0];
+  const existingApp = getApps()[0];
 
   if (existingApp) {
     cache.app = existingApp;
@@ -81,64 +93,32 @@ export async function getFirebaseAdminApp() {
 
   const credential = readFirebaseCredential();
 
-  cache.app = adminAppModule.initializeApp({
-    credential: adminAppModule.cert(credential),
+  cache.app = initializeApp({
+    credential: cert(credential),
     projectId: credential.projectId,
   });
 
   return cache.app;
 }
 
-export async function getAdminAuth() {
+export async function getAdminAuth(): Promise<AdminAuth> {
   const cache = getCache();
 
   if (cache.auth) {
-    return cache.auth as {
-      verifyIdToken: (token: string) => Promise<Record<string, unknown>>;
-    };
+    return cache.auth as AdminAuth;
   }
 
-  const moduleName = "firebase-admin/auth";
-  const authModule = (await import(moduleName)) as {
-    getAuth: (app?: unknown) => unknown;
-  };
-
-  cache.auth = authModule.getAuth(await getFirebaseAdminApp());
-  return cache.auth as {
-    verifyIdToken: (token: string) => Promise<Record<string, unknown>>;
-  };
+  cache.auth = getAuth(await getFirebaseAdminApp());
+  return cache.auth as AdminAuth;
 }
 
-export async function getFirestore() {
+export async function getFirestore(): Promise<AdminFirestore> {
   const cache = getCache();
 
   if (cache.firestore) {
-    return cache.firestore as {
-      collection: (path: string) => unknown;
-      runTransaction: <T>(
-        updateFunction: (transaction: {
-          get: (ref: unknown) => Promise<{ exists: boolean; data: () => unknown }>;
-          set: (ref: unknown, data: unknown, options?: unknown) => void;
-          update: (ref: unknown, data: unknown) => void;
-        }) => Promise<T>,
-      ) => Promise<T>;
-    };
+    return cache.firestore as AdminFirestore;
   }
 
-  const moduleName = "firebase-admin/firestore";
-  const firestoreModule = (await import(moduleName)) as {
-    getFirestore: (app?: unknown) => unknown;
-  };
-
-  cache.firestore = firestoreModule.getFirestore(await getFirebaseAdminApp());
-  return cache.firestore as {
-    collection: (path: string) => unknown;
-    runTransaction: <T>(
-      updateFunction: (transaction: {
-        get: (ref: unknown) => Promise<{ exists: boolean; data: () => unknown }>;
-        set: (ref: unknown, data: unknown, options?: unknown) => void;
-        update: (ref: unknown, data: unknown) => void;
-      }) => Promise<T>,
-    ) => Promise<T>;
-  };
+  cache.firestore = getAdminFirestore(await getFirebaseAdminApp());
+  return cache.firestore as AdminFirestore;
 }

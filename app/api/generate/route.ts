@@ -13,6 +13,7 @@ interface GenerateRequestBody {
   imageBase64?: string;
   context?: string;
   tone?: string;
+  continuePreference?: string | null;
   refineInstruction?: string;
   action?: string;
   sourceReply?: string;

@@ -83,10 +83,10 @@ export async function POST(request: NextRequest) {
     });
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
+      ui_mode: "elements",
       mode: selectedPlan.mode,
       line_items: [selectedPlan.lineItem],
-      success_url: `${origin}/?checkout=success&plan=${body.plan}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/?checkout=cancelled&plan=${body.plan}`,
+      return_url: `${origin}/?checkout=return&plan=${body.plan}&session_id={CHECKOUT_SESSION_ID}`,
       customer: customer.id,
       client_reference_id: authenticatedUser.uid,
       metadata: {
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       },
       locale: "auto",
       billing_address_collection: "auto",
-      allow_promotion_codes: true,
+      allow_promotion_codes: false,
       payment_method_types: ["card"],
       wallet_options: {
         link: {
@@ -123,13 +123,14 @@ export async function POST(request: NextRequest) {
 
     const session = await stripe.checkout.sessions.create(sessionParams);
 
-    if (!session.url) {
-      throw new Error("Stripe Checkout session did not include a redirect URL.");
+    if (!session.client_secret) {
+      throw new Error("Stripe Checkout session did not include a client secret.");
     }
 
     return json(
       {
-        url: session.url,
+        clientSecret: session.client_secret,
+        sessionId: session.id,
       },
       200,
     );
@@ -174,7 +175,7 @@ function getRequestOrigin(request: NextRequest) {
   return request.nextUrl.origin;
 }
 
-function json(body: Record<string, string>, status: number) {
+function json(body: Record<string, unknown>, status: number) {
   return Response.json(body, {
     status,
     headers: JSON_HEADERS,

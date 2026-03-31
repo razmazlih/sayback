@@ -1,5 +1,6 @@
 const CONTEXT_OPTIONS = ["קראש", "אקס", "לקוח", "בוס", "יד2"] as const;
 const TONE_OPTIONS = ["עדין", "ישיר", "זורם", "מצחיק", "פלרטטני"] as const;
+const CONTINUE_PREFERENCE_OPTIONS = ["כן", "לא"] as const;
 const REPLY_ACTION_OPTIONS = ["softer", "sharper", "retry"] as const;
 
 const DEFAULT_MODEL = process.env.OPENAI_MODEL?.trim() || "gpt-5-mini";
@@ -12,6 +13,7 @@ const MAX_IMAGE_LENGTH = 10_000_000;
 
 type ContextOption = (typeof CONTEXT_OPTIONS)[number];
 type ToneOption = (typeof TONE_OPTIONS)[number];
+type ContinuePreferenceOption = (typeof CONTINUE_PREFERENCE_OPTIONS)[number];
 type ReplyActionOption = (typeof REPLY_ACTION_OPTIONS)[number];
 
 type InputContentItem =
@@ -51,6 +53,7 @@ export interface GenerateRepliesInput {
   imageBase64?: string;
   context?: string;
   tone?: string;
+  continuePreference?: string | null;
   refineInstruction?: string;
   action?: string;
   sourceReply?: string;
@@ -100,6 +103,7 @@ export async function generateReplies(
   const message = normalizeMessage(input.message);
   const context = normalizeContext(input.context);
   const tone = normalizeTone(input.tone);
+  const continuePreference = normalizeContinuePreference(input.continuePreference);
   const action = normalizeAction(input.action);
   const sourceReply = normalizeOptionalText(input.sourceReply, 220);
   const refineInstruction = buildRefineInstruction({
@@ -121,6 +125,7 @@ export async function generateReplies(
       message,
       context,
       tone,
+      continuePreference,
       action,
       sourceReply,
     });
@@ -157,6 +162,7 @@ export async function generateReplies(
             imageUrl,
             context,
             tone,
+            continuePreference,
             refineInstruction,
           }),
         },
@@ -205,12 +211,14 @@ function generateFreeDevelopmentReplies({
   message,
   context,
   tone,
+  continuePreference,
   action,
   sourceReply,
 }: {
   message?: string;
   context?: ContextOption;
   tone?: ToneOption;
+  continuePreference?: ContinuePreferenceOption;
   action?: ReplyActionOption;
   sourceReply?: string;
 }): GenerateRepliesResult {
@@ -222,6 +230,7 @@ function generateFreeDevelopmentReplies({
     tone: effectiveTone,
     context,
     message,
+    continuePreference,
     sourceReply,
   });
 
@@ -261,11 +270,13 @@ function buildFreeReplies({
   tone,
   context,
   message,
+  continuePreference,
   sourceReply,
 }: {
   tone: ToneOption;
   context?: ContextOption;
   message?: string;
+  continuePreference?: ContinuePreferenceOption;
   sourceReply?: string;
 }): [string, string, string] {
   const businessReplies =
@@ -319,6 +330,26 @@ function buildFreeReplies({
 
   if (sourceReply) {
     replies[0] = sourceReply;
+  } else if (continuePreference === "לא") {
+    const repliesByTone: Record<ToneOption, string> = {
+      עדין: "תודה שכתבת, אבל פחות מתאים לי ואני לא מסכים/ה עם זה כרגע.",
+      ישיר: "לא, אני לא מסכים/ה עם זה.",
+      זורם: "לא, זה פחות מתאים לי.",
+      מצחיק: "לא, הפעם אני בצד של ה'לא'.",
+      פלרטטני: "חמוד/ה, אבל על זה אני לא זורם/ת.",
+    };
+
+    replies[0] = repliesByTone[tone];
+  } else if (continuePreference === "כן") {
+    const repliesByTone: Record<ToneOption, string> = {
+      עדין: "כן, זה מקובל עליי.",
+      ישיר: "כן, אני מסכים/ה עם זה.",
+      זורם: "כן, זורם לי.",
+      מצחיק: "כן, חתמתי בלב על 'כן'.",
+      פלרטטני: "כן, זה לגמרי עובד לי.",
+    };
+
+    replies[0] = repliesByTone[tone];
   } else if (message && tone === "ישיר" && message.includes("?")) {
     replies[0] = "כן, התשובה שלי היא לא.";
   }
@@ -349,17 +380,20 @@ function buildInputContent({
   imageUrl,
   context,
   tone,
+  continuePreference,
   refineInstruction,
 }: {
   message?: string;
   imageUrl?: string;
   context?: ContextOption;
   tone?: ToneOption;
+  continuePreference?: ContinuePreferenceOption;
   refineInstruction?: string;
 }): InputContentItem[] {
   const details = [
     `הקשר: ${context ?? "כללי"}`,
     `טון רצוי: ${tone ?? "זורם"}`,
+    `מסכים/ה עם מה שנאמר: ${continuePreference ?? "לא צוין"}`,
     refineInstruction ? `שינוי מבוקש: ${refineInstruction}` : null,
     message
       ? `הודעה שהמשתמש קיבל:\n"""\n${message}\n"""`
@@ -435,6 +469,24 @@ function normalizeTone(value?: string): ToneOption | undefined {
   }
 
   throw new AIRequestError("Invalid tone value.", 400);
+}
+
+function normalizeContinuePreference(
+  value?: string | null,
+): ContinuePreferenceOption | undefined {
+  if (value == null) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    throw new AIRequestError("Invalid continue preference value.", 400);
+  }
+
+  if ((CONTINUE_PREFERENCE_OPTIONS as readonly string[]).includes(value)) {
+    return value as ContinuePreferenceOption;
+  }
+
+  throw new AIRequestError("Invalid continue preference value.", 400);
 }
 
 function normalizeAction(value?: string): ReplyActionOption | undefined {

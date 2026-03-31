@@ -35,6 +35,12 @@ body {
   font-family: var(--font-rubik), sans-serif;
 }
 
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -60,6 +66,10 @@ body {
   padding-bottom: calc(1rem + var(--safe-area-bottom));
 }
 
+.mobile-section-anchor {
+  scroll-margin-top: calc(6.5rem + var(--safe-area-top));
+}
+
 .snap-x {
   scroll-snap-type: x mandatory;
   overscroll-behavior-x: contain;
@@ -77,4 +87,10 @@ body {
 
 .scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+@media (min-width: 1024px) {
+  .mobile-section-anchor {
+    scroll-margin-top: 1.5rem;
+  }
 }

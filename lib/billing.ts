@@ -1,9 +1,10 @@
 import { getFirestore } from "@/lib/firebase-admin";
+import { CREDIT_PACK_PRICE_AGOROT, CREDIT_PACK_USES } from "@/lib/pricing";
 
 export const FREE_LIMIT = 3;
 export const DAILY_FREE_LIMIT = 1;
-export const CREDIT_PACK_SIZE = 20;
-export const CREDIT_PACK_BASE_AMOUNT = 990;
+export const CREDIT_PACK_SIZE = CREDIT_PACK_USES;
+export const CREDIT_PACK_BASE_AMOUNT = CREDIT_PACK_PRICE_AGOROT;
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due"]);
 
@@ -129,30 +130,6 @@ function buildSnapshot(document: NormalizedBillingDocument): BillingSnapshot {
         : dailyRemaining > 0 || freeRemaining > 0
           ? "free"
           : "blocked",
-  };
-}
-
-function deriveCreditGrant(amountTotal: unknown) {
-  const normalizedAmount =
-    typeof amountTotal === "number" && Number.isFinite(amountTotal)
-      ? Math.floor(amountTotal)
-      : null;
-
-  if (normalizedAmount === null || normalizedAmount <= 0) {
-    return {
-      amountTotal: normalizedAmount,
-      creditsGranted: CREDIT_PACK_SIZE,
-      grantSource: "fallback" as const,
-    };
-  }
-
-  return {
-    amountTotal: normalizedAmount,
-    creditsGranted: Math.max(
-      1,
-      Math.round((normalizedAmount / CREDIT_PACK_BASE_AMOUNT) * CREDIT_PACK_SIZE),
-    ),
-    grantSource: "amount_total" as const,
   };
 }
 
@@ -385,17 +362,21 @@ export async function applyCreditPackPurchase(params: {
     const currentDocument = normalizeBillingDocument(
       billingSnapshot.exists ? billingSnapshot.data() : undefined,
     );
-    const creditGrant = deriveCreditGrant(params.amountTotal);
+    const normalizedAmountTotal =
+      typeof params.amountTotal === "number" && Number.isFinite(params.amountTotal)
+        ? Math.floor(params.amountTotal)
+        : null;
+    const creditsGranted = CREDIT_PACK_SIZE;
     const timestamp = nowIso();
 
     if (!grantSnapshot.exists) {
       transaction.set(grantRef, {
         uid: params.uid,
         sessionId: params.sessionId,
-        amountTotal: creditGrant.amountTotal,
+        amountTotal: normalizedAmountTotal,
         currency: params.currency,
-        creditsGranted: creditGrant.creditsGranted,
-        grantSource: creditGrant.grantSource,
+        creditsGranted,
+        grantSource: "fixed_plan",
         pricingReferenceAmount: CREDIT_PACK_BASE_AMOUNT,
         pricingReferenceCredits: CREDIT_PACK_SIZE,
         createdAt: timestamp,
@@ -404,7 +385,7 @@ export async function applyCreditPackPurchase(params: {
         billingRef,
         {
           ...currentDocument,
-          credits: currentDocument.credits + creditGrant.creditsGranted,
+          credits: currentDocument.credits + creditsGranted,
           stripeCustomerId: params.stripeCustomerId ?? currentDocument.stripeCustomerId,
           updatedAt: timestamp,
           createdAt: currentDocument.createdAt,
@@ -414,7 +395,7 @@ export async function applyCreditPackPurchase(params: {
 
       return buildSnapshot({
         ...currentDocument,
-        credits: currentDocument.credits + creditGrant.creditsGranted,
+        credits: currentDocument.credits + creditsGranted,
         stripeCustomerId: params.stripeCustomerId ?? currentDocument.stripeCustomerId,
         updatedAt: timestamp,
       });

@@ -1,21 +1,32 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { CheckoutPaymentForm } from '@/components/checkout-payment-form';
 import { trackEvent } from '@/lib/analytics';
 import { FirebaseClientConfigError, getFirebaseClientAuth, isFirebaseClientConfigured } from '@/lib/firebase-client';
+import {
+  CREDIT_PACK_MAX_REPLIES,
+  CREDIT_PACK_PRICE_LABEL,
+  CREDIT_PACK_REPLIES_PER_USE,
+  CREDIT_PACK_USES,
+} from '@/lib/pricing';
 import { onIdTokenChanged, signInAnonymously } from 'firebase/auth';
 
 type ContextOption = 'קראש' | 'אקס' | 'לקוח' | 'בוס' | 'יד2';
 type ToneOption = 'עדין' | 'ישיר' | 'זורם' | 'מצחיק' | 'פלרטטני';
+type ContinuePreference = 'כן' | 'לא';
 type ReplyAction = 'softer' | 'sharper' | 'retry';
 type CheckoutPlan = 'credits_50' | 'unlimited_monthly';
 type PaidPlan = CheckoutPlan | null;
+type MobileSectionId = 'compose' | 'results' | 'examples' | 'plans';
+type MobileNavSectionId = Exclude<MobileSectionId, 'plans'>;
 
 type ExampleScenario = {
   title: string;
   message: string;
   context: ContextOption;
   tone: ToneOption;
+  continuePreference?: ContinuePreference | null;
 };
 
 type GenerateResponse = {
@@ -29,6 +40,7 @@ type GenerateRequest = {
   imageBase64: string | null;
   context: ContextOption;
   tone: ToneOption;
+  continuePreference?: ContinuePreference | null;
   action?: ReplyAction;
   sourceReply?: string;
 };
@@ -44,11 +56,26 @@ type BillingSnapshot = {
   accessState: 'free' | 'credits' | 'unlimited' | 'blocked';
 };
 
+type CheckoutSessionState = {
+  clientSecret: string;
+  sessionId: string;
+  plan: CheckoutPlan;
+};
+
 const FREE_LIMIT = 3;
 const AUTH_ERROR_MESSAGE = 'לא הצלחנו לזהות משתמש. רענן את הדף ונסה שוב.';
+const CREDIT_PACK_TITLE = `${CREDIT_PACK_USES} שימושים (עד ${CREDIT_PACK_MAX_REPLIES} תשובות)`;
+const CREDIT_PACK_DESCRIPTION = `${CREDIT_PACK_REPLIES_PER_USE} תשובות בכל שימוש. תשלום חד-פעמי, בלי התחייבות.`;
+const CREDIT_PACK_CTA = `לקנות ${CREDIT_PACK_USES} שימושים`;
 
 const contextOptions: ContextOption[] = ['קראש', 'אקס', 'לקוח', 'בוס', 'יד2'];
 const toneOptions: ToneOption[] = ['עדין', 'ישיר', 'זורם', 'מצחיק', 'פלרטטני'];
+const continuePreferenceOptions: ContinuePreference[] = ['כן', 'לא'];
+const mobileSectionNavItems: Array<{ id: MobileNavSectionId; label: string; stepLabel: string }> = [
+  { id: 'compose', label: 'כתיבה', stepLabel: 'שלב 1' },
+  { id: 'results', label: 'תשובות', stepLabel: 'שלב 2' },
+  { id: 'examples', label: 'דוגמאות', stepLabel: 'שלב 3' },
+];
 
 const examples: ExampleScenario[] = [
   {
@@ -56,24 +83,28 @@ const examples: ExampleScenario[] = [
     message: 'היי, מה קורה? נעלמתי קצת השבוע אבל חשבתי עלייך',
     context: 'קראש',
     tone: 'פלרטטני',
+    continuePreference: 'כן',
   },
   {
     title: 'אקס שבודק דופק',
     message: 'וואלה עברתי ליד המקום שלנו ונזכרתי בך. איך את?',
     context: 'אקס',
     tone: 'ישיר',
+    continuePreference: 'לא',
   },
   {
     title: 'לקוח שרוצה הנחה',
     message: 'ראיתי את ההצעה, אם תוריד בעוד 20% אני סוגר עכשיו',
     context: 'לקוח',
     tone: 'עדין',
+    continuePreference: 'כן',
   },
   {
     title: 'יד2 קלאסי',
     message: 'אחרון כמה? בא לקחת היום אם יש מחיר טוב',
     context: 'יד2',
     tone: 'זורם',
+    continuePreference: 'כן',
   },
 ];
 
@@ -105,21 +136,66 @@ function fileToBase64(file: File) {
   });
 }
 
+function isCompactViewport() {
+  return window.matchMedia('(max-width: 1023px)').matches;
+}
+
+function getPreferredScrollBehavior(): ScrollBehavior {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+}
+
 function ChipGroup<T extends string>({
   title,
+  description,
   options,
   value,
   onChange,
+  helperText,
+  optional = false,
+  allowEmpty = false,
 }: {
   title: string;
+  description?: string;
   options: readonly T[];
-  value: T;
-  onChange: (nextValue: T) => void;
+  value: T | null;
+  onChange: (nextValue: T | null) => void;
+  helperText?: string;
+  optional?: boolean;
+  allowEmpty?: boolean;
 }) {
+  const hasSelection = value !== null;
+
   return (
-    <div className="space-y-3">
-      <p className="text-sm font-black text-neutral-900">{title}</p>
-      <div className="flex flex-wrap gap-2">
+    <section className="rounded-[22px] border-2 border-black bg-white p-3 shadow-[0_4px_0_0_#111111] sm:p-3.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <p className="text-[0.92rem] font-black text-neutral-900 sm:text-[0.95rem]">{title}</p>
+          <span
+            className={[
+              'rounded-full border border-black px-2 py-0.5 text-[0.62rem] font-black uppercase tracking-[0.12em]',
+              optional ? 'bg-[#fff6d8] text-neutral-800' : 'bg-[#d7f9ff] text-black',
+            ].join(' ')}
+          >
+            {optional ? 'אופציונלי' : 'לבחירה'}
+          </span>
+        </div>
+
+        {allowEmpty && hasSelection ? (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className={`min-h-[32px] rounded-full border-2 border-black bg-[#f8f4ed] px-2.5 py-1 text-[0.68rem] font-black text-neutral-800 transition hover:bg-[#efe8dd] ${whiteSurfaceFocusClass}`}
+          >
+            נקה
+          </button>
+        ) : null}
+      </div>
+
+      {description ? (
+        <p className="mt-1 hidden text-xs font-bold leading-5 text-neutral-700 md:block">{description}</p>
+      ) : null}
+
+      <div className="mt-2 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         {options.map((option) => {
           const isSelected = option === value;
 
@@ -128,12 +204,12 @@ function ChipGroup<T extends string>({
               key={option}
               type="button"
               aria-pressed={isSelected}
-              onClick={() => onChange(option)}
+              onClick={() => onChange(allowEmpty && isSelected ? null : option)}
               className={[
-                `min-h-[44px] rounded-full border-2 px-4 py-2.5 text-sm font-bold transition duration-150 touch-manipulation ${lightSurfaceFocusClass}`,
+                `min-h-[40px] w-full rounded-full border-2 px-3.5 py-2 text-sm font-bold transition duration-150 touch-manipulation sm:min-h-[42px] sm:w-auto ${whiteSurfaceFocusClass}`,
                 isSelected
                   ? 'border-black bg-[#111111] text-[#f7ff4f] shadow-[0_6px_0_0_#ff623d]'
-                  : 'border-black bg-white text-black hover:-translate-y-0.5 hover:bg-[#fff8da]',
+                  : 'border-black bg-[#fffdf8] text-black hover:-translate-y-0.5 hover:bg-[#fff8da]',
               ].join(' ')}
             >
               {option}
@@ -141,7 +217,11 @@ function ChipGroup<T extends string>({
           );
         })}
       </div>
-    </div>
+
+      {helperText ? (
+        <p className="mt-1 hidden text-xs font-bold leading-5 text-neutral-600 md:block">{helperText}</p>
+      ) : null}
+    </section>
   );
 }
 
@@ -156,7 +236,7 @@ function ExampleCard({
     <button
       type="button"
       onClick={() => onUse(scenario)}
-      className={`group flex min-h-44 w-[84vw] max-w-sm shrink-0 snap-start flex-col justify-between rounded-[28px] border-2 border-black bg-[#fff6d8] p-5 text-right shadow-[0_10px_0_0_#111111] transition duration-200 hover:-translate-y-1 hover:bg-[#f7ff4f] touch-manipulation md:w-full md:max-w-none ${darkSurfaceFocusClass}`}
+      className={`group flex min-h-44 w-full flex-col justify-between rounded-[28px] border-2 border-black bg-[#fff6d8] p-5 text-right shadow-[0_10px_0_0_#111111] transition duration-200 hover:-translate-y-1 hover:bg-[#f7ff4f] touch-manipulation ${darkSurfaceFocusClass}`}
     >
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3 text-xs font-black text-neutral-700">
@@ -193,8 +273,8 @@ function ReplyCard({
   copied: boolean;
 }) {
   return (
-    <article className="relative overflow-hidden rounded-[28px] border-2 border-black bg-white p-4 shadow-[0_8px_0_0_#111111] sm:rounded-[30px] sm:p-5 sm:shadow-[0_10px_0_0_#111111]">
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <article className="relative overflow-hidden rounded-[26px] border-2 border-black bg-white p-3.5 shadow-[0_8px_0_0_#111111] sm:rounded-[28px] sm:p-4 sm:shadow-[0_10px_0_0_#111111]">
+      <div className="mb-3 flex items-center justify-between gap-2">
         <span className="rounded-full border border-black bg-[#f7ff4f] px-3 py-1 text-xs font-black text-black">
           אפשרות {index + 1}
         </span>
@@ -203,40 +283,44 @@ function ReplyCard({
         ) : null}
       </div>
 
-      <p className="min-h-24 text-base leading-7 font-bold text-neutral-900">{reply}</p>
+      <p className="text-base leading-7 font-bold text-neutral-900">{reply}</p>
 
-      <div className="mt-5 grid grid-cols-1 gap-2 text-sm font-bold sm:grid-cols-2">
+      <div className="mt-3 flex flex-wrap items-center gap-1.5 text-sm font-bold">
         <button
           type="button"
           onClick={() => onCopy(reply, index)}
-          className={`min-h-[46px] rounded-2xl border-2 border-black bg-[#111111] px-3 py-3 leading-5 text-[#f7ff4f] transition hover:bg-[#222222] ${whiteSurfaceFocusClass}`}
+          className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-[#111111] px-3.5 py-2 leading-5 text-[#f7ff4f] transition hover:bg-[#222222] ${whiteSurfaceFocusClass}`}
         >
           {copied ? 'הועתק' : 'העתק'}
         </button>
-        <button
-          type="button"
-          onClick={() => onAdjust(index, 'softer')}
-          disabled={isBusy}
-          className={`min-h-[46px] rounded-2xl border-2 border-black bg-[#d7f9ff] px-3 py-3 leading-5 text-black transition hover:bg-[#b8f2ff] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
-        >
-          תעשה את זה יותר עדין
-        </button>
-        <button
-          type="button"
-          onClick={() => onAdjust(index, 'sharper')}
-          disabled={isBusy}
-          className={`min-h-[46px] rounded-2xl border-2 border-black bg-[#ffd6ce] px-3 py-3 leading-5 text-black transition hover:bg-[#ffc5b8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
-        >
-          תעשה את זה יותר חד
-        </button>
-        <button
-          type="button"
-          onClick={() => onAdjust(index, 'retry')}
-          disabled={isBusy}
-          className={`min-h-[46px] rounded-2xl border-2 border-dashed border-black bg-[#fff6d8] px-3 py-3 leading-5 text-black transition hover:bg-[#f8ebc1] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
-        >
-          נסה שוב
-        </button>
+
+        <details className="group min-w-[11rem] flex-1 rounded-[20px] border-2 border-dashed border-black bg-[#fff6d8] open:bg-[#fff2bf]">
+          <summary
+            className={`flex min-h-[42px] cursor-pointer list-none items-center justify-between gap-2 px-3.5 py-2 text-right text-sm font-black text-black marker:content-none ${whiteSurfaceFocusClass}`}
+          >
+            <span>עוד כיוונונים</span>
+            <span className="text-xs transition-transform duration-200 group-open:rotate-180">⌄</span>
+          </summary>
+
+          <div className="flex flex-wrap gap-1.5 px-2.5 pb-2.5">
+            <button
+              type="button"
+              onClick={() => onAdjust(index, 'softer')}
+              disabled={isBusy}
+              className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-[#d7f9ff] px-3.5 py-2 leading-5 text-black transition hover:bg-[#b8f2ff] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+            >
+              תעשה את זה יותר עדין
+            </button>
+            <button
+              type="button"
+              onClick={() => onAdjust(index, 'sharper')}
+              disabled={isBusy}
+              className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-[#ffd6ce] px-3.5 py-2 leading-5 text-black transition hover:bg-[#ffc5b8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+            >
+              תעשה את זה יותר חד
+            </button>
+          </div>
+        </details>
       </div>
     </article>
   );
@@ -246,16 +330,22 @@ function PaywallModal({
   open,
   onClose,
   onSelectPlan,
+  onResetCheckout,
+  onPaymentCompleted,
   isCheckoutLoading,
   checkoutPlan,
   checkoutError,
+  checkoutSession,
 }: {
   open: boolean;
   onClose: () => void;
   onSelectPlan: (plan: CheckoutPlan) => void;
+  onResetCheckout: () => void;
+  onPaymentCompleted: () => void;
   isCheckoutLoading: boolean;
   checkoutPlan: CheckoutPlan | null;
   checkoutError: string | null;
+  checkoutSession: CheckoutSessionState | null;
 }) {
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -310,13 +400,15 @@ function PaywallModal({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-[#ff623d]">
-              נגמרו הנסיונות
+              {checkoutSession ? 'שלב 2 מתוך 2' : 'שלב 1 מתוך 2'}
             </p>
             <h2 id="paywall-title" className="mt-2 text-2xl font-black text-black sm:text-3xl">
-              פותחים עוד תשובות
+              {checkoutSession ? 'בחירת אמצעי תשלום' : 'בחירת חבילה'}
             </h2>
             <p id="paywall-description" className="mt-2 text-sm font-bold text-neutral-700">
-              תשלום מאובטח דרך Stripe. ברוב המכשירים יוצגו גם Apple Pay ו-Google Pay.
+              {checkoutSession
+                ? 'בחר איך לשלם: Apple Pay/Google Pay או כרטיס אשראי.'
+                : 'בחר את החבילה שמתאימה לך כדי להמשיך לתשלום.'}
             </p>
           </div>
           <button
@@ -330,50 +422,94 @@ function PaywallModal({
         </div>
 
         <div className="mt-6 space-y-3">
-          <div className="rounded-[24px] border-2 border-black bg-white p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-black text-black">50 שימושים (עד 150 תשובות)</h3>
-                <p className="mt-1 text-sm text-neutral-700">3 תשובות בכל שימוש. בוסט בלי התחייבות.</p>
-              </div>
-              <p className="text-2xl font-black text-black">9.90₪</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => onSelectPlan('credits_50')}
-              disabled={isCheckoutLoading}
-              className={`mt-4 min-h-[48px] w-full rounded-2xl border-2 border-black bg-[#f7ff4f] px-4 py-3 text-sm font-black text-black transition disabled:cursor-not-allowed disabled:opacity-70 ${lightSurfaceFocusClass}`}
-            >
-              {checkoutPlan === 'credits_50' ? 'מעביר לתשלום מאובטח...' : 'לבחור במסלול הזה'}
-            </button>
-          </div>
+          {checkoutSession ? (
+            <>
+              <div className="rounded-[24px] border-2 border-black bg-white p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-black text-black">
+                      {checkoutSession.plan === 'credits_50'
+                        ? CREDIT_PACK_TITLE
+                        : 'ללא הגבלה חודשי'}
+                    </h3>
+                    <p className="mt-1 text-sm text-neutral-700">
+                      {checkoutSession.plan === 'credits_50'
+                        ? CREDIT_PACK_DESCRIPTION
+                        : 'גישה חופשית לכל התשובות, בלי לעזוב את האתר.'}
+                    </p>
+                  </div>
+                  <p className="text-2xl font-black text-black">
+                    {checkoutSession.plan === 'credits_50' ? CREDIT_PACK_PRICE_LABEL : '24.90₪'}
+                  </p>
+                </div>
 
-          <div className="rounded-[24px] border-2 border-black bg-[#111111] p-4 text-white">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <span className="rounded-full border border-white/40 bg-white/10 px-3 py-1 text-xs font-black">
-                  הכי משתלם
-                </span>
-                <h3 className="mt-3 text-lg font-black">ללא הגבלה חודשי</h3>
-                <p className="mt-1 text-sm text-white/80">לוואטסאפ, אינסטגרם, דייטים ולקוחות</p>
+                <button
+                  type="button"
+                  onClick={onResetCheckout}
+                  className={`mt-4 min-h-[42px] rounded-full border-2 border-black bg-[#fff6d8] px-3.5 py-2 text-sm font-black text-black transition hover:bg-[#fff2bf] ${whiteSurfaceFocusClass}`}
+                >
+                  לבחור מסלול אחר
+                </button>
               </div>
-              <p className="text-2xl font-black">24.90₪</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => onSelectPlan('unlimited_monthly')}
-              disabled={isCheckoutLoading}
-              className={`mt-4 min-h-[48px] w-full rounded-2xl border-2 border-white bg-[#ff623d] px-4 py-3 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-70 ${darkSurfaceFocusClass}`}
-            >
-              {checkoutPlan === 'unlimited_monthly'
-                ? 'מעביר לתשלום מאובטח...'
-                : 'לפתוח חופשי'}
-            </button>
-          </div>
 
-          <div className="rounded-[20px] border-2 border-black bg-white px-4 py-3 text-sm font-bold text-neutral-800">
-            <p>תשלום מהיר: Apple Pay, Google Pay וכל כרטיס אשראי.</p>
-          </div>
+              <CheckoutPaymentForm
+                clientSecret={checkoutSession.clientSecret}
+                submitLabel={
+                  checkoutSession.plan === 'credits_50'
+                    ? `לשלם ${CREDIT_PACK_PRICE_LABEL}`
+                    : 'להפעיל ללא הגבלה'
+                }
+                onComplete={onPaymentCompleted}
+              />
+            </>
+          ) : (
+            <>
+              <div className="rounded-[24px] border-2 border-black bg-white p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-black text-black">{CREDIT_PACK_TITLE}</h3>
+                    <p className="mt-1 text-sm text-neutral-700">{CREDIT_PACK_DESCRIPTION}</p>
+                  </div>
+                  <p className="text-2xl font-black text-black">{CREDIT_PACK_PRICE_LABEL}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onSelectPlan('credits_50')}
+                  disabled={isCheckoutLoading}
+                  className={`mt-4 min-h-[48px] w-full rounded-2xl border-2 border-black bg-[#f7ff4f] px-4 py-3 text-sm font-black text-black transition disabled:cursor-not-allowed disabled:opacity-70 ${lightSurfaceFocusClass}`}
+                >
+                  {checkoutPlan === 'credits_50' ? 'טוען טופס תשלום...' : CREDIT_PACK_CTA}
+                </button>
+              </div>
+
+              <div className="rounded-[24px] border-2 border-black bg-[#111111] p-4 text-white">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <span className="rounded-full border border-white/40 bg-white/10 px-3 py-1 text-xs font-black">
+                      הכי משתלם
+                    </span>
+                    <h3 className="mt-3 text-lg font-black">ללא הגבלה חודשי</h3>
+                    <p className="mt-1 text-sm text-white/80">כל התשובות בלי מגבלה חודשית</p>
+                  </div>
+                  <p className="text-2xl font-black">24.90₪</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onSelectPlan('unlimited_monthly')}
+                  disabled={isCheckoutLoading}
+                  className={`mt-4 min-h-[48px] w-full rounded-2xl border-2 border-white bg-[#ff623d] px-4 py-3 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-70 ${darkSurfaceFocusClass}`}
+                >
+                  {checkoutPlan === 'unlimited_monthly'
+                    ? 'טוען טופס תשלום...'
+                    : 'לפתוח חופשי'}
+                </button>
+              </div>
+
+              <div className="rounded-[20px] border-2 border-black bg-white px-4 py-3 text-sm font-bold text-neutral-800">
+                <p>תשלום מהיר ובטוח בתוך האתר.</p>
+              </div>
+            </>
+          )}
 
           {checkoutError ? (
             <p className="rounded-2xl border-2 border-black bg-[#ffd6ce] px-4 py-3 text-sm font-bold text-black">
@@ -388,9 +524,18 @@ function PaywallModal({
 
 export default function Home() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const mobileNavRef = useRef<HTMLDivElement | null>(null);
+  const composeSectionRef = useRef<HTMLDivElement | null>(null);
+  const resultsSectionRef = useRef<HTMLDivElement | null>(null);
+  const examplesSectionRef = useRef<HTMLElement | null>(null);
+  const plansSectionRef = useRef<HTMLElement | null>(null);
+  const mobileNavSuppressUntilRef = useRef(0);
+  const lastMobileNavClickAtRef = useRef(0);
   const [message, setMessage] = useState('');
   const [context, setContext] = useState<ContextOption>('קראש');
   const [tone, setTone] = useState<ToneOption>('זורם');
+  const [continuePreference, setContinuePreference] = useState<ContinuePreference | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [imageName, setImageName] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -404,11 +549,14 @@ export default function Home() {
   const [paidPlan, setPaidPlan] = useState<PaidPlan>(null);
   const [paidCredits, setPaidCredits] = useState(0);
   const [checkoutPlan, setCheckoutPlan] = useState<CheckoutPlan | null>(null);
+  const [checkoutSession, setCheckoutSession] = useState<CheckoutSessionState | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isBillingLoading, setIsBillingLoading] = useState(true);
+  const [activeMobileSection, setActiveMobileSection] = useState<MobileNavSectionId>('compose');
+  const [mobileNavHeight, setMobileNavHeight] = useState(0);
 
   const hasUnlimitedAccess = paidPlan === 'unlimited_monthly';
   const hasCreditBalance = paidCredits > 0;
@@ -422,7 +570,7 @@ export default function Home() {
     ? 'טוען חשבון...'
     : isLoading
       ? 'מנסח...'
-      : 'תביא 3 תשובות';
+      : 'כפתור ההפעלה';
   const usageSummary = hasUnlimitedAccess
     ? 'מסלול ללא הגבלה פעיל'
     : hasCreditBalance
@@ -434,7 +582,53 @@ export default function Home() {
       ? `${paidCredits} שימושים נשארו`
       : `${freeRemaining} פניות חינם נשארו`;
 
-  function applyBillingSnapshot(billing: BillingSnapshot) {
+  const scrollToMobileSection = useCallback(
+    (
+      section: MobileSectionId,
+      options?: { behavior?: ScrollBehavior; source?: 'navigation' | 'system' },
+    ) => {
+      if (!isCompactViewport()) {
+        return;
+      }
+
+      const sectionElement =
+        section === 'compose'
+          ? composeSectionRef.current
+          : section === 'results'
+            ? resultsSectionRef.current
+            : section === 'examples'
+              ? examplesSectionRef.current
+              : plansSectionRef.current;
+
+      if (!sectionElement) {
+        return;
+      }
+
+      const source = options?.source ?? 'system';
+      const now = Date.now();
+      let behavior = options?.behavior ?? getPreferredScrollBehavior();
+
+      if (source === 'navigation') {
+        if (now - lastMobileNavClickAtRef.current < 280) {
+          behavior = 'auto';
+        }
+
+        lastMobileNavClickAtRef.current = now;
+        mobileNavSuppressUntilRef.current = now + 450;
+      }
+
+      if (section !== 'plans') {
+        setActiveMobileSection(section);
+      }
+      sectionElement.scrollIntoView({
+        behavior,
+        block: 'start',
+      });
+    },
+    [],
+  );
+
+  const applyBillingSnapshot = useCallback((billing: BillingSnapshot) => {
     setFreeUsed(Math.max(0, Math.floor(billing.freeUsed)));
     setPaidCredits(Math.max(0, Math.floor(billing.credits)));
 
@@ -449,9 +643,9 @@ export default function Home() {
     }
 
     setPaidPlan(null);
-  }
+  }, []);
 
-  async function fetchWithAuth(input: RequestInfo | URL, init: RequestInit = {}) {
+  const fetchWithAuth = useCallback(async (input: RequestInfo | URL, init: RequestInit = {}) => {
     if (!authToken) {
       throw new Error(AUTH_ERROR_MESSAGE);
     }
@@ -463,7 +657,47 @@ export default function Home() {
       ...init,
       headers,
     });
-  }
+  }, [authToken]);
+
+  const refreshBillingStatus = useCallback(async () => {
+    if (!authToken) {
+      if (isAuthReady) {
+        setIsBillingLoading(false);
+      }
+
+      return null;
+    }
+
+    setIsBillingLoading(true);
+
+    try {
+      const response = await fetch('/api/billing/status', {
+        method: 'GET',
+        cache: 'no-store',
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+      const data = (await response.json()) as {
+        error?: string;
+        billing?: BillingSnapshot;
+      };
+
+      if (!response.ok || !data.billing) {
+        throw new Error(data.error ?? 'לא הצלחנו לרענן מצב תשלום.');
+      }
+
+      applyBillingSnapshot(data.billing);
+      return data.billing;
+    } catch (error) {
+      setRequestError(
+        error instanceof Error ? error.message : 'שגיאה בטעינת מצב תשלום.',
+      );
+      return null;
+    } finally {
+      setIsBillingLoading(false);
+    }
+  }, [applyBillingSnapshot, authToken, isAuthReady]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -532,55 +766,142 @@ export default function Home() {
       return;
     }
 
-    let isCancelled = false;
+    void refreshBillingStatus();
+  }, [authToken, isAuthReady, refreshBillingStatus]);
 
-    async function loadBillingStatus() {
-      setIsBillingLoading(true);
+  const waitForBillingSync = useCallback(async (plan: CheckoutPlan, baselineCredits: number) => {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const billing = await refreshBillingStatus();
 
-      try {
-        const response = await fetch('/api/billing/status', {
-          method: 'GET',
-          cache: 'no-store',
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
-        });
-        const data = (await response.json()) as {
-          error?: string;
-          billing?: BillingSnapshot;
-        };
+      if (
+        billing &&
+        (
+          (plan === 'credits_50' && billing.credits > baselineCredits) ||
+          (plan === 'unlimited_monthly' && billing.hasUnlimited)
+        )
+      ) {
+        return true;
+      }
 
-        if (!response.ok || !data.billing) {
-          throw new Error(data.error ?? 'לא הצלחנו לרענן מצב תשלום.');
-        }
-
-        if (!isCancelled) {
-          applyBillingSnapshot(data.billing);
-        }
-      } catch (error) {
-        if (!isCancelled) {
-          setRequestError(
-            error instanceof Error ? error.message : 'שגיאה בטעינת מצב תשלום.',
-          );
-        }
-      } finally {
-        if (!isCancelled) {
-          setIsBillingLoading(false);
-        }
+      if (attempt < 9) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1500));
       }
     }
 
-    void loadBillingStatus();
-    return () => {
-      isCancelled = true;
-    };
-  }, [authToken, isAuthReady]);
+    return false;
+  }, [refreshBillingStatus]);
+
+  const scrollToComposeAfterPayment = useCallback(() => {
+    const behavior = getPreferredScrollBehavior();
+
+    if (isCompactViewport()) {
+      window.requestAnimationFrame(() => {
+        scrollToMobileSection('compose', { source: 'system', behavior });
+        messageInputRef.current?.focus();
+      });
+      return;
+    }
+
+    composeSectionRef.current?.scrollIntoView({
+      behavior,
+      block: 'start',
+    });
+    messageInputRef.current?.focus();
+  }, [scrollToMobileSection]);
+
+  const finalizeSuccessfulCheckout = useCallback(async (plan: CheckoutPlan) => {
+    const baselineCredits = paidCredits;
+
+    setShowPaywall(false);
+    setCheckoutPlan(null);
+    setCheckoutSession(null);
+    setCheckoutError(null);
+    setPaymentNotice('התשלום התקבל. מעדכנים את היתרה שלך...');
+    trackEvent('checkout_success', { plan });
+
+    const didSync = await waitForBillingSync(plan, baselineCredits);
+
+    setPaymentNotice(
+      didSync
+        ? plan === 'credits_50'
+          ? 'התשלום התקבל והחבילה נוספה לחשבון שלך.'
+          : 'התשלום התקבל ומסלול ללא הגבלה פעיל.'
+        : 'התשלום נקלט. העדכון יופיע כאן תוך כמה שניות.',
+    );
+
+    scrollToComposeAfterPayment();
+  }, [paidCredits, scrollToComposeAfterPayment, waitForBillingSync]);
+
+  const handleReturnedCheckout = useCallback(async (sessionId: string, fallbackPlan: CheckoutPlan | null) => {
+    try {
+      const response = await fetchWithAuth(`/api/checkout/session?session_id=${encodeURIComponent(sessionId)}`, {
+        method: 'GET',
+        cache: 'no-store',
+      });
+      const data = (await response.json()) as {
+        error?: string;
+        session?: {
+          plan?: CheckoutPlan | null;
+          paymentStatus?: string | null;
+          status?: string | null;
+        };
+      };
+
+      if (!response.ok || !data.session) {
+        throw new Error(data.error ?? 'לא הצלחנו לאמת את מצב התשלום.');
+      }
+
+      const resolvedPlan = data.session.plan ?? fallbackPlan;
+      const isPaidSession =
+        data.session.status === 'complete' &&
+        (data.session.paymentStatus === 'paid' ||
+          data.session.paymentStatus === 'no_payment_required');
+
+      if (resolvedPlan && isPaidSession) {
+        await finalizeSuccessfulCheckout(resolvedPlan);
+        return;
+      }
+
+      if (data.session.status === 'open') {
+        setPaymentNotice('התשלום עדיין לא הושלם. אפשר לנסות שוב מתוך האתר.');
+        return;
+      }
+
+      setPaymentNotice('לא הושלם תשלום חדש. אפשר לנסות שוב בכל רגע.');
+    } catch (error) {
+      setPaymentNotice(
+        error instanceof Error ? error.message : 'לא הצלחנו לאמת את מצב התשלום.',
+      );
+    }
+  }, [fetchWithAuth, finalizeSuccessfulCheckout]);
 
   useEffect(() => {
-
     const searchParams = new URLSearchParams(window.location.search);
     const checkoutStatus = searchParams.get('checkout');
     const planFromCheckout = searchParams.get('plan');
+    const sessionId = searchParams.get('session_id');
+
+    function clearCheckoutParams() {
+      searchParams.delete('checkout');
+      searchParams.delete('plan');
+      searchParams.delete('session_id');
+      const nextQuery = searchParams.toString();
+      const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`;
+      window.history.replaceState(null, '', nextUrl);
+    }
+
+    if (checkoutStatus === 'return') {
+      if (!authToken || !sessionId) {
+        return;
+      }
+
+      clearCheckoutParams();
+      void handleReturnedCheckout(
+        sessionId,
+        isCheckoutPlan(planFromCheckout) ? planFromCheckout : null,
+      );
+      return;
+    }
 
     if (checkoutStatus === 'success' && isCheckoutPlan(planFromCheckout)) {
       setShowPaywall(false);
@@ -591,14 +912,9 @@ export default function Home() {
     }
 
     if (checkoutStatus) {
-      searchParams.delete('checkout');
-      searchParams.delete('plan');
-      searchParams.delete('session_id');
-      const nextQuery = searchParams.toString();
-      const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`;
-      window.history.replaceState(null, '', nextUrl);
+      clearCheckoutParams();
     }
-  }, []);
+  }, [authToken, handleReturnedCheckout]);
 
   useEffect(() => {
     if (copiedReplyIndex === null) {
@@ -612,8 +928,150 @@ export default function Home() {
     return () => window.clearTimeout(timeoutId);
   }, [copiedReplyIndex]);
 
+  useEffect(() => {
+    if (showPaywall) {
+      setMobileNavHeight(0);
+      return undefined;
+    }
+
+    const navElement = mobileNavRef.current;
+    if (!navElement) {
+      setMobileNavHeight(0);
+      return undefined;
+    }
+
+    let frameId: number | null = null;
+
+    const syncMobileNavHeight = () => {
+      const navDisplay = window.getComputedStyle(navElement).display;
+      const nextHeight =
+        navDisplay === 'none' ? 0 : Math.ceil(navElement.getBoundingClientRect().height);
+
+      setMobileNavHeight((currentHeight) =>
+        currentHeight === nextHeight ? currentHeight : nextHeight,
+      );
+    };
+
+    const scheduleSync = () => {
+      if (frameId !== null) {
+        return;
+      }
+
+      frameId = window.requestAnimationFrame(() => {
+        frameId = null;
+        syncMobileNavHeight();
+      });
+    };
+
+    syncMobileNavHeight();
+    window.addEventListener('resize', scheduleSync);
+
+    if (typeof ResizeObserver === 'undefined') {
+      return () => {
+        window.removeEventListener('resize', scheduleSync);
+
+        if (frameId !== null) {
+          window.cancelAnimationFrame(frameId);
+        }
+      };
+    }
+
+    const resizeObserver = new ResizeObserver(scheduleSync);
+    resizeObserver.observe(navElement);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', scheduleSync);
+
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
+  }, [showPaywall]);
+
+  useEffect(() => {
+    if (!isCompactViewport()) {
+      return undefined;
+    }
+
+    const sections: Array<{ id: MobileNavSectionId; element: HTMLElement | null }> = [
+      { id: 'compose', element: composeSectionRef.current },
+      { id: 'results', element: resultsSectionRef.current },
+      { id: 'examples', element: examplesSectionRef.current },
+    ];
+
+    const availableSections = sections.filter(
+      (section): section is { id: MobileNavSectionId; element: HTMLElement } =>
+        section.element instanceof HTMLElement,
+    );
+
+    if (availableSections.length === 0) {
+      return undefined;
+    }
+
+    let frameId: number | null = null;
+
+    const syncActiveSectionFromScroll = () => {
+      frameId = null;
+
+      if (Date.now() < mobileNavSuppressUntilRef.current) {
+        return;
+      }
+
+      const probeY = window.innerHeight * 0.38;
+      let nearestSection: MobileNavSectionId = availableSections[0].id;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+
+      availableSections.forEach((section) => {
+        const distance = Math.abs(section.element.getBoundingClientRect().top - probeY);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestSection = section.id;
+        }
+      });
+
+      setActiveMobileSection((currentSection) =>
+        currentSection === nearestSection ? currentSection : nearestSection,
+      );
+    };
+
+    const handleScroll = () => {
+      if (frameId !== null) {
+        return;
+      }
+
+      frameId = window.requestAnimationFrame(syncActiveSectionFromScroll);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll);
+    handleScroll();
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
+  }, []);
+
+  function closePaywall() {
+    setShowPaywall(false);
+    setCheckoutPlan(null);
+    setCheckoutSession(null);
+    setCheckoutError(null);
+  }
+
+  function resetCheckoutSelection() {
+    setCheckoutSession(null);
+    setCheckoutError(null);
+  }
+
   function openPaywall() {
     setShowPaywall(true);
+    setCheckoutSession(null);
     setCheckoutError(null);
     trackEvent('paywall_open', {
       used: freeUsed,
@@ -622,13 +1080,17 @@ export default function Home() {
   }
 
   async function handleCheckout(plan: CheckoutPlan) {
+    setShowPaywall(true);
+
     if (!authToken) {
       setCheckoutError(AUTH_ERROR_MESSAGE);
       return;
     }
 
     setCheckoutPlan(plan);
+    setCheckoutSession(null);
     setCheckoutError(null);
+    setPaymentNotice(null);
 
     trackEvent('checkout_started', { plan });
 
@@ -642,15 +1104,20 @@ export default function Home() {
       });
 
       const data = (await response.json()) as {
+        clientSecret?: string;
         error?: string;
-        url?: string;
+        sessionId?: string;
       };
 
-      if (!response.ok || !data.url) {
-        throw new Error(data.error ?? 'לא הצלחנו לפתוח עמוד תשלום. נסה שוב.');
+      if (!response.ok || !data.clientSecret || !data.sessionId) {
+        throw new Error(data.error ?? 'לא הצלחנו לטעון את טופס התשלום. נסה שוב.');
       }
 
-      window.location.assign(data.url);
+      setCheckoutSession({
+        clientSecret: data.clientSecret,
+        sessionId: data.sessionId,
+        plan,
+      });
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'משהו השתבש בחיבור לתשלום.';
@@ -659,6 +1126,14 @@ export default function Home() {
     } finally {
       setCheckoutPlan(null);
     }
+  }
+
+  async function handlePaymentCompleted() {
+    if (!checkoutSession) {
+      return;
+    }
+
+    await finalizeSuccessfulCheckout(checkoutSession.plan);
   }
 
   async function runGeneration(
@@ -683,6 +1158,7 @@ export default function Home() {
       action: payload.action ?? 'initial',
       context: payload.context,
       tone: payload.tone,
+      continue_preference: payload.continuePreference ?? 'unspecified',
       has_image: Boolean(payload.imageBase64),
       has_text: Boolean(payload.message.trim()),
     });
@@ -752,6 +1228,12 @@ export default function Home() {
         intent: nextIntent,
         replies: nextReplies.slice(0, 3),
       });
+
+      if (isCompactViewport()) {
+        window.requestAnimationFrame(() => {
+          scrollToMobileSection('results', { source: 'system' });
+        });
+      }
     } catch (error) {
       setRequestError(
         error instanceof Error ? error.message : 'משהו השתבש. נסה שוב בעוד רגע.',
@@ -767,6 +1249,13 @@ export default function Home() {
 
     if (!trimmedMessage && !imageBase64) {
       setRequestError('צריך להדביק הודעה או להעלות צילום מסך כדי לייצר תשובה.');
+
+      if (isCompactViewport()) {
+        scrollToMobileSection('compose', { source: 'system' });
+      } else {
+        messageInputRef.current?.focus();
+      }
+
       return;
     }
 
@@ -775,6 +1264,7 @@ export default function Home() {
       imageBase64,
       context,
       tone,
+      continuePreference,
     });
   }
 
@@ -791,6 +1281,7 @@ export default function Home() {
         imageBase64,
         context,
         tone,
+        continuePreference,
         action,
         sourceReply: result.replies[index],
       },
@@ -841,14 +1332,22 @@ export default function Home() {
     setMessage(scenario.message);
     setContext(scenario.context);
     setTone(scenario.tone);
+    setContinuePreference(scenario.continuePreference ?? null);
     setRequestError(null);
     setResult(null);
+
+    if (isCompactViewport()) {
+      window.requestAnimationFrame(() => {
+        scrollToMobileSection('compose', { source: 'system' });
+      });
+    }
   }
 
   return (
     <main
       dir="rtl"
-      className="min-h-screen bg-[#111111] px-3 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-3 text-right text-black sm:px-6 sm:py-6 sm:pb-6"
+      className="min-h-screen overflow-x-clip bg-[#111111] px-3 pb-0 pt-3 text-right text-black sm:px-6 sm:py-6 sm:pb-6"
+      style={mobileNavHeight > 0 ? { paddingBottom: `${mobileNavHeight}px` } : undefined}
     >
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-5">
         <section className="overflow-hidden rounded-[30px] border-2 border-black bg-[#f7ff4f] shadow-[0_10px_0_0_#ff623d] sm:rounded-[36px] sm:shadow-[0_12px_0_0_#ff623d]">
@@ -920,38 +1419,46 @@ export default function Home() {
         ) : null}
 
         <section className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-5">
-          <div className="space-y-5 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]">
+          <div
+            ref={composeSectionRef}
+            id="compose-section"
+            className="mobile-section-anchor space-y-4 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]"
+          >
             <div className="space-y-2">
+              <p className="inline-flex min-h-[32px] items-center rounded-full border-2 border-black bg-white px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-[#ff623d] lg:hidden">
+                {mobileSectionNavItems[0].stepLabel}
+              </p>
               <h2 className="text-2xl font-black text-black sm:text-3xl">תן את ההודעה. אנחנו נביא את הניסוח.</h2>
               <p className="text-sm font-bold leading-6 text-neutral-700">
-                אפשר להדביק הודעה, להעלות צילום מסך, או לשלב ביניהם.
+                אפשר להדביק הודעה, להעלות צילום מסך, ואז לדייק את התשובה לפי הסיטואציה, הסגנון והכיוון שלך.
               </p>
             </div>
 
-            <label className="block space-y-2">
-              <span className="text-sm font-black text-neutral-900">מה שלחו לך?</span>
-              <textarea
-                value={message}
-                onChange={(event) => setMessage(event.target.value)}
-                placeholder="למשל: היי, ראיתי את ההודעה שלך. מתאים לך לדבר אחר כך?"
-                className={`min-h-36 w-full rounded-[26px] border-2 border-black bg-white px-4 py-4 text-base leading-7 font-medium text-black outline-none transition placeholder:text-neutral-400 focus:-translate-y-0.5 focus:bg-[#fffdf6] sm:min-h-40 sm:rounded-[28px] ${lightSurfaceFocusClass}`}
-              />
-            </label>
-
-            <div className="space-y-3 rounded-[28px] border-2 border-dashed border-black bg-[#fff6d8] p-4">
+            <div className="space-y-4 rounded-[28px] border-2 border-black bg-white p-4 sm:p-5">
               <div className="flex flex-col items-start justify-between gap-3 min-[430px]:flex-row min-[430px]:items-center">
                 <div>
-                  <p className="text-sm font-black text-black">או צילום מסך של הצ&apos;אט</p>
-                  <p className="text-xs font-bold text-neutral-700">נוח במיוחד לוואטסאפ ואינסטגרם</p>
+                  <label htmlFor="incoming-message" className="text-sm font-black text-neutral-900">
+                    מה שלחו לך?
+                  </label>
+                  <p className="text-xs font-bold text-neutral-700">הדבק הודעה או העלה צילום מסך של הצ&apos;אט</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className={`min-h-[44px] rounded-full border-2 border-black bg-white px-4 py-2 text-sm font-black text-black ${lightSurfaceFocusClass}`}
+                  className={`min-h-[44px] rounded-full border-2 border-black bg-[#fff6d8] px-4 py-2 text-sm font-black text-black ${lightSurfaceFocusClass}`}
                 >
                   העלה צילום
                 </button>
               </div>
+
+              <textarea
+                id="incoming-message"
+                ref={messageInputRef}
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                placeholder="למשל: היי, ראיתי את ההודעה שלך. מתאים לך לדבר אחר כך?"
+                className={`min-h-36 w-full rounded-[24px] border-2 border-black bg-[#f9f9f9] px-4 py-4 text-base leading-7 font-medium text-black outline-none transition placeholder:text-neutral-400 focus:-translate-y-0.5 focus:bg-[#fffdf6] sm:min-h-40 sm:rounded-[26px] ${lightSurfaceFocusClass}`}
+              />
 
               <input
                 ref={fileInputRef}
@@ -962,10 +1469,10 @@ export default function Home() {
               />
 
               {imageName ? (
-                <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border-2 border-black bg-white px-4 py-3 min-[430px]:flex-row min-[430px]:items-center">
+                <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border-2 border-black bg-[#fff6d8] px-4 py-3 min-[430px]:flex-row min-[430px]:items-center">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-black text-black">{imageName}</p>
-                    <p className="text-xs font-bold text-neutral-600">התמונה מוכנה לשליחה</p>
+                    <p className="text-xs font-bold text-neutral-700">התמונה מוכנה לשליחה</p>
                   </div>
                   <button
                     type="button"
@@ -980,32 +1487,77 @@ export default function Home() {
               {imageError ? <p className="text-sm font-bold text-[#c23318]">{imageError}</p> : null}
             </div>
 
-            <ChipGroup
-              title="מה הסיטואציה?"
-              options={contextOptions}
-              value={context}
-              onChange={setContext}
-            />
+            <div className="grid gap-2.5 sm:gap-3">
+              <ChipGroup
+                title="מה הסיטואציה?"
+                description="זה עוזר לנו לבחור ניסוח שמתאים לדינמיקה."
+                options={contextOptions}
+                value={context}
+                onChange={(nextValue) => {
+                  if (nextValue) {
+                    setContext(nextValue);
+                  }
+                }}
+              />
 
-            <ChipGroup
-              title="איזה vibe אתה רוצה?"
-              options={toneOptions}
-              value={tone}
-              onChange={setTone}
-            />
+              <ChipGroup
+                title="איך בא לך לענות?"
+                description="האנרגיה הכללית של התשובה."
+                options={toneOptions}
+                value={tone}
+                onChange={(nextValue) => {
+                  if (nextValue) {
+                    setTone(nextValue);
+                  }
+                }}
+              />
+
+              <ChipGroup
+                title="מסכים/ה עם מה שנאמר?"
+                description="שאלה כללית וברורה: כן אם מסכימים, לא אם לא."
+                options={continuePreferenceOptions}
+                value={continuePreference}
+                onChange={setContinuePreference}
+                helperText={
+                  continuePreference
+                    ? 'בחרת אם כן או לא. אפשר לשנות בכל רגע.'
+                    : 'אפשר להשאיר ריק.'
+                }
+                optional
+                allowEmpty
+              />
+            </div>
 
             <div className="hidden sm:flex sm:flex-row sm:items-center sm:justify-between sm:gap-3">
               <button
                 type="button"
                 onClick={handleMainSubmit}
                 disabled={isGenerating || !isSessionReady}
-                className={`min-h-[52px] rounded-[24px] border-2 border-black bg-[#ff623d] px-5 py-4 text-base font-black text-white shadow-[0_8px_0_0_#111111] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto ${lightSurfaceFocusClass}`}
+                className={`inline-flex min-h-[56px] items-center justify-center gap-2 rounded-[26px] border-2 border-black bg-gradient-to-b from-[#ff7a56] to-[#ff623d] px-6 py-3 text-base font-black text-white shadow-[0_8px_0_0_#111111] transition duration-150 hover:-translate-y-0.5 hover:shadow-[0_10px_0_0_#111111] active:translate-y-0 active:shadow-[0_5px_0_0_#111111] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto ${lightSurfaceFocusClass}`}
               >
+                <span className="rounded-full border-2 border-black bg-[#f7ff4f] px-2 py-0.5 text-[0.64rem] font-black uppercase tracking-[0.12em] text-black">
+                  שלב 1
+                </span>
                 {generateButtonLabel}
               </button>
               <div className="flex flex-wrap items-center justify-end gap-3 text-sm font-bold text-neutral-700">
                 <p>{usageSummary}</p>
               </div>
+            </div>
+
+            <div className="space-y-2.5 sm:hidden">
+              <button
+                type="button"
+                onClick={handleMainSubmit}
+                disabled={isGenerating || !isSessionReady}
+                className={`inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-[26px] border-2 border-black bg-gradient-to-b from-[#ff7a56] to-[#ff623d] px-5 py-3 text-base font-black text-white shadow-[0_8px_0_0_#111111] transition duration-150 active:translate-y-0 active:shadow-[0_5px_0_0_#111111] disabled:cursor-not-allowed disabled:opacity-60 ${lightSurfaceFocusClass}`}
+              >
+                <span className="rounded-full border-2 border-black bg-[#f7ff4f] px-2 py-0.5 text-[0.64rem] font-black uppercase tracking-[0.12em] text-black">
+                  שלב 1
+                </span>
+                {generateButtonLabel}
+              </button>
+              <p className="text-xs font-black text-neutral-700">{mobileUsageSummary}</p>
             </div>
 
             {requestError ? (
@@ -1015,28 +1567,57 @@ export default function Home() {
             ) : null}
           </div>
 
-          <div className="space-y-5 rounded-[30px] border-2 border-black bg-white p-4 shadow-[0_10px_0_0_#6ce8ff] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#6ce8ff]">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div
+            ref={resultsSectionRef}
+            id="results-section"
+            className="mobile-section-anchor space-y-4 rounded-[30px] border-2 border-black bg-white p-3.5 shadow-[0_10px_0_0_#6ce8ff] sm:rounded-[36px] sm:p-5 sm:shadow-[0_12px_0_0_#6ce8ff]"
+          >
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
               <div>
+                <p className="inline-flex min-h-[32px] items-center rounded-full border-2 border-black bg-[#d7f9ff] px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-black lg:hidden">
+                  {mobileSectionNavItems[1].stepLabel}
+                </p>
                 <h2 className="text-2xl font-black text-black sm:text-3xl">מה כנראה באמת קורה פה</h2>
-                <p className="mt-2 text-sm font-bold leading-6 text-neutral-700">
+                <p className="mt-1.5 text-sm font-bold leading-6 text-neutral-700">
                   הסבר קצר ואז תשובות שמוכנות להעתקה.
                 </p>
               </div>
-              <span className="rounded-full border-2 border-black bg-[#d7f9ff] px-3 py-2 text-xs font-black text-black">
-                מוכן לוואטסאפ
-              </span>
+              <div className="flex flex-col items-start gap-2 sm:items-end">
+                <span className="rounded-full border-2 border-black bg-[#d7f9ff] px-3 py-2 text-xs font-black text-black">
+                  מוכן לוואטסאפ
+                </span>
+                <div className="flex items-center gap-2 sm:hidden">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      scrollToMobileSection('compose', { source: 'navigation' })
+                    }
+                    className={`min-h-[36px] rounded-full border-2 border-black bg-white px-3 py-1 text-[0.72rem] font-black text-black ${lightSurfaceFocusClass}`}
+                  >
+                    לטופס
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      scrollToMobileSection('examples', { source: 'navigation' })
+                    }
+                    className={`min-h-[36px] rounded-full border-2 border-black bg-[#fff6d8] px-3 py-1 text-[0.72rem] font-black text-black ${lightSurfaceFocusClass}`}
+                  >
+                    לדוגמאות
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div aria-live="polite" aria-busy={isGenerating} className="space-y-4">
+            <div aria-live="polite" aria-busy={isGenerating} className="space-y-3">
               {result ? (
-                <div className="space-y-4">
-                <div className="rounded-[28px] border-2 border-black bg-[#fff6d8] p-5 shadow-[0_8px_0_0_#111111]">
+                <div className="space-y-3">
+                <div className="rounded-[26px] border-2 border-black bg-[#fff6d8] p-4 shadow-[0_8px_0_0_#111111]">
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-600">הכוונה שלהם כנראה</p>
-                  <p className="mt-3 text-base font-bold leading-7 text-black">{result.intent}</p>
+                  <p className="mt-2 text-base font-bold leading-7 text-black">{result.intent}</p>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {result.replies.map((reply, index) => (
                     <ReplyCard
                       key={`${index}-${reply}`}
@@ -1057,8 +1638,8 @@ export default function Home() {
                     <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-500">עוד שניה זה מתמלא</p>
                     <h3 className="mt-3 text-2xl font-black text-black">3 תשובות קצרות, בלי עברית רובוטית</h3>
                     <p className="mt-3 max-w-md text-sm font-bold leading-6 text-neutral-700">
-                      בחר סיטואציה, בחר טון, ותן לנו לנסח עבורך תשובות שמרגישות טבעי,
-                      קצר, ומדויק.
+                      בחר סיטואציה, בחר סגנון, ואם בא לך גם סמן אם מתאים להמשיך.
+                      משם ננסח עבורך תשובות שמרגישות טבעי, קצר ומדויק.
                     </p>
                   </div>
 
@@ -1073,9 +1654,16 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="rounded-[30px] border-2 border-black bg-[#ff623d] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]">
+        <section
+          ref={examplesSectionRef}
+          id="examples-section"
+          className="mobile-section-anchor rounded-[30px] border-2 border-black bg-[#ff623d] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]"
+        >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
+              <p className="inline-flex min-h-[32px] items-center rounded-full border-2 border-black bg-white px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-[#ff623d] lg:hidden">
+                {mobileSectionNavItems[2].stepLabel}
+              </p>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-white/80">דוגמאות פתיחה</p>
               <h2 className="mt-2 text-2xl font-black text-white sm:text-3xl">4 מצבים שמכירים מהחיים</h2>
             </div>
@@ -1084,7 +1672,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="-mx-1 mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-1 pb-1 md:mx-0 md:grid md:overflow-visible md:px-0 md:pb-0 md:[grid-template-columns:repeat(2,minmax(0,1fr))] xl:[grid-template-columns:repeat(4,minmax(0,1fr))]">
+          <div className="mt-5 grid gap-4 md:[grid-template-columns:repeat(2,minmax(0,1fr))] xl:[grid-template-columns:repeat(4,minmax(0,1fr))]">
             {examples.map((scenario) => (
               <ExampleCard
                 key={scenario.title}
@@ -1095,29 +1683,33 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]">
+        <section
+          ref={plansSectionRef}
+          id="plans-section"
+          className="mobile-section-anchor rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]"
+        >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-[#ff623d]">תשלום</p>
               <h2 className="mt-2 text-2xl font-black text-black sm:text-3xl">פותחים עוד תשובות</h2>
             </div>
             <p className="max-w-xl text-sm font-bold leading-6 text-neutral-700">
-              תשלום מאובטח דרך Stripe. במסך התשלום, במכשיר תומך, יופיעו גם Apple Pay ו-Google Pay.
+              התשלום נטען בתוך האתר שלך, בעברית, עם Stripe מאובטח. במכשיר תומך יופיעו גם Apple Pay ו-Google Pay.
             </p>
           </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <div className="rounded-[24px] border-2 border-black bg-white p-5">
-              <h3 className="text-xl font-black text-black">50 שימושים (עד 150 תשובות)</h3>
-              <p className="mt-2 text-sm font-bold text-neutral-700">3 תשובות בכל שימוש. תשלום חד-פעמי, בלי התחייבות.</p>
-              <p className="mt-4 text-3xl font-black text-black">9.90₪</p>
+              <h3 className="text-xl font-black text-black">{CREDIT_PACK_TITLE}</h3>
+              <p className="mt-2 text-sm font-bold text-neutral-700">{CREDIT_PACK_DESCRIPTION}</p>
+              <p className="mt-4 text-3xl font-black text-black">{CREDIT_PACK_PRICE_LABEL}</p>
               <button
                 type="button"
                 onClick={() => handleCheckout('credits_50')}
                 disabled={checkoutPlan !== null || !isSessionReady}
                 className={`mt-4 min-h-[48px] w-full rounded-2xl border-2 border-black bg-[#f7ff4f] px-4 py-3 text-sm font-black text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 ${lightSurfaceFocusClass}`}
               >
-                {checkoutPlan === 'credits_50' ? 'מעביר לתשלום מאובטח...' : 'לקנות 50 שימושים'}
+                {checkoutPlan === 'credits_50' ? 'טוען טופס תשלום...' : CREDIT_PACK_CTA}
               </button>
             </div>
 
@@ -1135,7 +1727,7 @@ export default function Home() {
                 className={`mt-4 min-h-[48px] w-full rounded-2xl border-2 border-white bg-[#ff623d] px-4 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 ${darkSurfaceFocusClass}`}
               >
                 {checkoutPlan === 'unlimited_monthly'
-                  ? 'מעביר לתשלום מאובטח...'
+                  ? 'טוען טופס תשלום...'
                   : 'לפתוח ללא הגבלה'}
               </button>
             </div>
@@ -1150,43 +1742,60 @@ export default function Home() {
       </div>
 
       {!showPaywall ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-black bg-[#fff9ef]/95 backdrop-blur sm:hidden">
-          <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-            <button
-              type="button"
-              onClick={handleMainSubmit}
-              disabled={isGenerating || !isSessionReady}
-              className={`min-h-[52px] w-full rounded-2xl border-2 border-black bg-[#ff623d] px-4 py-3 text-base font-black text-white shadow-[0_6px_0_0_#111111] transition disabled:cursor-not-allowed disabled:opacity-60 ${lightSurfaceFocusClass}`}
-            >
-              {generateButtonLabel}
-            </button>
-            <div className="flex items-center justify-between gap-3">
-              <p className="min-w-0 flex-1 text-xs leading-5 font-black text-neutral-700">
-                {mobileUsageSummary}
-              </p>
-              {!hasUnlimitedAccess ? (
+        <div
+          ref={mobileNavRef}
+          className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-black bg-[#fff9ef]/95 backdrop-blur sm:hidden"
+        >
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-2.5 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+            <nav aria-label="ניווט מהיר במובייל" className="grid grid-cols-3 gap-2">
+              {mobileSectionNavItems.map((item) => {
+                const isActive = activeMobileSection === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() =>
+                      scrollToMobileSection(item.id, { source: 'navigation' })
+                    }
+                    aria-pressed={isActive}
+                    className={[
+                      `min-h-[40px] rounded-[14px] border-2 px-2 py-1.5 text-center text-[0.68rem] font-black leading-4 transition touch-manipulation ${lightSurfaceFocusClass}`,
+                      isActive
+                        ? 'border-black bg-[#111111] text-[#f7ff4f]'
+                        : 'border-black bg-white text-black',
+                    ].join(' ')}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </nav>
+
+            {result ? (
+              <div className="flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  onClick={openPaywall}
-                  aria-haspopup="dialog"
-                  aria-controls="paywall-dialog"
-                  className={`min-h-[44px] shrink-0 rounded-full border-2 border-black bg-white px-3 py-1.5 text-[0.7rem] font-black text-black ${lightSurfaceFocusClass}`}
+                  onClick={() => scrollToMobileSection('results', { source: 'navigation' })}
+                  className={`min-h-[44px] rounded-full border-2 border-black bg-[#d7f9ff] px-3 py-1.5 text-[0.72rem] font-black text-black ${lightSurfaceFocusClass}`}
                 >
-                  מסלולים
+                  לתוצאות
                 </button>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
 
       <PaywallModal
         open={showPaywall}
-        onClose={() => setShowPaywall(false)}
+        onClose={closePaywall}
         onSelectPlan={handleCheckout}
+        onResetCheckout={resetCheckoutSelection}
+        onPaymentCompleted={handlePaymentCompleted}
         isCheckoutLoading={checkoutPlan !== null || !isSessionReady}
         checkoutPlan={checkoutPlan}
         checkoutError={checkoutError}
+        checkoutSession={checkoutSession}
       />
     </main>
   );

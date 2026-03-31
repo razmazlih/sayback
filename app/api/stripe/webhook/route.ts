@@ -7,6 +7,12 @@ import {
   setStripeCustomerId,
   syncSubscriptionState,
 } from "@/lib/billing";
+import {
+  CREDIT_PACK_CURRENCY,
+  CREDIT_PACK_PLAN_ID,
+  CREDIT_PACK_PRICE_AGOROT,
+  hasExpectedCreditPackMetadata,
+} from "@/lib/pricing";
 import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -70,7 +76,18 @@ export async function POST(request: Request) {
           await setStripeCustomerId(uid, stripeCustomerId);
         }
 
-        if (plan === "credits_50" && uid && session.id) {
+        if (plan === CREDIT_PACK_PLAN_ID && uid && session.id) {
+          if (!isExpectedCreditPackSession(session)) {
+            console.error("Credit pack checkout data mismatch. Skipping grant.", {
+              sessionId: session.id,
+              amountTotal:
+                typeof session.amount_total === "number" ? session.amount_total : null,
+              currency: readString(session.currency),
+              metadata: session.metadata ?? null,
+            });
+            break;
+          }
+
           await applyCreditPackPurchase({
             uid,
             sessionId: session.id,
@@ -155,6 +172,20 @@ export async function POST(request: Request) {
 
 function readString(value: unknown) {
   return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function isExpectedCreditPackSession(session: Stripe.Checkout.Session) {
+  const currency = readString(session.currency)?.toLowerCase() ?? null;
+  const isExpectedAmount =
+    typeof session.amount_total === "number" &&
+    Number.isFinite(session.amount_total) &&
+    Math.floor(session.amount_total) === CREDIT_PACK_PRICE_AGOROT;
+
+  return (
+    isExpectedAmount &&
+    currency === CREDIT_PACK_CURRENCY &&
+    hasExpectedCreditPackMetadata(session.metadata)
+  );
 }
 
 function readEventObjectId(event: Stripe.Event) {
