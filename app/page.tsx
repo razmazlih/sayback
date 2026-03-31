@@ -63,6 +63,7 @@ type CheckoutSessionState = {
 };
 
 const FREE_LIMIT = 3;
+const MAX_IMAGE_UPLOAD_BYTES = 4 * 1024 * 1024;
 const AUTH_ERROR_MESSAGE = 'לא הצלחנו לזהות משתמש. רענן את הדף ונסה שוב.';
 const CREDIT_PACK_TITLE = `${CREDIT_PACK_USES} שימושים (עד ${CREDIT_PACK_MAX_REPLIES} תשובות)`;
 const CREDIT_PACK_DESCRIPTION = `${CREDIT_PACK_REPLIES_PER_USE} תשובות בכל שימוש. תשלום חד-פעמי, בלי התחייבות.`;
@@ -719,14 +720,27 @@ export default function Home() {
 
         if (!user) {
           setAuthToken(null);
+          setIsAuthReady(true);
           return;
         }
 
-        const nextToken = await user.getIdToken();
+        try {
+          const nextToken = await user.getIdToken();
 
-        if (!isCancelled) {
-          setAuthToken(nextToken);
-          setIsAuthReady(true);
+          if (!isCancelled) {
+            setAuthToken(nextToken);
+            setIsAuthReady(true);
+            setRequestError((currentError) =>
+              currentError === AUTH_ERROR_MESSAGE ? null : currentError,
+            );
+          }
+        } catch (error) {
+          if (!isCancelled) {
+            console.error('Firebase token refresh failed', error);
+            setAuthToken(null);
+            setRequestError(AUTH_ERROR_MESSAGE);
+            setIsAuthReady(true);
+          }
         }
       });
 
@@ -1293,6 +1307,22 @@ export default function Home() {
     const file = event.target.files?.[0];
 
     if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setImageError('אפשר להעלות רק קובצי תמונה.');
+      setImageBase64(null);
+      setImageName(null);
+      event.target.value = '';
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
+      setImageError('התמונה גדולה מדי. אפשר להעלות עד 4MB.');
+      setImageBase64(null);
+      setImageName(null);
+      event.target.value = '';
       return;
     }
 

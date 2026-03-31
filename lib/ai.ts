@@ -183,7 +183,7 @@ export async function generateReplies(
 
   if (!response.ok) {
     const upstreamMessage = payload.error?.message?.trim();
-    const status = response.status === 429 ? 429 : 502;
+    const status = mapOpenAIErrorStatus(response.status);
     throw new AIRequestError(
       upstreamMessage || "OpenAI request failed.",
       status,
@@ -563,6 +563,14 @@ function normalizeImage(value?: string): string | undefined {
   }
 
   return `data:image/png;base64,${normalized.replace(/\s+/g, "")}`;
+}
+
+function mapOpenAIErrorStatus(status: number) {
+  if (status === 400 || status === 413 || status === 429) {
+    return status;
+  }
+
+  return 502;
 }
 
 async function safeParseJson(response: Response): Promise<unknown> {

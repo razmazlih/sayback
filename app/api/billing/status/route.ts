@@ -2,6 +2,10 @@ import { requireAuthenticatedUser, UnauthorizedError } from "@/lib/auth";
 import { getBillingSnapshot } from "@/lib/billing";
 
 export const runtime = "nodejs";
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store",
+  "X-Content-Type-Options": "nosniff",
+} as const;
 
 export async function GET(request: Request) {
   try {
@@ -14,9 +18,7 @@ export async function GET(request: Request) {
       },
       {
         status: 200,
-        headers: {
-          "Cache-Control": "no-store",
-        },
+        headers: NO_STORE_HEADERS,
       },
     );
   } catch (error) {
@@ -27,9 +29,7 @@ export async function GET(request: Request) {
         },
         {
           status: error.status,
-          headers: {
-            "Cache-Control": "no-store",
-          },
+          headers: NO_STORE_HEADERS,
         },
       );
     }
@@ -42,9 +42,7 @@ export async function GET(request: Request) {
       },
       {
         status: 500,
-        headers: {
-          "Cache-Control": "no-store",
-        },
+        headers: NO_STORE_HEADERS,
       },
     );
   }

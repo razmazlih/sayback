@@ -8,6 +8,12 @@ import {
 
 export const runtime = "nodejs";
 
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store",
+  "X-Content-Type-Options": "nosniff",
+} as const;
+const JSON_CONTENT_TYPE = "application/json";
+
 interface GenerateRequestBody {
   message?: string;
   imageBase64?: string;
@@ -29,29 +35,28 @@ export async function POST(request: Request) {
     authenticatedUserUid = authenticatedUser.uid;
   } catch (error) {
     if (error instanceof UnauthorizedError) {
-      return Response.json(
+      return noStoreJson(
         {
           error: error.message,
         },
-        {
-          status: error.status,
-          headers: {
-            "Cache-Control": "no-store",
-          },
-        },
+        error.status,
       );
     }
 
-    return Response.json(
+    return noStoreJson(
       {
         error: "Unable to verify Firebase token.",
       },
+      500,
+    );
+  }
+
+  if (!hasJsonContentType(request)) {
+    return noStoreJson(
       {
-        status: 500,
-        headers: {
-          "Cache-Control": "no-store",
-        },
+        error: "Content-Type must be application/json.",
       },
+      415,
     );
   }
 
@@ -59,25 +64,21 @@ export async function POST(request: Request) {
     const parsed = await request.json();
 
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return Response.json(
+      return noStoreJson(
         {
           error: "Request body must be a JSON object.",
         },
-        {
-          status: 400,
-        },
+        400,
       );
     }
 
     body = parsed as GenerateRequestBody;
   } catch {
-    return Response.json(
+    return noStoreJson(
       {
         error: "Request body must be valid JSON.",
       },
-      {
-        status: 400,
-      },
+      400,
     );
   }
 
@@ -89,17 +90,12 @@ export async function POST(request: Request) {
     const access = await consumeGenerationAccess(authenticatedUserUid);
 
     if (!access.allowed) {
-      return Response.json(
+      return noStoreJson(
         {
           error: "No billing access is available for this account.",
           billing: access.snapshot,
         },
-        {
-          status: 402,
-          headers: {
-            "Cache-Control": "no-store",
-          },
-        },
+        402,
       );
     }
 
@@ -107,17 +103,12 @@ export async function POST(request: Request) {
     const result = await generateReplies(body);
     const billing = await getBillingSnapshot(authenticatedUserUid);
 
-    return Response.json(
+    return noStoreJson(
       {
         ...result,
         billing,
       },
-      {
-        status: 200,
-        headers: {
-          "Cache-Control": "no-store",
-        },
-      },
+      200,
     );
   } catch (error) {
     if (authenticatedUserUid && consumption) {
@@ -125,45 +116,42 @@ export async function POST(request: Request) {
     }
 
     if (error instanceof UnauthorizedError) {
-      return Response.json(
+      return noStoreJson(
         {
           error: error.message,
         },
-        {
-          status: error.status,
-          headers: {
-            "Cache-Control": "no-store",
-          },
-        },
+        error.status,
       );
     }
 
     if (error instanceof AIRequestError) {
-      return Response.json(
+      return noStoreJson(
         {
           error: error.message,
         },
-        {
-          status: error.status,
-          headers: {
-            "Cache-Control": "no-store",
-          },
-        },
+        error.status,
       );
     }
 
     console.error("Unhandled generate route error", error);
 
-    return Response.json(
+    return noStoreJson(
       {
         error: "Unexpected server error.",
       },
-      {
-        status: 500,
-        headers: {
-          "Cache-Control": "no-store",
-        },
-      },
+      500,
     );
   }
+}
+
+function hasJsonContentType(request: Request) {
+  const contentType = request.headers.get("content-type");
+  return typeof contentType === "string" && contentType.toLowerCase().includes(JSON_CONTENT_TYPE);
+}
+
+function noStoreJson(body: Record<string, unknown>, status: number) {
+  return Response.json(body, {
+    status,
+    headers: NO_STORE_HEADERS,
+  });
 }

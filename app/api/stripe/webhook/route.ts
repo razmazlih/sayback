@@ -16,6 +16,10 @@ import {
 import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
 
 export const runtime = "nodejs";
+const WEBHOOK_RESPONSE_HEADERS = {
+  "Cache-Control": "no-store",
+  "X-Content-Type-Options": "nosniff",
+} as const;
 
 export async function POST(request: Request) {
   const signature = request.headers.get("stripe-signature");
@@ -27,6 +31,7 @@ export async function POST(request: Request) {
       },
       {
         status: 400,
+        headers: WEBHOOK_RESPONSE_HEADERS,
       },
     );
   }
@@ -48,6 +53,7 @@ export async function POST(request: Request) {
       },
       {
         status: 400,
+        headers: WEBHOOK_RESPONSE_HEADERS,
       },
     );
   }
@@ -60,6 +66,7 @@ export async function POST(request: Request) {
       },
       {
         status: 200,
+        headers: WEBHOOK_RESPONSE_HEADERS,
       },
     );
   }
@@ -154,6 +161,7 @@ export async function POST(request: Request) {
       },
       {
         status: 200,
+        headers: WEBHOOK_RESPONSE_HEADERS,
       },
     );
   } catch (error) {
@@ -165,6 +173,7 @@ export async function POST(request: Request) {
       },
       {
         status: 500,
+        headers: WEBHOOK_RESPONSE_HEADERS,
       },
     );
   }

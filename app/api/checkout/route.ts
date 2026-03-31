@@ -17,7 +17,10 @@ interface CheckoutRequestBody {
 
 const JSON_HEADERS = {
   "Cache-Control": "no-store",
+  "X-Content-Type-Options": "nosniff",
 } as const;
+const JSON_CONTENT_TYPE = "application/json";
+const ABSOLUTE_HTTP_URL_PATTERN = /^https?:\/\//i;
 
 export async function POST(request: NextRequest) {
   let body: CheckoutRequestBody;
@@ -35,6 +38,15 @@ export async function POST(request: NextRequest) {
       );
     }
     throw error;
+  }
+
+  if (!hasJsonContentType(request)) {
+    return json(
+      {
+        error: "Content-Type must be application/json.",
+      },
+      415,
+    );
   }
 
   try {
@@ -165,14 +177,40 @@ export async function POST(request: NextRequest) {
 }
 
 function getRequestOrigin(request: NextRequest) {
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const configuredOrigin = readConfiguredSiteOrigin();
 
-  if (forwardedHost && forwardedProto) {
-    return `${forwardedProto}://${forwardedHost}`;
+  if (configuredOrigin) {
+    return configuredOrigin;
   }
 
   return request.nextUrl.origin;
+}
+
+function hasJsonContentType(request: Request) {
+  const contentType = request.headers.get("content-type");
+  return typeof contentType === "string" && contentType.toLowerCase().includes(JSON_CONTENT_TYPE);
+}
+
+function readConfiguredSiteOrigin() {
+  const candidate =
+    process.env.SITE_URL ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ??
+    process.env.VERCEL_URL;
+
+  if (!candidate) {
+    return null;
+  }
+
+  const normalized = ABSOLUTE_HTTP_URL_PATTERN.test(candidate)
+    ? candidate
+    : `https://${candidate}`;
+
+  try {
+    return new URL(normalized).origin;
+  } catch {
+    return null;
+  }
 }
 
 function json(body: Record<string, unknown>, status: number) {

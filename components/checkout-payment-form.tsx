@@ -27,6 +27,7 @@ type CheckoutPaymentFormProps = {
 
 type PaymentPath = 'wallet' | 'card';
 type WalletAvailability = 'unknown' | 'available' | 'unavailable';
+const WALLET_READY_TIMEOUT_MS = 4500;
 
 export function CheckoutPaymentForm({
   clientSecret,
@@ -90,6 +91,21 @@ function CheckoutPaymentFormInner({
     }
     setDidInitializeEmail(true);
   }, [checkoutState, didInitializeEmail]);
+
+  useEffect(() => {
+    if (paymentPath !== 'wallet' || walletAvailability !== 'unknown') {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setWalletAvailability('unavailable');
+      setPaymentPath('card');
+    }, WALLET_READY_TIMEOUT_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [paymentPath, walletAvailability]);
 
   async function confirmCheckout(args?: {
     expressCheckoutConfirmEvent?: StripeExpressCheckoutElementConfirmEvent;
@@ -329,7 +345,7 @@ function CheckoutPaymentFormInner({
 
       {paymentPath === 'wallet' && walletAvailability === 'unknown' ? (
         <div className="rounded-2xl border-2 border-black bg-white px-3 py-2 text-xs font-bold text-neutral-700">
-          בודקים זמינות Apple Pay / Google Pay במכשיר...
+          בודקים זמינות Apple Pay / Google Pay במכשיר. אם לא מזוהה ארנק נעבור אוטומטית לכרטיס אשראי.
         </div>
       ) : null}
 

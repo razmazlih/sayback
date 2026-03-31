@@ -5,7 +5,9 @@ export const runtime = "nodejs";
 
 const JSON_HEADERS = {
   "Cache-Control": "no-store",
+  "X-Content-Type-Options": "nosniff",
 } as const;
+const CHECKOUT_SESSION_ID_PATTERN = /^cs_(test|live)_[A-Za-z0-9]+$/;
 
 export async function GET(request: Request) {
   let authenticatedUser: Awaited<ReturnType<typeof requireAuthenticatedUser>> | null = null;
@@ -31,6 +33,15 @@ export async function GET(request: Request) {
     return json(
       {
         error: "session_id is required.",
+      },
+      400,
+    );
+  }
+
+  if (!CHECKOUT_SESSION_ID_PATTERN.test(sessionId)) {
+    return json(
+      {
+        error: "session_id format is invalid.",
       },
       400,
     );
