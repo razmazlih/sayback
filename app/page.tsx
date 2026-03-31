@@ -49,6 +49,9 @@ type BillingSnapshot = {
   freeLimit: number;
   freeUsed: number;
   freeRemaining: number;
+  dailyLimit: number;
+  dailyUsed: number;
+  dailyRemaining: number;
   credits: number;
   hasUnlimited: boolean;
   subscriptionStatus: string | null;
@@ -543,6 +546,8 @@ export default function Home() {
   const [requestError, setRequestError] = useState<string | null>(null);
   const [result, setResult] = useState<GenerateResponse | null>(null);
   const [freeUsed, setFreeUsed] = useState(0);
+  const [freeRemaining, setFreeRemaining] = useState(FREE_LIMIT);
+  const [dailyFreeRemaining, setDailyFreeRemaining] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [busyReplyIndex, setBusyReplyIndex] = useState<number | null>(null);
   const [copiedReplyIndex, setCopiedReplyIndex] = useState<number | null>(null);
@@ -562,9 +567,9 @@ export default function Home() {
   const hasUnlimitedAccess = paidPlan === 'unlimited_monthly';
   const hasCreditBalance = paidCredits > 0;
   const isSessionReady = isAuthReady && Boolean(authToken) && !isBillingLoading;
-  const freeRemaining = useMemo(
-    () => Math.max(FREE_LIMIT - freeUsed, 0),
-    [freeUsed],
+  const totalFreeRemaining = useMemo(
+    () => Math.max(freeRemaining + dailyFreeRemaining, 0),
+    [dailyFreeRemaining, freeRemaining],
   );
   const isGenerating = isLoading || busyReplyIndex !== null;
   const generateButtonLabel = !isSessionReady
@@ -576,12 +581,16 @@ export default function Home() {
     ? 'מסלול ללא הגבלה פעיל'
     : hasCreditBalance
       ? `נשארו לך ${paidCredits} שימושים בחבילה`
-      : `נשארו לך ${freeRemaining} פניות חינם`;
+      : totalFreeRemaining > 0
+        ? `נשארו לך ${totalFreeRemaining} פניות חינם`
+        : 'נגמרה המכסה החינמית';
   const mobileUsageSummary = hasUnlimitedAccess
     ? 'ללא הגבלה פעיל'
     : hasCreditBalance
       ? `${paidCredits} שימושים נשארו`
-      : `${freeRemaining} פניות חינם נשארו`;
+      : totalFreeRemaining > 0
+        ? `${totalFreeRemaining} פניות חינם נשארו`
+        : 'המכסה החינמית הסתיימה';
 
   const scrollToMobileSection = useCallback(
     (
@@ -631,6 +640,8 @@ export default function Home() {
 
   const applyBillingSnapshot = useCallback((billing: BillingSnapshot) => {
     setFreeUsed(Math.max(0, Math.floor(billing.freeUsed)));
+    setFreeRemaining(Math.max(0, Math.floor(billing.freeRemaining)));
+    setDailyFreeRemaining(Math.max(0, Math.floor(billing.dailyRemaining)));
     setPaidCredits(Math.max(0, Math.floor(billing.credits)));
 
     if (billing.hasUnlimited) {
@@ -1089,7 +1100,8 @@ export default function Home() {
     setCheckoutError(null);
     trackEvent('paywall_open', {
       used: freeUsed,
-      remaining: freeRemaining,
+      remaining: totalFreeRemaining,
+      daily_remaining: dailyFreeRemaining,
     });
   }
 
@@ -1419,9 +1431,15 @@ export default function Home() {
                     </>
                   ) : (
                     <>
-                      <p className="text-xs font-black text-neutral-600">חינם</p>
-                      <p className="mt-2 text-3xl font-black text-black">{freeRemaining}</p>
-                      <p className="text-sm font-bold text-neutral-700">מתוך 3 פניות</p>
+                      <p className="text-xs font-black text-neutral-600">
+                        {dailyFreeRemaining > 0 && freeRemaining === 0 ? 'יתרה יומית' : 'חינם'}
+                      </p>
+                      <p className="mt-2 text-3xl font-black text-black">{totalFreeRemaining}</p>
+                      <p className="text-sm font-bold text-neutral-700">
+                        {dailyFreeRemaining > 0 && freeRemaining === 0
+                          ? 'פנייה חינמית מתחדשת כל יום'
+                          : `מתוך ${FREE_LIMIT} פניות`}
+                      </p>
                     </>
                   )}
                 </div>

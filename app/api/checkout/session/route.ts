@@ -2,10 +2,12 @@ import { requireAuthenticatedUser, UnauthorizedError } from "@/lib/auth";
 import { StripeConfigError, getStripe, isCheckoutPlan } from "@/lib/stripe";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const JSON_HEADERS = {
   "Cache-Control": "no-store",
   "X-Content-Type-Options": "nosniff",
+  Vary: "Authorization",
 } as const;
 const CHECKOUT_SESSION_ID_PATTERN = /^cs_(test|live)_[A-Za-z0-9]+$/;
 

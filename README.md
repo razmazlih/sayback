@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SayBack
 
-## Getting Started
+Next.js 16 (App Router) app for generating Hebrew reply suggestions with OpenAI, Firebase auth, and Stripe billing.
 
-First, run the development server:
+## Requirements
+
+- Node.js 20+
+- npm 10+
+- Firebase project (client + admin credentials)
+- Stripe account (secret key, publishable key, webhook secret)
+- OpenAI API key
+
+## Setup
+
+1. Copy `.env.example` to `.env.local`.
+2. Fill all required environment variables.
+
+## Local Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Production Readiness Checks
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run check
+```
 
-## Learn More
+This runs:
 
-To learn more about Next.js, take a look at the following resources:
+- `lint`
+- `typecheck`
+- `build`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deploy (Vercel)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Preview:
 
-## Deploy on Vercel
+```bash
+vercel deploy -y
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Production:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+vercel deploy --prod -y
+```
+
+## Stripe Webhook
+
+The app expects a webhook route at:
+
+- `/api/stripe/webhook`
+
+Configure Stripe to send at least:
+
+- `checkout.session.completed`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+
+## Notes
+
+- API routes are configured for `no-store` responses.
+- Checkout return URLs prefer `SITE_URL`/`NEXT_PUBLIC_SITE_URL` when configured.
+- Security headers are set in `next.config.ts`.

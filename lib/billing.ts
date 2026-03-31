@@ -7,6 +7,7 @@ export const CREDIT_PACK_SIZE = CREDIT_PACK_USES;
 export const CREDIT_PACK_BASE_AMOUNT = CREDIT_PACK_PRICE_AGOROT;
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due"]);
+const STRIPE_EVENT_LOCK_TTL_MS = 2 * 60 * 1000;
 
 type ConsumptionKind = "initial_free" | "daily_free" | "credits" | "unlimited";
 
@@ -70,7 +71,7 @@ function getDailyUsageDate(value = new Date()) {
 }
 
 function readString(value: unknown) {
-  return typeof value === "string" && value.trim().length > 0 ? value : null;
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
 function readNumber(value: unknown) {
@@ -305,16 +306,24 @@ export async function setStripeCustomerId(
   uid: string,
   stripeCustomerId: string,
 ): Promise<void> {
+  const firestore = await getFirestore();
   const ref = await getBillingDocRef(uid);
+  await firestore.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const currentDocument = normalizeBillingDocument(
+      snapshot.exists ? snapshot.data() : undefined,
+    );
 
-  await (ref as { set: (data: unknown, options?: unknown) => Promise<void> }).set(
-    {
-      stripeCustomerId,
-      updatedAt: nowIso(),
-      createdAt: nowIso(),
-    },
-    { merge: true },
-  );
+    transaction.set(
+      ref,
+      {
+        stripeCustomerId,
+        updatedAt: nowIso(),
+        createdAt: currentDocument.createdAt,
+      },
+      { merge: true },
+    );
+  });
 }
 
 export async function findUserIdByStripeCustomerId(
@@ -411,30 +420,102 @@ export async function syncSubscriptionState(params: {
   subscriptionId: string;
   subscriptionStatus: string | null;
 }): Promise<BillingSnapshot> {
+  const firestore = await getFirestore();
   const ref = await getBillingDocRef(params.uid);
   const hasUnlimited = isUnlimitedStatus(params.subscriptionStatus);
+  await firestore.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const currentDocument = normalizeBillingDocument(
+      snapshot.exists ? snapshot.data() : undefined,
+    );
 
-  await (ref as { set: (data: unknown, options?: unknown) => Promise<void> }).set(
-    {
-      stripeCustomerId: params.stripeCustomerId,
-      subscriptionId: params.subscriptionId,
-      subscriptionStatus: params.subscriptionStatus,
-      unlimited: hasUnlimited,
-      updatedAt: nowIso(),
-      createdAt: nowIso(),
-    },
-    { merge: true },
-  );
+    transaction.set(
+      ref,
+      {
+        stripeCustomerId: params.stripeCustomerId,
+        subscriptionId: params.subscriptionId,
+        subscriptionStatus: params.subscriptionStatus,
+        unlimited: hasUnlimited,
+        updatedAt: nowIso(),
+        createdAt: currentDocument.createdAt,
+      },
+      { merge: true },
+    );
+  });
 
   return getBillingSnapshot(params.uid);
 }
 
 export async function hasProcessedStripeEvent(eventId: string): Promise<boolean> {
   const ref = await getStripeEventDocRef(eventId);
-  const snapshot = (await (ref as { get: () => Promise<{ exists: boolean }> }).get()) as {
+  const snapshot = (await (ref as { get: () => Promise<{ exists: boolean; data: () => unknown }> }).get()) as {
     exists: boolean;
+    data: () => unknown;
   };
-  return snapshot.exists;
+
+  if (!snapshot.exists) {
+    return false;
+  }
+
+  const data = (snapshot.data() ?? {}) as {
+    status?: unknown;
+    processedAt?: unknown;
+  };
+
+  return readString(data.status) === "processed" || Boolean(readString(data.processedAt));
+}
+
+export async function acquireStripeEventProcessing(params: {
+  eventId: string;
+  type: string;
+  objectId: string | null;
+}): Promise<"acquired" | "already_processed" | "in_progress"> {
+  const firestore = await getFirestore();
+  const ref = await getStripeEventDocRef(params.eventId);
+  const now = Date.now();
+  const nowValue = new Date(now).toISOString();
+  const lockExpiresAt = new Date(now + STRIPE_EVENT_LOCK_TTL_MS).toISOString();
+
+  return firestore.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+
+    if (snapshot.exists) {
+      const data = (snapshot.data() ?? {}) as {
+        status?: unknown;
+        lockExpiresAt?: unknown;
+      };
+      const status = readString(data.status);
+      const existingLockExpiresAt = parseIsoDate(data.lockExpiresAt);
+
+      if (status === "processed") {
+        return "already_processed" as const;
+      }
+
+      if (
+        status === "processing" &&
+        typeof existingLockExpiresAt === "number" &&
+        existingLockExpiresAt > now
+      ) {
+        return "in_progress" as const;
+      }
+    }
+
+    transaction.set(
+      ref,
+      {
+        type: params.type,
+        objectId: params.objectId,
+        status: "processing",
+        startedAt: nowValue,
+        updatedAt: nowValue,
+        lockExpiresAt,
+        lastError: null,
+      },
+      { merge: true },
+    );
+
+    return "acquired" as const;
+  });
 }
 
 export async function markStripeEventProcessed(params: {
@@ -443,9 +524,52 @@ export async function markStripeEventProcessed(params: {
   objectId: string | null;
 }): Promise<void> {
   const ref = await getStripeEventDocRef(params.eventId);
-  await (ref as { set: (data: unknown) => Promise<void> }).set({
-    type: params.type,
-    objectId: params.objectId,
-    processedAt: nowIso(),
-  });
+  const timestamp = nowIso();
+
+  await (ref as { set: (data: unknown, options?: unknown) => Promise<void> }).set(
+    {
+      type: params.type,
+      objectId: params.objectId,
+      status: "processed",
+      processedAt: timestamp,
+      updatedAt: timestamp,
+      lockExpiresAt: null,
+      lastError: null,
+    },
+    { merge: true },
+  );
+}
+
+export async function markStripeEventFailed(params: {
+  eventId: string;
+  type: string;
+  objectId: string | null;
+  errorMessage: string;
+}): Promise<void> {
+  const ref = await getStripeEventDocRef(params.eventId);
+  const timestamp = nowIso();
+  const normalizedError = params.errorMessage.trim().slice(0, 600) || "Unknown error";
+
+  await (ref as { set: (data: unknown, options?: unknown) => Promise<void> }).set(
+    {
+      type: params.type,
+      objectId: params.objectId,
+      status: "failed",
+      updatedAt: timestamp,
+      lockExpiresAt: null,
+      lastError: normalizedError,
+    },
+    { merge: true },
+  );
+}
+
+function parseIsoDate(value: unknown) {
+  const normalized = readString(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  const timestamp = Date.parse(normalized);
+  return Number.isFinite(timestamp) ? timestamp : null;
 }

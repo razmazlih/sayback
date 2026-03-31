@@ -45,7 +45,15 @@ function readFirebaseCredential(): FirebaseCredential {
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
 
   if (serviceAccountJson) {
-    const parsed = JSON.parse(serviceAccountJson) as Partial<FirebaseCredential>;
+    let parsed: Partial<FirebaseCredential>;
+
+    try {
+      parsed = JSON.parse(serviceAccountJson) as Partial<FirebaseCredential>;
+    } catch {
+      throw new Error(
+        "FIREBASE_SERVICE_ACCOUNT_JSON is set but is not valid JSON.",
+      );
+    }
 
     if (
       typeof parsed.projectId === "string" &&

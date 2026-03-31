@@ -1,8 +1,9 @@
 import type Stripe from "stripe";
 import {
+  acquireStripeEventProcessing,
   applyCreditPackPurchase,
   findUserIdByStripeCustomerId,
-  hasProcessedStripeEvent,
+  markStripeEventFailed,
   markStripeEventProcessed,
   setStripeCustomerId,
   syncSubscriptionState,
@@ -16,6 +17,7 @@ import {
 import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 const WEBHOOK_RESPONSE_HEADERS = {
   "Cache-Control": "no-store",
   "X-Content-Type-Options": "nosniff",
@@ -58,14 +60,38 @@ export async function POST(request: Request) {
     );
   }
 
-  if (await hasProcessedStripeEvent(event.id)) {
+  let objectId: string | null = null;
+
+  try {
+    objectId = readEventObjectId(event);
+    const lockState = await acquireStripeEventProcessing({
+      eventId: event.id,
+      type: event.type,
+      objectId,
+    });
+
+    if (lockState !== "acquired") {
+      return Response.json(
+        {
+          received: true,
+          duplicate: true,
+          state: lockState,
+        },
+        {
+          status: 200,
+          headers: WEBHOOK_RESPONSE_HEADERS,
+        },
+      );
+    }
+  } catch (error) {
+    console.error("Failed to acquire Stripe webhook processing lock", error);
+
     return Response.json(
       {
-        received: true,
-        duplicate: true,
+        error: "Unable to process Stripe webhook right now.",
       },
       {
-        status: 200,
+        status: 500,
         headers: WEBHOOK_RESPONSE_HEADERS,
       },
     );
@@ -152,7 +178,7 @@ export async function POST(request: Request) {
     await markStripeEventProcessed({
       eventId: event.id,
       type: event.type,
-      objectId: readEventObjectId(event),
+      objectId,
     });
 
     return Response.json(
@@ -165,6 +191,20 @@ export async function POST(request: Request) {
       },
     );
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unhandled Stripe webhook route error.";
+
+    try {
+      await markStripeEventFailed({
+        eventId: event.id,
+        type: event.type,
+        objectId,
+        errorMessage,
+      });
+    } catch (markError) {
+      console.error("Failed to persist Stripe webhook failure state", markError);
+    }
+
     console.error("Unhandled Stripe webhook route error", error);
 
     return Response.json(
@@ -180,7 +220,7 @@ export async function POST(request: Request) {
 }
 
 function readString(value: unknown) {
-  return typeof value === "string" && value.trim().length > 0 ? value : null;
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
 function isExpectedCreditPackSession(session: Stripe.Checkout.Session) {

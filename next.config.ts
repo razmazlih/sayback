@@ -17,7 +17,18 @@ const securityHeaders = [
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
   },
+  {
+    key: "X-DNS-Prefetch-Control",
+    value: "on",
+  },
 ];
+
+if (process.env.NODE_ENV === "production") {
+  securityHeaders.push({
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains",
+  });
+}
 
 const nextConfig: NextConfig = {
   /* config options here */

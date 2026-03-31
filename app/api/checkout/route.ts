@@ -10,6 +10,7 @@ import {
 } from "@/lib/stripe";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 interface CheckoutRequestBody {
   plan?: unknown;
@@ -18,6 +19,7 @@ interface CheckoutRequestBody {
 const JSON_HEADERS = {
   "Cache-Control": "no-store",
   "X-Content-Type-Options": "nosniff",
+  Vary: "Authorization",
 } as const;
 const JSON_CONTENT_TYPE = "application/json";
 const ABSOLUTE_HTTP_URL_PATTERN = /^https?:\/\//i;

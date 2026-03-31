@@ -53,5 +53,5 @@ export async function requireAuthenticatedUser(
 }
 
 function readString(value: unknown) {
-  return typeof value === "string" && value.trim().length > 0 ? value : null;
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
