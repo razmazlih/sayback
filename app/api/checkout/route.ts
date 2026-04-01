@@ -134,7 +134,6 @@ export async function POST(request: NextRequest) {
         ...selectedPlan.metadata,
         userId: authenticatedUser.uid,
       },
-      origin_context: "web",
       locale: "auto",
       billing_address_collection: "auto",
       allow_promotion_codes: false,
