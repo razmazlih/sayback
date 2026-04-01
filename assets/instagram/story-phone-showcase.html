@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SayBack Story Phone Showcase</title>
+  <style>
+    :root {
+      --orange-1: #ff4f1a;
+      --orange-2: #ff7844;
+      --yellow: #ffd24a;
+      --ink: #101010;
+      --lime: #ecff4f;
+      --cream: #fff6e8;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 1080px;
+      height: 1920px;
+      margin: 0;
+      overflow: hidden;
+      font-family: "Rubik", "Arial", sans-serif;
+      background:
+        radial-gradient(circle at 95% -2%, #ffe483 0%, #ffe48300 36%),
+        radial-gradient(circle at 2% 42%, #ff9d7200 0%, #ff9d72 58%),
+        linear-gradient(170deg, var(--orange-1) 0%, var(--orange-2) 52%, var(--yellow) 100%);
+      color: #21150f;
+    }
+
+    .canvas {
+      width: 1080px;
+      height: 1920px;
+      position: relative;
+      padding: 70px 58px 68px;
+      display: flex;
+      flex-direction: column;
+      gap: 26px;
+    }
+
+    .top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 56px;
+      font-weight: 900;
+      color: #1b120d;
+      letter-spacing: 0.25px;
+    }
+
+    .badge {
+      width: 84px;
+      height: 84px;
+      border-radius: 26px;
+      background: #111111;
+      box-shadow: 0 14px 34px rgba(0,0,0,0.25);
+      position: relative;
+    }
+
+    .badge::before {
+      content: "?";
+      position: absolute;
+      right: 18px;
+      top: 18px;
+      width: 48px;
+      height: 38px;
+      border-radius: 14px;
+      background: var(--lime);
+      display: grid;
+      place-items: center;
+      font-size: 28px;
+      font-weight: 900;
+      color: #111111;
+      line-height: 1;
+    }
+
+    .badge::after {
+      content: "";
+      position: absolute;
+      right: 21px;
+      top: 49px;
+      width: 13px;
+      height: 13px;
+      background: var(--lime);
+      transform: rotate(45deg);
+      border-radius: 3px;
+    }
+
+    .chip {
+      font-size: 31px;
+      font-weight: 800;
+      color: #3c2515;
+      background: rgba(255,247,230,0.72);
+      border: 2px solid rgba(16,16,16,0.12);
+      border-radius: 22px;
+      padding: 12px 18px;
+      backdrop-filter: blur(3px);
+    }
+
+    .headline {
+      background: #0f1011;
+      border: 4px solid #111111;
+      border-radius: 44px;
+      padding: 52px 46px;
+      box-shadow: 0 22px 64px rgba(0,0,0,0.33);
+      position: relative;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+
+    .headline::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 8% 8%, rgba(255,127,82,0.28), transparent 38%),
+        radial-gradient(circle at 90% 0%, rgba(236,255,79,0.21), transparent 36%);
+      pointer-events: none;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 96px;
+      line-height: 1.02;
+      color: #fff7ea;
+      font-weight: 900;
+      letter-spacing: -0.9px;
+      position: relative;
+      z-index: 1;
+    }
+
+    h1 span {
+      color: var(--lime);
+    }
+
+    .sub {
+      margin: 22px 0 0;
+      font-size: 43px;
+      line-height: 1.2;
+      color: #f7e7d3;
+      font-weight: 700;
+      position: relative;
+      z-index: 1;
+    }
+
+    .phone-wrap {
+      margin: 4px auto 0;
+      width: 760px;
+      height: 1070px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .phone {
+      width: 640px;
+      height: 1040px;
+      border-radius: 82px;
+      background: #0c0c0d;
+      border: 4px solid #050505;
+      box-shadow:
+        0 34px 70px rgba(0,0,0,0.33),
+        inset 0 0 0 2px rgba(255,255,255,0.08);
+      position: relative;
+      padding: 20px;
+      z-index: 2;
+    }
+
+    .notch {
+      position: absolute;
+      width: 220px;
+      height: 38px;
+      background: #070707;
+      border-radius: 999px;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 4;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+
+    .screen {
+      width: 100%;
+      height: 100%;
+      border-radius: 66px;
+      overflow: hidden;
+      background: #000;
+      position: relative;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .screen img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top center;
+      display: block;
+    }
+
+    .sticker {
+      position: absolute;
+      right: -20px;
+      top: 46px;
+      background: #fff3d6;
+      border: 3px solid #131313;
+      border-radius: 22px;
+      color: #23160f;
+      font-size: 30px;
+      font-weight: 900;
+      line-height: 1.15;
+      padding: 18px 16px;
+      box-shadow: 0 10px 0 #101010;
+      transform: rotate(8deg);
+      text-align: center;
+      width: 280px;
+      z-index: 4;
+    }
+
+    .sticker strong {
+      display: block;
+      color: #ff4f1a;
+      margin-top: 4px;
+      font-size: 32px;
+    }
+
+    .cta {
+      margin-top: auto;
+      background: linear-gradient(180deg, #ff7a56 0%, #ff623d 100%);
+      border: 3px solid #101010;
+      border-radius: 32px;
+      color: #fff;
+      text-align: center;
+      font-size: 56px;
+      font-weight: 900;
+      letter-spacing: 0.2px;
+      padding: 26px 18px;
+      box-shadow: 0 15px 0 #101010;
+    }
+
+    .meta {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 30px;
+      font-weight: 800;
+      color: rgba(35,22,13,0.75);
+    }
+  </style>
+</head>
+<body>
+  <main class="canvas">
+    <header class="top-row">
+      <div class="chip">חדש בסטורי</div>
+      <div class="brand">
+        SayBack
+        <div class="badge" aria-hidden="true"></div>
+      </div>
+    </header>
+
+    <section class="headline">
+      <h1>ככה עונים <span>בסטייל</span><br>תוך שניות</h1>
+      <p class="sub">צילום מסך אמיתי מהאתר בתוך הטלפון. מעלים הודעה ומקבלים 3 תשובות טבעיות בעברית.</p>
+    </section>
+
+    <section class="phone-wrap" aria-label="מוקאפ טלפון">
+      <div class="sticker">נראה כמו מה שיהיה לכם במסך<strong>תוך 10 שניות</strong></div>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <img src="./site-mobile-shot-viewport.png" alt="צילום מסך מהאתר של SayBack" />
+        </div>
+      </div>
+    </section>
+
+    <div class="cta">נסו עכשיו בלינק בביו</div>
+    <div class="meta">WhatsApp • Instagram • לקוחות • דייטינג</div>
+  </main>
+</body>
+</html>
