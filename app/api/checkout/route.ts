@@ -231,18 +231,27 @@ async function ensureStripeCustomer({
   email: string | null;
   uid: string;
 }) {
+  const normalizedEmail = normalizeEmail(email);
   const billing = await getBillingSnapshot(uid);
 
   if (billing.stripeCustomerId) {
     const existingCustomer = await stripe.customers.retrieve(billing.stripeCustomerId);
 
     if (!("deleted" in existingCustomer && existingCustomer.deleted)) {
+      const existingCustomerEmail = normalizeEmail(existingCustomer.email);
+
+      if (normalizedEmail && existingCustomerEmail !== normalizedEmail) {
+        return stripe.customers.update(existingCustomer.id, {
+          email: normalizedEmail,
+        });
+      }
+
       return existingCustomer;
     }
   }
 
   const customer = await stripe.customers.create({
-    email: email ?? undefined,
+    email: normalizedEmail ?? undefined,
     metadata: {
       userId: uid,
     },
@@ -250,4 +259,13 @@ async function ensureStripeCustomer({
 
   await setStripeCustomerId(uid, customer.id);
   return customer;
+}
+
+function normalizeEmail(value: string | null) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
 }

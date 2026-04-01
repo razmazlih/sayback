@@ -225,13 +225,13 @@ function readString(value: unknown) {
 
 function isExpectedCreditPackSession(session: Stripe.Checkout.Session) {
   const currency = readString(session.currency)?.toLowerCase() ?? null;
-  const isExpectedAmount =
+  const hasValidAmount =
     typeof session.amount_total === "number" &&
     Number.isFinite(session.amount_total) &&
-    Math.floor(session.amount_total) === CREDIT_PACK_PRICE_AGOROT;
+    Math.floor(session.amount_total) >= CREDIT_PACK_PRICE_AGOROT;
 
   return (
-    isExpectedAmount &&
+    hasValidAmount &&
     currency === CREDIT_PACK_CURRENCY &&
     hasExpectedCreditPackMetadata(session.metadata)
   );

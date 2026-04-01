@@ -1,4 +1,16 @@
+import type Stripe from "stripe";
 import { requireAuthenticatedUser, UnauthorizedError } from "@/lib/auth";
+import {
+  applyCreditPackPurchase,
+  getBillingSnapshot,
+  setStripeCustomerId,
+  syncSubscriptionState,
+} from "@/lib/billing";
+import {
+  CREDIT_PACK_CURRENCY,
+  CREDIT_PACK_PLAN_ID,
+  CREDIT_PACK_PRICE_AGOROT,
+} from "@/lib/pricing";
 import { StripeConfigError, getStripe, isCheckoutPlan } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -69,6 +81,28 @@ export async function GET(request: Request) {
     }
 
     const plan = readString(session.metadata?.plan);
+    const normalizedPlan = isCheckoutPlan(plan) ? plan : null;
+    const isPaidSession =
+      session.status === "complete" &&
+      (session.payment_status === "paid" || session.payment_status === "no_payment_required");
+    let billing: Awaited<ReturnType<typeof getBillingSnapshot>> | null = null;
+
+    if (normalizedPlan && isPaidSession) {
+      try {
+        billing = await reconcilePaidCheckoutSession({
+          stripe,
+          session,
+          uid: authenticatedUser.uid,
+          plan: normalizedPlan,
+        });
+      } catch (error) {
+        console.error("Checkout session reconciliation failed", {
+          sessionId: session.id,
+          plan: normalizedPlan,
+          error,
+        });
+      }
+    }
 
     return json(
       {
@@ -76,8 +110,9 @@ export async function GET(request: Request) {
           id: session.id,
           status: session.status,
           paymentStatus: session.payment_status,
-          plan: isCheckoutPlan(plan) ? plan : null,
+          plan: normalizedPlan,
         },
+        billing,
       },
       200,
     );
@@ -120,4 +155,68 @@ function json(body: Record<string, unknown>, status: number) {
 
 function readString(value: unknown) {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+async function reconcilePaidCheckoutSession({
+  stripe,
+  session,
+  uid,
+  plan,
+}: {
+  stripe: Stripe;
+  session: Stripe.Checkout.Session;
+  uid: string;
+  plan: "credits_50" | "unlimited_monthly";
+}) {
+  const stripeCustomerId = readString(session.customer);
+
+  if (stripeCustomerId) {
+    await setStripeCustomerId(uid, stripeCustomerId);
+  }
+
+  if (plan === CREDIT_PACK_PLAN_ID) {
+    const amountTotal =
+      typeof session.amount_total === "number" && Number.isFinite(session.amount_total)
+        ? Math.floor(session.amount_total)
+        : null;
+    const currency = readString(session.currency)?.toLowerCase() ?? null;
+
+    if (amountTotal !== null && amountTotal < CREDIT_PACK_PRICE_AGOROT) {
+      console.error("Credit pack paid session amount is below expected base amount.", {
+        sessionId: session.id,
+        amountTotal,
+        expectedMinimum: CREDIT_PACK_PRICE_AGOROT,
+      });
+      return getBillingSnapshot(uid);
+    }
+
+    if (currency && currency !== CREDIT_PACK_CURRENCY) {
+      console.error("Credit pack paid session currency mismatch.", {
+        sessionId: session.id,
+        currency,
+        expectedCurrency: CREDIT_PACK_CURRENCY,
+      });
+      return getBillingSnapshot(uid);
+    }
+
+    return applyCreditPackPurchase({
+      uid,
+      sessionId: session.id,
+      stripeCustomerId,
+      amountTotal,
+      currency,
+    });
+  }
+
+  if (plan === "unlimited_monthly" && typeof session.subscription === "string") {
+    const subscription = await stripe.subscriptions.retrieve(session.subscription);
+    return syncSubscriptionState({
+      uid,
+      stripeCustomerId,
+      subscriptionId: subscription.id,
+      subscriptionStatus: readString(subscription.status),
+    });
+  }
+
+  return getBillingSnapshot(uid);
 }

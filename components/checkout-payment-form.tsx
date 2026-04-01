@@ -67,7 +67,6 @@ function CheckoutPaymentFormInner({
   const [email, setEmail] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [didInitializeEmail, setDidInitializeEmail] = useState(false);
 
   const normalizedFullName = fullName.trim();
   const normalizedEmail = email.trim();
@@ -81,16 +80,12 @@ function CheckoutPaymentFormInner({
   const isEmailLocked = lockedCheckoutEmail.length > 0;
 
   useEffect(() => {
-    if (checkoutState.type !== 'success' || didInitializeEmail) {
+    if (!isEmailLocked || lockedCheckoutEmail === email) {
       return;
     }
 
-    const checkoutEmail = checkoutState.checkout.email?.trim() ?? '';
-    if (checkoutEmail) {
-      setEmail(checkoutEmail);
-    }
-    setDidInitializeEmail(true);
-  }, [checkoutState, didInitializeEmail]);
+    setEmail(lockedCheckoutEmail);
+  }, [email, isEmailLocked, lockedCheckoutEmail]);
 
   useEffect(() => {
     if (paymentPath !== 'wallet' || walletAvailability !== 'unknown') {
@@ -138,12 +133,20 @@ function CheckoutPaymentFormInner({
     setIsSubmitting(true);
 
     try {
-      const emailForConfirm = isEmailLocked ? lockedCheckoutEmail : normalizedEmail;
+      if (!isEmailLocked) {
+        const updateResult = await checkoutState.checkout.updateEmail(normalizedEmail);
+
+        if (updateResult.type === 'error') {
+          if (!isSessionManagedEmailError(updateResult.error.message)) {
+            setSubmitError(mapCheckoutError(updateResult.error.message));
+            return;
+          }
+        }
+      }
 
       const result = await checkoutState.checkout.confirm({
         redirect: 'if_required',
         expressCheckoutConfirmEvent: args?.expressCheckoutConfirmEvent,
-        email: emailForConfirm,
       });
 
       if (result.type === 'error') {
@@ -366,6 +369,15 @@ function CheckoutPaymentFormInner({
   );
 }
 
+function isSessionManagedEmailError(message: string) {
+  return (
+    message.includes('cannot set the `email` in confirm()') ||
+    message.includes('cannot update the email') ||
+    message.includes('customer_email') ||
+    message.includes('already set on the Checkout Session')
+  );
+}
+
 function mapCheckoutError(message: string) {
   if (!message) {
     return 'לא הצלחנו להשלים את התשלום.';
@@ -375,8 +387,8 @@ function mapCheckoutError(message: string) {
     return 'צריך להזין כתובת אימייל כדי לאשר את התשלום.';
   }
 
-  if (message.includes('cannot update the email')) {
-    return 'לא ניתן לשנות אימייל בעמוד הזה. ממשיכים עם האימייל של החשבון.';
+  if (isSessionManagedEmailError(message)) {
+    return 'האימייל כבר נקבע ל-Checkout הזה, לכן ממשיכים עם האימייל הקיים בחשבון.';
   }
 
   if (message.includes('invalidEmail') || message.toLowerCase().includes('invalid email')) {

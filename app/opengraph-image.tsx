@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 const rtl = (text: string) => [...text].reverse().join("");
 
-export const alt = "מה עונים? - תשובות מהירות להודעות";
+export const alt = "SayBack - תשובות מהירות להודעות";
 export const size = {
   width: 1200,
   height: 630,
@@ -170,7 +170,7 @@ export default function OpenGraphImage() {
                 color: "#6c3b18",
               }}
             >
-              {rtl("מה עונים?")}
+              SayBack
             </div>
           </div>
         </div>

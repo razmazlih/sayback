@@ -359,7 +359,7 @@ function buildFreeReplies({
 
 function buildInstructions(): string {
   return [
-    'You create reply suggestions for an Israeli consumer app called "מה עונים?".',
+    'You create reply suggestions for an Israeli consumer app called "SayBack".',
     "Return JSON only and match the provided schema exactly.",
     "Write every field in natural, modern Israeli Hebrew.",
     "The intent field should be one short sentence about the other side's likely intent.",

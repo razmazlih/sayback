@@ -34,12 +34,12 @@ const metadataBase = resolveMetadataBase();
 
 export const metadata: Metadata = {
   metadataBase,
-  title: "מה עונים? | תשובות מהירות להודעות",
+  title: "SayBack | תשובות מהירות להודעות",
   description:
-    "מה עונים? עוזר לך לענות מהר ובסטייל להודעות בוואטסאפ, אינסטגרם, דייטינג ולקוחות. בוחרים הקשר וטון ומקבלים 3 תשובות טבעיות בעברית.",
-  applicationName: "מה עונים?",
+    "SayBack עוזר לך לענות מהר ובסטייל להודעות בוואטסאפ, אינסטגרם, דייטינג ולקוחות. בוחרים הקשר וטון ומקבלים 3 תשובות טבעיות בעברית.",
+  applicationName: "SayBack",
   keywords: [
-    "מה עונים",
+    "SayBack",
     "תשובות להודעות",
     "וואטסאפ",
     "אינסטגרם",
@@ -51,11 +51,11 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   openGraph: {
-    title: "מה עונים? | תשובות מהירות להודעות",
+    title: "SayBack | תשובות מהירות להודעות",
     description:
       "מקבלים בקליק 3 תשובות טבעיות בעברית לפי ההקשר והטון שבחרת - מושלם לוואטסאפ, אינסטגרם ודייטינג.",
     url: "/",
-    siteName: "מה עונים?",
+    siteName: "SayBack",
     locale: "he_IL",
     type: "website",
     images: [
@@ -63,13 +63,13 @@ export const metadata: Metadata = {
         url: "/opengraph-image",
         width: 1200,
         height: 630,
-        alt: "מה עונים? - תשובות מהירות להודעות",
+        alt: "SayBack - תשובות מהירות להודעות",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "מה עונים? | תשובות מהירות להודעות",
+    title: "SayBack | תשובות מהירות להודעות",
     description:
       "3 תשובות טבעיות בעברית, לפי הקשר וטון - בלחיצה אחת.",
     images: ["/twitter-image"],

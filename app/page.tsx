@@ -67,7 +67,7 @@ type CheckoutSessionState = {
 
 const FREE_LIMIT = 3;
 const MAX_IMAGE_UPLOAD_BYTES = 4 * 1024 * 1024;
-const AUTH_ERROR_MESSAGE = 'לא הצלחנו לזהות משתמש. רענן את הדף ונסה שוב.';
+const AUTH_ERROR_MESSAGE = 'לא הצלחנו לחבר מחדש את החשבון. נסה שוב בעוד רגע.';
 const CREDIT_PACK_TITLE = `${CREDIT_PACK_USES} שימושים (עד ${CREDIT_PACK_MAX_REPLIES} תשובות)`;
 const CREDIT_PACK_DESCRIPTION = `${CREDIT_PACK_REPLIES_PER_USE} תשובות בכל שימוש. תשלום חד-פעמי, בלי התחייבות.`;
 const CREDIT_PACK_CTA = `לקנות ${CREDIT_PACK_USES} שימושים`;
@@ -563,6 +563,8 @@ export default function Home() {
   const [isBillingLoading, setIsBillingLoading] = useState(true);
   const [activeMobileSection, setActiveMobileSection] = useState<MobileNavSectionId>('compose');
   const [mobileNavHeight, setMobileNavHeight] = useState(0);
+  const authRecoveryPromiseRef = useRef<Promise<void> | null>(null);
+  const authTokenPromiseRef = useRef<Promise<string> | null>(null);
 
   const hasUnlimitedAccess = paidPlan === 'unlimited_monthly';
   const hasCreditBalance = paidCredits > 0;
@@ -657,38 +659,115 @@ export default function Home() {
     setPaidPlan(null);
   }, []);
 
-  const fetchWithAuth = useCallback(async (input: RequestInfo | URL, init: RequestInit = {}) => {
-    if (!authToken) {
+  const syncAuthState = useCallback((nextToken: string | null) => {
+    setAuthToken((currentToken) => currentToken === nextToken ? currentToken : nextToken);
+    setIsAuthReady(true);
+
+    if (nextToken) {
+      setRequestError((currentError) =>
+        currentError === AUTH_ERROR_MESSAGE ? null : currentError,
+      );
+    }
+  }, []);
+
+  const ensureAuthenticatedUser = useCallback(async (allowSilentReauth = true) => {
+    if (!isFirebaseClientConfigured()) {
+      throw new FirebaseClientConfigError(
+        'Firebase client config is missing in NEXT_PUBLIC_FIREBASE_*.',
+      );
+    }
+
+    const auth = getFirebaseClientAuth();
+    await auth.authStateReady();
+
+    if (auth.currentUser) {
+      return auth.currentUser;
+    }
+
+    if (!allowSilentReauth) {
       throw new Error(AUTH_ERROR_MESSAGE);
     }
 
-    const headers = new Headers(init.headers);
-    headers.set('Authorization', `Bearer ${authToken}`);
+    if (!authRecoveryPromiseRef.current) {
+      authRecoveryPromiseRef.current = signInAnonymously(auth)
+        .then(() => undefined)
+        .finally(() => {
+          authRecoveryPromiseRef.current = null;
+        });
+    }
 
-    return fetch(input, {
-      ...init,
-      headers,
-    });
-  }, [authToken]);
+    await authRecoveryPromiseRef.current;
+
+    if (!auth.currentUser) {
+      throw new Error(AUTH_ERROR_MESSAGE);
+    }
+
+    return auth.currentUser;
+  }, []);
+
+  const getFreshAuthToken = useCallback(async (options?: {
+    forceRefresh?: boolean;
+    allowSilentReauth?: boolean;
+  }) => {
+    const forceRefresh = options?.forceRefresh ?? false;
+
+    if (!forceRefresh && authTokenPromiseRef.current) {
+      return authTokenPromiseRef.current;
+    }
+
+    const tokenPromise = (async () => {
+      const user = await ensureAuthenticatedUser(options?.allowSilentReauth ?? true);
+      const nextToken = await user.getIdToken(forceRefresh);
+      syncAuthState(nextToken);
+      return nextToken;
+    })()
+      .catch((error) => {
+        syncAuthState(null);
+        throw error instanceof Error ? error : new Error(AUTH_ERROR_MESSAGE);
+      })
+      .finally(() => {
+        if (authTokenPromiseRef.current === tokenPromise) {
+          authTokenPromiseRef.current = null;
+        }
+      });
+
+    authTokenPromiseRef.current = tokenPromise;
+    return tokenPromise;
+  }, [ensureAuthenticatedUser, syncAuthState]);
+
+  const fetchWithAuth = useCallback(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+    const sendRequest = async (forceRefresh = false) => {
+      const token = await getFreshAuthToken({ forceRefresh, allowSilentReauth: true });
+      const headers = new Headers(init.headers);
+      headers.set('Authorization', `Bearer ${token}`);
+
+      return fetch(input, {
+        ...init,
+        headers,
+      });
+    };
+
+    let response = await sendRequest(false);
+
+    if (response.status !== 401) {
+      return response;
+    }
+
+    response = await sendRequest(true);
+    return response;
+  }, [getFreshAuthToken]);
 
   const refreshBillingStatus = useCallback(async () => {
-    if (!authToken) {
-      if (isAuthReady) {
-        setIsBillingLoading(false);
-      }
-
+    if (!isAuthReady) {
       return null;
     }
 
     setIsBillingLoading(true);
 
     try {
-      const response = await fetch('/api/billing/status', {
+      const response = await fetchWithAuth('/api/billing/status', {
         method: 'GET',
         cache: 'no-store',
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
       });
       const data = (await response.json()) as {
         error?: string;
@@ -702,18 +781,36 @@ export default function Home() {
       applyBillingSnapshot(data.billing);
       return data.billing;
     } catch (error) {
-      setRequestError(
-        error instanceof Error ? error.message : 'שגיאה בטעינת מצב תשלום.',
-      );
+      const message =
+        error instanceof Error ? error.message : 'שגיאה בטעינת מצב תשלום.';
+
+      if (message !== AUTH_ERROR_MESSAGE) {
+        setRequestError(message);
+      }
+
       return null;
     } finally {
       setIsBillingLoading(false);
     }
-  }, [applyBillingSnapshot, authToken, isAuthReady]);
+  }, [applyBillingSnapshot, fetchWithAuth, isAuthReady]);
 
   useEffect(() => {
     let isCancelled = false;
     let unsubscribe: (() => void) | null = null;
+
+    async function syncUserToken() {
+      try {
+        await getFreshAuthToken({ allowSilentReauth: true });
+      } catch (error) {
+        if (isCancelled) {
+          return;
+        }
+
+        console.error('Firebase auth recovery failed', error);
+        syncAuthState(null);
+        setIsBillingLoading(false);
+      }
+    }
 
     async function initAuth() {
       if (!isFirebaseClientConfigured()) {
@@ -723,46 +820,26 @@ export default function Home() {
       }
 
       const auth = getFirebaseClientAuth();
+      await auth.authStateReady();
 
-      unsubscribe = onIdTokenChanged(auth, async (user) => {
+      unsubscribe = onIdTokenChanged(auth, (user) => {
         if (isCancelled) {
           return;
         }
 
         if (!user) {
-          setAuthToken(null);
-          setIsAuthReady(true);
+          syncAuthState(null);
+          void syncUserToken();
           return;
         }
 
-        try {
-          const nextToken = await user.getIdToken();
-
-          if (!isCancelled) {
-            setAuthToken(nextToken);
-            setIsAuthReady(true);
-            setRequestError((currentError) =>
-              currentError === AUTH_ERROR_MESSAGE ? null : currentError,
-            );
-          }
-        } catch (error) {
-          if (!isCancelled) {
-            console.error('Firebase token refresh failed', error);
-            setAuthToken(null);
-            setRequestError(AUTH_ERROR_MESSAGE);
-            setIsAuthReady(true);
-          }
-        }
+        void syncUserToken();
       });
 
-      if (!auth.currentUser) {
-        await signInAnonymously(auth);
-      } else {
-        const nextToken = await auth.currentUser.getIdToken();
-        if (!isCancelled) {
-          setAuthToken(nextToken);
-          setIsAuthReady(true);
-        }
+      await syncUserToken();
+
+      if (!isCancelled) {
+        setIsAuthReady(true);
       }
     }
 
@@ -772,8 +849,7 @@ export default function Home() {
       }
 
       console.error('Firebase auth init failed', error);
-      setRequestError(AUTH_ERROR_MESSAGE);
-      setIsAuthReady(true);
+      syncAuthState(null);
       setIsBillingLoading(false);
     });
 
@@ -781,13 +857,10 @@ export default function Home() {
       isCancelled = true;
       unsubscribe?.();
     };
-  }, []);
+  }, [getFreshAuthToken, syncAuthState]);
 
   useEffect(() => {
-    if (!authToken) {
-      if (isAuthReady) {
-        setIsBillingLoading(false);
-      }
+    if (!isAuthReady) {
       return;
     }
 
@@ -865,6 +938,7 @@ export default function Home() {
       });
       const data = (await response.json()) as {
         error?: string;
+        billing?: BillingSnapshot;
         session?: {
           plan?: CheckoutPlan | null;
           paymentStatus?: string | null;
@@ -874,6 +948,10 @@ export default function Home() {
 
       if (!response.ok || !data.session) {
         throw new Error(data.error ?? 'לא הצלחנו לאמת את מצב התשלום.');
+      }
+
+      if (data.billing) {
+        applyBillingSnapshot(data.billing);
       }
 
       const resolvedPlan = data.session.plan ?? fallbackPlan;
@@ -898,7 +976,7 @@ export default function Home() {
         error instanceof Error ? error.message : 'לא הצלחנו לאמת את מצב התשלום.',
       );
     }
-  }, [fetchWithAuth, finalizeSuccessfulCheckout]);
+  }, [applyBillingSnapshot, fetchWithAuth, finalizeSuccessfulCheckout]);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -916,7 +994,7 @@ export default function Home() {
     }
 
     if (checkoutStatus === 'return') {
-      if (!authToken || !sessionId) {
+      if (!isAuthReady || !sessionId) {
         return;
       }
 
@@ -939,7 +1017,7 @@ export default function Home() {
     if (checkoutStatus) {
       clearCheckoutParams();
     }
-  }, [authToken, handleReturnedCheckout]);
+  }, [handleReturnedCheckout, isAuthReady]);
 
   useEffect(() => {
     if (copiedReplyIndex === null) {
@@ -1108,11 +1186,6 @@ export default function Home() {
   async function handleCheckout(plan: CheckoutPlan) {
     setShowPaywall(true);
 
-    if (!authToken) {
-      setCheckoutError(AUTH_ERROR_MESSAGE);
-      return;
-    }
-
     setCheckoutPlan(plan);
     setCheckoutSession(null);
     setCheckoutError(null);
@@ -1159,18 +1232,13 @@ export default function Home() {
       return;
     }
 
-    await finalizeSuccessfulCheckout(checkoutSession.plan);
+    await handleReturnedCheckout(checkoutSession.sessionId, checkoutSession.plan);
   }
 
   async function runGeneration(
     payload: GenerateRequest,
     options?: { replyIndex?: number },
   ) {
-    if (!authToken) {
-      setRequestError(AUTH_ERROR_MESSAGE);
-      return;
-    }
-
     setRequestError(null);
     setImageError(null);
 
@@ -1400,7 +1468,7 @@ export default function Home() {
             <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-2xl space-y-3 sm:space-y-4">
                 <div className="inline-flex min-h-[40px] items-center gap-2 rounded-full border-2 border-black bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-black">
-                  מה עונים?
+                  SayBack
                 </div>
                 <div className="space-y-2.5 sm:space-y-3">
                   <h1 className="text-[2.25rem] font-black leading-[1.02] tracking-tight text-black sm:text-6xl">
