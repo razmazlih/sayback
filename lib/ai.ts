@@ -5,9 +5,7 @@ const REPLY_ACTION_OPTIONS = ["softer", "sharper", "retry"] as const;
 
 const DEFAULT_MODEL = process.env.OPENAI_MODEL?.trim() || "gpt-5-mini";
 const OPENAI_URL = "https://api.openai.com/v1/responses";
-const LOCAL_FREE_AI_ENABLED =
-  process.env.NODE_ENV === "development" &&
-  process.env.LOCAL_FREE_AI?.trim().toLowerCase() === "true";
+const FREE_AI_MODE_ENABLED = process.env.LOCAL_FREE_AI?.trim().toLowerCase() === "true";
 const MAX_MESSAGE_LENGTH = 4000;
 const MAX_IMAGE_LENGTH = 10_000_000;
 
@@ -120,8 +118,8 @@ export async function generateReplies(
     );
   }
 
-  if (LOCAL_FREE_AI_ENABLED) {
-    return generateFreeDevelopmentReplies({
+  if (FREE_AI_MODE_ENABLED) {
+    return generateFreeReplies({
       message,
       context,
       tone,
@@ -207,7 +205,7 @@ export async function generateReplies(
   return validateResponseShape(parsed);
 }
 
-function generateFreeDevelopmentReplies({
+function generateFreeReplies({
   message,
   context,
   tone,

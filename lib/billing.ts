@@ -8,6 +8,9 @@ export const CREDIT_PACK_BASE_AMOUNT = CREDIT_PACK_PRICE_AGOROT;
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due"]);
 const STRIPE_EVENT_LOCK_TTL_MS = 2 * 60 * 1000;
+const COUPON_CODE_PATTERN = /^[A-Z0-9_-]{3,32}$/;
+const BUILT_IN_COUPON_CODE = "LOVE26";
+const BUILT_IN_COUPON_USES = 5;
 
 type ConsumptionKind = "initial_free" | "daily_free" | "credits" | "unlimited";
 
@@ -24,6 +27,17 @@ type BillingDocument = {
   updatedAt?: string;
 };
 
+type CouponDocument = {
+  active?: boolean;
+  usesGranted?: number;
+  redeemedCount?: number;
+  maxRedemptions?: number | null;
+  startsAt?: string | null;
+  expiresAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type BillingSnapshot = {
   freeLimit: number;
   freeUsed: number;
@@ -36,6 +50,12 @@ export type BillingSnapshot = {
   subscriptionStatus: string | null;
   stripeCustomerId: string | null;
   accessState: "free" | "credits" | "unlimited" | "blocked";
+};
+
+export type BillingSubscriptionRecord = {
+  stripeCustomerId: string | null;
+  subscriptionId: string | null;
+  subscriptionStatus: string | null;
 };
 
 type ConsumptionResult =
@@ -61,6 +81,34 @@ type NormalizedBillingDocument = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type CouponRedeemResult = {
+  status: "redeemed" | "already_redeemed";
+  code: string;
+  grantedUses: number;
+  snapshot: BillingSnapshot;
+};
+
+type CouponRedeemErrorCode =
+  | "coupon_code_required"
+  | "coupon_code_invalid_format"
+  | "coupon_invalid_or_unavailable";
+
+export class CouponRedeemError extends Error {
+  readonly status: 400 | 404;
+  readonly code: CouponRedeemErrorCode;
+
+  constructor(params: {
+    message: string;
+    status: 400 | 404;
+    code: CouponRedeemErrorCode;
+  }) {
+    super(params.message);
+    this.name = "CouponRedeemError";
+    this.status = params.status;
+    this.code = params.code;
+  }
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -153,6 +201,18 @@ async function getCreditGrantDocRef(sessionId: string) {
   ).doc(sessionId);
 }
 
+async function getCouponDocRef(code: string) {
+  const firestore = await getFirestore();
+  return (firestore.collection("coupon_codes") as { doc: (id: string) => unknown }).doc(code);
+}
+
+async function getCouponRedemptionDocRef(code: string, uid: string) {
+  const firestore = await getFirestore();
+  return (
+    firestore.collection("coupon_redemptions") as { doc: (id: string) => unknown }
+  ).doc(`${code}__${uid}`);
+}
+
 export async function getBillingSnapshot(uid: string): Promise<BillingSnapshot> {
   const ref = await getBillingDocRef(uid);
   const snapshot = (await (ref as { get: () => Promise<{ exists: boolean; data: () => unknown }> }).get()) as {
@@ -161,6 +221,23 @@ export async function getBillingSnapshot(uid: string): Promise<BillingSnapshot> 
   };
 
   return buildSnapshot(normalizeBillingDocument(snapshot.exists ? snapshot.data() : undefined));
+}
+
+export async function getBillingSubscriptionRecord(
+  uid: string,
+): Promise<BillingSubscriptionRecord> {
+  const ref = await getBillingDocRef(uid);
+  const snapshot = (await (ref as { get: () => Promise<{ exists: boolean; data: () => unknown }> }).get()) as {
+    exists: boolean;
+    data: () => unknown;
+  };
+  const document = normalizeBillingDocument(snapshot.exists ? snapshot.data() : undefined);
+
+  return {
+    stripeCustomerId: document.stripeCustomerId,
+    subscriptionId: document.subscriptionId,
+    subscriptionStatus: document.subscriptionStatus,
+  };
 }
 
 export async function consumeGenerationAccess(uid: string): Promise<ConsumptionResult> {
@@ -414,6 +491,143 @@ export async function applyCreditPackPurchase(params: {
   });
 }
 
+export async function redeemCouponCode(params: {
+  uid: string;
+  couponCode: string;
+}): Promise<CouponRedeemResult> {
+  const normalizedCode = normalizeCouponCode(params.couponCode);
+
+  if (!normalizedCode) {
+    throw new CouponRedeemError({
+      message: "צריך להזין קוד קופון.",
+      status: 400,
+      code: "coupon_code_required",
+    });
+  }
+
+  if (!COUPON_CODE_PATTERN.test(normalizedCode)) {
+    throw new CouponRedeemError({
+      message: "פורמט קוד הקופון לא תקין.",
+      status: 400,
+      code: "coupon_code_invalid_format",
+    });
+  }
+
+  const firestore = await getFirestore();
+  const billingRef = await getBillingDocRef(params.uid);
+  const couponRef = await getCouponDocRef(normalizedCode);
+  const couponRedemptionRef = await getCouponRedemptionDocRef(normalizedCode, params.uid);
+
+  return firestore.runTransaction(async (transaction) => {
+    const [billingSnapshot, couponSnapshot, couponRedemptionSnapshot] = await Promise.all([
+      transaction.get(billingRef),
+      transaction.get(couponRef),
+      transaction.get(couponRedemptionRef),
+    ]);
+    const currentDocument = normalizeBillingDocument(
+      billingSnapshot.exists ? billingSnapshot.data() : undefined,
+    );
+
+    if (couponRedemptionSnapshot.exists) {
+      const redemptionData = (couponRedemptionSnapshot.data() ?? {}) as {
+        grantedUses?: unknown;
+      };
+
+      return {
+        status: "already_redeemed" as const,
+        code: normalizedCode,
+        grantedUses: Math.max(0, Math.floor(readNumber(redemptionData.grantedUses))),
+        snapshot: buildSnapshot(currentDocument),
+      };
+    }
+
+    let grantedUses = 0;
+    let redeemedCount = 0;
+    let shouldUpdateCouponDoc = false;
+
+    if (normalizedCode === BUILT_IN_COUPON_CODE) {
+      grantedUses = BUILT_IN_COUPON_USES;
+      shouldUpdateCouponDoc = true;
+
+      if (couponSnapshot.exists) {
+        const couponData = (couponSnapshot.data() ?? {}) as CouponDocument;
+        redeemedCount = Math.max(0, Math.floor(readNumber(couponData.redeemedCount)));
+      }
+    } else {
+      if (!couponSnapshot.exists) {
+        throw couponUnavailableError();
+      }
+
+      const couponData = (couponSnapshot.data() ?? {}) as CouponDocument;
+      grantedUses = Math.max(0, Math.floor(readNumber(couponData.usesGranted)));
+      redeemedCount = Math.max(0, Math.floor(readNumber(couponData.redeemedCount)));
+      const maxRedemptions = readNullableNonNegativeInteger(couponData.maxRedemptions);
+      const startsAt = parseIsoDate(couponData.startsAt);
+      const expiresAt = parseIsoDate(couponData.expiresAt);
+      const now = Date.now();
+
+      if (
+        couponData.active === false ||
+        grantedUses <= 0 ||
+        (startsAt !== null && startsAt > now) ||
+        (expiresAt !== null && expiresAt <= now) ||
+        (maxRedemptions !== null && redeemedCount >= maxRedemptions)
+      ) {
+        throw couponUnavailableError();
+      }
+
+      shouldUpdateCouponDoc = true;
+    }
+
+    const timestamp = nowIso();
+    const nextDocument = {
+      ...currentDocument,
+      credits: currentDocument.credits + grantedUses,
+      updatedAt: timestamp,
+    };
+
+    transaction.set(
+      billingRef,
+      {
+        ...nextDocument,
+        createdAt: currentDocument.createdAt,
+      },
+      { merge: true },
+    );
+    if (shouldUpdateCouponDoc) {
+      transaction.set(
+        couponRef,
+        {
+          active: true,
+          usesGranted:
+            normalizedCode === BUILT_IN_COUPON_CODE ? BUILT_IN_COUPON_USES : grantedUses,
+          redeemedCount: redeemedCount + 1,
+          updatedAt: timestamp,
+          ...(normalizedCode === BUILT_IN_COUPON_CODE && !couponSnapshot.exists
+            ? { createdAt: timestamp }
+            : {}),
+        },
+        { merge: true },
+      );
+    }
+    transaction.set(couponRedemptionRef, {
+      uid: params.uid,
+      couponCode: normalizedCode,
+      grantedUses,
+      status: "redeemed",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+
+    return {
+      status: "redeemed" as const,
+      code: normalizedCode,
+      grantedUses,
+      snapshot: buildSnapshot(nextDocument),
+    };
+  });
+}
+
 export async function syncSubscriptionState(params: {
   uid: string;
   stripeCustomerId: string | null;
@@ -572,4 +786,28 @@ function parseIsoDate(value: unknown) {
 
   const timestamp = Date.parse(normalized);
   return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function normalizeCouponCode(value: string) {
+  return value.trim().toUpperCase();
+}
+
+function readNullableNonNegativeInteger(value: unknown): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return Math.max(0, Math.floor(value));
+}
+
+function couponUnavailableError() {
+  return new CouponRedeemError({
+    message: "קוד הקופון לא תקין או לא זמין כרגע.",
+    status: 404,
+    code: "coupon_invalid_or_unavailable",
+  });
 }

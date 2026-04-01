@@ -62,7 +62,7 @@ function CheckoutPaymentFormInner({
   const checkoutState = useCheckout();
   const [paymentPath, setPaymentPath] = useState<PaymentPath>('wallet');
   const [walletAvailability, setWalletAvailability] = useState<WalletAvailability>('unknown');
-  const [walletLabel, setWalletLabel] = useState('Apple Pay / Google Pay');
+  const [walletLabel, setWalletLabel] = useState('אפל פיי / גוגל פיי');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -231,7 +231,6 @@ function CheckoutPaymentFormInner({
             setEmail(event.target.value);
             setSubmitError(null);
           }}
-          placeholder="name@example.com"
           className="mt-2 min-h-[48px] w-full rounded-2xl border-2 border-black bg-white px-3 text-base font-bold text-black placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#6ce8ff] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
         />
         {!hasValidEmail && normalizedEmail ? (
@@ -348,13 +347,13 @@ function CheckoutPaymentFormInner({
 
       {paymentPath === 'wallet' && walletAvailability === 'unknown' ? (
         <div className="rounded-2xl border-2 border-black bg-white px-3 py-2 text-xs font-bold text-neutral-700">
-          בודקים זמינות Apple Pay / Google Pay במכשיר. אם לא מזוהה ארנק נעבור אוטומטית לכרטיס אשראי.
+          בודקים זמינות אפל פיי / גוגל פיי במכשיר. אם לא מזוהה ארנק נעבור אוטומטית לכרטיס אשראי.
         </div>
       ) : null}
 
       {walletAvailability === 'unavailable' ? (
         <div className="rounded-2xl border-2 border-black bg-[#fff6d8] px-3 py-2 text-xs font-bold text-black">
-          Apple Pay / Google Pay לא זמינים במכשיר הזה, אז המשכנו ישירות לאשראי ידני.
+          אפל פיי / גוגל פיי לא זמינים במכשיר הזה, אז המשכנו ישירות לאשראי ידני.
         </div>
       ) : null}
 
@@ -388,7 +387,7 @@ function mapCheckoutError(message: string) {
   }
 
   if (isSessionManagedEmailError(message)) {
-    return 'האימייל כבר נקבע ל-Checkout הזה, לכן ממשיכים עם האימייל הקיים בחשבון.';
+    return 'האימייל כבר נקבע לתשלום הזה, לכן ממשיכים עם האימייל הקיים בחשבון.';
   }
 
   if (message.includes('invalidEmail') || message.toLowerCase().includes('invalid email')) {
@@ -399,7 +398,7 @@ function mapCheckoutError(message: string) {
     return 'כרגע לא ניתן להשלים תשלום. נסה שוב בעוד רגע.';
   }
 
-  return message;
+  return 'לא הצלחנו להשלים את התשלום. נסו שוב בעוד רגע.';
 }
 
 function isValidEmail(value: string) {
@@ -414,20 +413,20 @@ function getWalletLabel(
   methods: AvailablePaymentMethods | undefined,
 ) {
   if (!methods) {
-    return 'Apple Pay / Google Pay';
+    return 'אפל פיי / גוגל פיי';
   }
 
   if (methods.applePay && methods.googlePay) {
-    return 'Apple Pay / Google Pay';
+    return 'אפל פיי / גוגל פיי';
   }
 
   if (methods.applePay) {
-    return 'Apple Pay';
+    return 'אפל פיי';
   }
 
   if (methods.googlePay) {
-    return 'Google Pay';
+    return 'גוגל פיי';
   }
 
-  return 'Apple Pay / Google Pay';
+  return 'אפל פיי / גוגל פיי';
 }

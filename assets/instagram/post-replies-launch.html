@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SayBack Instagram Post</title>
+  <style>
+    :root {
+      --bg-1: #ff5a1a;
+      --bg-2: #ff8248;
+      --bg-3: #ffd44f;
+      --ink: #111111;
+      --bubble: #ecff51;
+      --white: #fffaf0;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 1080px;
+      height: 1350px;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: "Rubik", "Arial", sans-serif;
+      background: linear-gradient(145deg, var(--bg-1) 0%, var(--bg-2) 45%, var(--bg-3) 100%);
+    }
+
+    .canvas {
+      width: 1080px;
+      height: 1350px;
+      position: relative;
+      color: var(--ink);
+      isolation: isolate;
+    }
+
+    .glow {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(55px);
+      opacity: 0.55;
+      z-index: -1;
+    }
+
+    .g1 { width: 420px; height: 420px; background: #fff27e; top: -120px; right: -90px; }
+    .g2 { width: 360px; height: 360px; background: #ff9c6e; left: -120px; bottom: 200px; }
+
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 70px 70px 30px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 42px;
+      font-weight: 900;
+      letter-spacing: 0.3px;
+      color: #1a130f;
+    }
+
+    .badge {
+      width: 64px;
+      height: 64px;
+      border-radius: 20px;
+      background: #121212;
+      position: relative;
+      box-shadow: 0 10px 26px rgba(0,0,0,0.25);
+    }
+
+    .badge::before {
+      content: "?";
+      width: 38px;
+      height: 30px;
+      border-radius: 12px;
+      background: var(--bubble);
+      position: absolute;
+      right: 13px;
+      top: 14px;
+      display: grid;
+      place-items: center;
+      font-size: 24px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .badge::after {
+      content: "";
+      position: absolute;
+      right: 16px;
+      top: 36px;
+      width: 13px;
+      height: 13px;
+      background: var(--bubble);
+      transform: rotate(45deg);
+      border-radius: 3px;
+    }
+
+    .tag {
+      font-size: 28px;
+      font-weight: 700;
+      color: #3b2412;
+      background: rgba(255, 247, 227, 0.55);
+      border: 2px solid rgba(17,17,17,0.08);
+      padding: 12px 18px;
+      border-radius: 18px;
+      backdrop-filter: blur(3px);
+    }
+
+    .hero {
+      margin: 24px 56px 0;
+      background: #0f0f10;
+      border-radius: 46px;
+      border: 4px solid #101010;
+      padding: 52px 50px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.28);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 8% 6%, rgba(247,255,79,0.18), transparent 42%),
+        radial-gradient(circle at 94% 0%, rgba(255,122,86,0.24), transparent 34%);
+      pointer-events: none;
+    }
+
+    .hero h1 {
+      margin: 0;
+      color: var(--white);
+      font-size: 82px;
+      line-height: 1.04;
+      font-weight: 900;
+      letter-spacing: -0.8px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero .mark {
+      display: inline-block;
+      color: #f7ff4f;
+      padding-inline: 8px;
+    }
+
+    .sub {
+      margin-top: 30px;
+      color: #f9e9d2;
+      font-size: 38px;
+      line-height: 1.28;
+      font-weight: 600;
+      max-width: 860px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .steps {
+      margin: 34px 56px 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .step {
+      background: rgba(255, 251, 241, 0.86);
+      border: 2px solid rgba(17,17,17,0.1);
+      border-radius: 22px;
+      padding: 22px 16px;
+      text-align: center;
+      box-shadow: 0 10px 26px rgba(0,0,0,0.08);
+    }
+
+    .step .n {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      margin: 0 auto 10px;
+      background: #111111;
+      color: #f7ff4f;
+      display: grid;
+      place-items: center;
+      font-size: 24px;
+      font-weight: 900;
+    }
+
+    .step p {
+      margin: 0;
+      font-size: 29px;
+      line-height: 1.2;
+      font-weight: 700;
+      color: #20160f;
+    }
+
+    .cta {
+      position: absolute;
+      left: 56px;
+      right: 56px;
+      bottom: 64px;
+      background: linear-gradient(180deg, #ff7a56 0%, #ff623d 100%);
+      color: #ffffff;
+      border: 3px solid #101010;
+      border-radius: 28px;
+      text-align: center;
+      padding: 24px 18px;
+      box-shadow: 0 14px 0 #111111;
+      font-size: 45px;
+      font-weight: 900;
+      letter-spacing: 0.2px;
+    }
+
+    .note {
+      position: absolute;
+      bottom: 18px;
+      right: 0;
+      left: 0;
+      text-align: center;
+      font-size: 24px;
+      color: rgba(35, 21, 11, 0.72);
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <main class="canvas">
+    <div class="glow g1"></div>
+    <div class="glow g2"></div>
+
+    <header class="top">
+      <div class="tag">חדש ב-SayBack</div>
+      <div class="brand">
+        SayBack
+        <div class="badge" aria-hidden="true"></div>
+      </div>
+    </header>
+
+    <section class="hero">
+      <h1>לא יודעים <span class="mark">מה לענות</span>?</h1>
+      <p class="sub">מעלים הודעה או צילום מסך ומקבלים 3 תשובות קצרות וטבעיות בעברית</p>
+    </section>
+
+    <section class="steps" aria-label="שלבים">
+      <article class="step"><div class="n">1</div><p>מעלים הודעה</p></article>
+      <article class="step"><div class="n">2</div><p>בוחרים טון</p></article>
+      <article class="step"><div class="n">3</div><p>שולחים תשובה</p></article>
+    </section>
+
+    <div class="cta">נסו עכשיו דרך הלינק בביו</div>
+    <div class="note">WhatsApp • Instagram • לקוחות • דייטינג</div>
+  </main>
+</body>
+</html>

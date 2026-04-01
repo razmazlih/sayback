@@ -6,12 +6,14 @@ import {
   setStripeCustomerId,
   syncSubscriptionState,
 } from "@/lib/billing";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import {
   CREDIT_PACK_CURRENCY,
   CREDIT_PACK_PLAN_ID,
   CREDIT_PACK_PRICE_AGOROT,
 } from "@/lib/pricing";
 import { StripeConfigError, getStripe, isCheckoutPlan } from "@/lib/stripe";
+import { isIP } from "node:net";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +24,14 @@ const JSON_HEADERS = {
   Vary: "Authorization",
 } as const;
 const CHECKOUT_SESSION_ID_PATTERN = /^cs_(test|live)_[A-Za-z0-9]+$/;
+const USER_CHECKOUT_SESSION_RATE_LIMIT = {
+  limit: 30,
+  windowMs: 60_000,
+} as const;
+const IP_CHECKOUT_SESSION_RATE_LIMIT = {
+  limit: 120,
+  windowMs: 60_000,
+} as const;
 
 export async function GET(request: Request) {
   let authenticatedUser: Awaited<ReturnType<typeof requireAuthenticatedUser>> | null = null;
@@ -39,6 +49,14 @@ export async function GET(request: Request) {
     }
 
     throw error;
+  }
+
+  if (authenticatedUser) {
+    const rateLimitResponse = await enforceRateLimits(request, authenticatedUser.uid);
+
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
   }
 
   const sessionId = new URL(request.url).searchParams.get("session_id")?.trim();
@@ -146,10 +164,17 @@ export async function GET(request: Request) {
   }
 }
 
-function json(body: Record<string, unknown>, status: number) {
+function json(
+  body: Record<string, unknown>,
+  status: number,
+  additionalHeaders: Record<string, string> = {},
+) {
   return Response.json(body, {
     status,
-    headers: JSON_HEADERS,
+    headers: {
+      ...JSON_HEADERS,
+      ...additionalHeaders,
+    },
   });
 }
 
@@ -219,4 +244,96 @@ async function reconcilePaidCheckoutSession({
   }
 
   return getBillingSnapshot(uid);
+}
+
+async function enforceRateLimits(request: Request, uid: string) {
+  try {
+    const userRateLimit = await consumeRateLimit({
+      scope: `checkout-session:uid:${uid}`,
+      limit: USER_CHECKOUT_SESSION_RATE_LIMIT.limit,
+      windowMs: USER_CHECKOUT_SESSION_RATE_LIMIT.windowMs,
+    });
+
+    if (!userRateLimit.allowed) {
+      return json(
+        {
+          error: "Too many checkout status checks. Please wait and try again.",
+        },
+        429,
+        {
+          "Retry-After": String(userRateLimit.retryAfterSeconds),
+        },
+      );
+    }
+
+    const clientIp = readClientIp(request);
+
+    if (!clientIp) {
+      return null;
+    }
+
+    const ipRateLimit = await consumeRateLimit({
+      scope: `checkout-session:ip:${clientIp}`,
+      limit: IP_CHECKOUT_SESSION_RATE_LIMIT.limit,
+      windowMs: IP_CHECKOUT_SESSION_RATE_LIMIT.windowMs,
+    });
+
+    if (!ipRateLimit.allowed) {
+      return json(
+        {
+          error: "Too many checkout status checks from this network. Please wait and try again.",
+        },
+        429,
+        {
+          "Retry-After": String(ipRateLimit.retryAfterSeconds),
+        },
+      );
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Checkout session rate-limit backend unavailable. Continuing request.", error);
+    return null;
+  }
+}
+
+function readClientIp(request: Request) {
+  const directIp = normalizeIpCandidate(request.headers.get("x-real-ip"));
+
+  if (directIp) {
+    return directIp;
+  }
+
+  return normalizeIpCandidate(request.headers.get("x-forwarded-for"));
+}
+
+function normalizeIpCandidate(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  let candidate = value.split(",")[0]?.trim();
+
+  if (!candidate) {
+    return null;
+  }
+
+  if (candidate.startsWith("[") && candidate.includes("]")) {
+    candidate = candidate.slice(1, candidate.indexOf("]")).trim();
+  } else if (candidate.includes(".") && candidate.includes(":")) {
+    const parts = candidate.split(":");
+    const maybePort = parts.at(-1);
+
+    if (parts.length === 2 && maybePort && /^\d+$/.test(maybePort)) {
+      candidate = parts[0] ?? candidate;
+    }
+  }
+
+  const zoneIndex = candidate.indexOf("%");
+
+  if (zoneIndex > 0) {
+    candidate = candidate.slice(0, zoneIndex);
+  }
+
+  return isIP(candidate) ? candidate.toLowerCase() : null;
 }

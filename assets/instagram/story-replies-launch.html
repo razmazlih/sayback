@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SayBack Instagram Story</title>
+  <style>
+    :root {
+      --bg1: #ff551c;
+      --bg2: #ff7e49;
+      --bg3: #ffd34e;
+      --ink: #111111;
+      --card: #0f1011;
+      --bubble: #ecff4d;
+      --soft: #fff4df;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 1080px;
+      height: 1920px;
+      overflow: hidden;
+      font-family: "Rubik", "Arial", sans-serif;
+      background: linear-gradient(160deg, var(--bg1) 0%, var(--bg2) 46%, var(--bg3) 100%);
+      color: var(--ink);
+    }
+
+    .story {
+      width: 1080px;
+      height: 1920px;
+      position: relative;
+      padding: 72px 58px 68px;
+      display: flex;
+      flex-direction: column;
+      gap: 34px;
+      isolation: isolate;
+    }
+
+    .halo {
+      position: absolute;
+      border-radius: 999px;
+      filter: blur(62px);
+      opacity: 0.5;
+      z-index: -1;
+    }
+
+    .h1 { width: 460px; height: 460px; background: #fff07a; top: -170px; right: -110px; }
+    .h2 { width: 420px; height: 420px; background: #ff9b71; bottom: 220px; left: -150px; }
+
+    .head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 56px;
+      font-weight: 900;
+      color: #1c130f;
+      letter-spacing: 0.2px;
+    }
+
+    .icon {
+      width: 86px;
+      height: 86px;
+      border-radius: 26px;
+      background: #121212;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.24);
+      position: relative;
+    }
+
+    .icon::before {
+      content: "?";
+      position: absolute;
+      right: 18px;
+      top: 18px;
+      width: 50px;
+      height: 40px;
+      border-radius: 15px;
+      background: var(--bubble);
+      display: grid;
+      place-items: center;
+      font-size: 30px;
+      font-weight: 900;
+      line-height: 1;
+      color: #111111;
+    }
+
+    .icon::after {
+      content: "";
+      position: absolute;
+      right: 22px;
+      top: 52px;
+      width: 14px;
+      height: 14px;
+      background: var(--bubble);
+      transform: rotate(45deg);
+      border-radius: 3px;
+    }
+
+    .tag {
+      font-size: 34px;
+      font-weight: 800;
+      color: #3f2917;
+      background: rgba(255,248,232,0.65);
+      border: 2px solid rgba(17,17,17,0.1);
+      border-radius: 20px;
+      padding: 12px 18px;
+    }
+
+    .hero {
+      background: var(--card);
+      border: 4px solid #0f0f10;
+      border-radius: 48px;
+      padding: 60px 54px;
+      box-shadow: 0 24px 70px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 8% 8%, rgba(255,140,84,0.25), transparent 40%),
+        radial-gradient(circle at 90% 0%, rgba(236,255,77,0.2), transparent 34%);
+      pointer-events: none;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 112px;
+      line-height: 1.03;
+      color: #fff6e7;
+      font-weight: 900;
+      letter-spacing: -1px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .em {
+      color: var(--bubble);
+      display: inline-block;
+    }
+
+    .sub {
+      margin: 28px 0 0;
+      font-size: 50px;
+      line-height: 1.25;
+      color: #f7e8d3;
+      font-weight: 700;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .card {
+      background: rgba(255,250,239,0.9);
+      border: 2px solid rgba(17,17,17,0.1);
+      border-radius: 24px;
+      padding: 20px 22px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+    }
+
+    .num {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: #111111;
+      color: var(--bubble);
+      display: grid;
+      place-items: center;
+      font-size: 28px;
+      font-weight: 900;
+      flex: 0 0 auto;
+    }
+
+    .txt {
+      font-size: 44px;
+      font-weight: 800;
+      color: #22160f;
+      line-height: 1.2;
+    }
+
+    .cta {
+      margin-top: auto;
+      background: linear-gradient(180deg, #ff7a56 0%, #ff623d 100%);
+      border: 3px solid #101010;
+      border-radius: 32px;
+      box-shadow: 0 16px 0 #111111;
+      text-align: center;
+      color: #ffffff;
+      font-size: 58px;
+      font-weight: 900;
+      letter-spacing: 0.2px;
+      padding: 28px 20px;
+    }
+
+    .foot {
+      text-align: center;
+      font-size: 30px;
+      color: rgba(40,24,13,0.74);
+      font-weight: 700;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <main class="story">
+    <div class="halo h1"></div>
+    <div class="halo h2"></div>
+
+    <header class="head">
+      <div class="tag">סטורי חדש</div>
+      <div class="brand">
+        SayBack
+        <div class="icon" aria-hidden="true"></div>
+      </div>
+    </header>
+
+    <section class="hero">
+      <h1>מה <span class="em">לענות</span><br>עכשיו?</h1>
+      <p class="sub">העלו הודעה ותקבלו 3 תשובות קצרות וטבעיות בעברית</p>
+    </section>
+
+    <section class="cards" aria-label="שלבים">
+      <article class="card"><div class="num">1</div><div class="txt">מעלים הודעה או צילום מסך</div></article>
+      <article class="card"><div class="num">2</div><div class="txt">בוחרים טון שמתאים לכם</div></article>
+      <article class="card"><div class="num">3</div><div class="txt">שולחים תשובה בביטחון</div></article>
+    </section>
+
+    <div class="cta">נסו עכשיו בלינק בביו</div>
+    <div class="foot">WhatsApp • Instagram • לקוחות • דייטינג</div>
+  </main>
+</body>
+</html>
