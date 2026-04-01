@@ -27,7 +27,7 @@ type CheckoutPaymentFormProps = {
 
 type PaymentPath = 'wallet' | 'card';
 type WalletAvailability = 'unknown' | 'available' | 'unavailable';
-const WALLET_READY_TIMEOUT_MS = 4500;
+const WALLET_READY_TIMEOUT_MS = 9000;
 
 export function CheckoutPaymentForm({
   clientSecret,
@@ -176,6 +176,12 @@ function CheckoutPaymentFormInner({
     }
   }
 
+  function handleExpressLoadError(message: string) {
+    setWalletAvailability('unavailable');
+    setPaymentPath('card');
+    setSubmitError(mapCheckoutError(message));
+  }
+
   if (checkoutState.type === 'loading') {
     return (
       <div className="rounded-[24px] border-2 border-black bg-white px-4 py-6 text-center text-sm font-bold text-neutral-700">
@@ -290,12 +296,15 @@ function CheckoutPaymentFormInner({
           <div className={hasRequiredDetails ? '' : 'pointer-events-none opacity-60'}>
             <ExpressCheckoutElement
               onReady={handleExpressReady}
+              onLoadError={(event) => {
+                handleExpressLoadError(event.error.message ?? '');
+              }}
               options={{
                 buttonHeight: undefined,
                 buttonTheme: undefined,
                 buttonType: undefined,
                 layout: undefined,
-                paymentMethodOrder: undefined,
+                paymentMethodOrder: ['apple_pay', 'google_pay'],
                 paymentMethods: {
                   applePay: 'always',
                   googlePay: 'always',
@@ -353,7 +362,8 @@ function CheckoutPaymentFormInner({
 
       {walletAvailability === 'unavailable' ? (
         <div className="rounded-2xl border-2 border-black bg-[#fff6d8] px-3 py-2 text-xs font-bold text-black">
-          אפל פיי / גוגל פיי לא זמינים במכשיר הזה, אז המשכנו ישירות לאשראי ידני.
+          אפל פיי / גוגל פיי לא זמינים כרגע. אפשר להמשיך באשראי ידני. כדי ש-wallets יעבדו, צריך
+          דפדפן תומך, HTTPS ודומיין רשום ב-Stripe.
         </div>
       ) : null}
 
@@ -382,6 +392,8 @@ function mapCheckoutError(message: string) {
     return 'לא הצלחנו להשלים את התשלום.';
   }
 
+  const lower = message.toLowerCase();
+
   if (message.includes('email address is required')) {
     return 'צריך להזין כתובת אימייל כדי לאשר את התשלום.';
   }
@@ -390,12 +402,24 @@ function mapCheckoutError(message: string) {
     return 'האימייל כבר נקבע לתשלום הזה, לכן ממשיכים עם האימייל הקיים בחשבון.';
   }
 
-  if (message.includes('invalidEmail') || message.toLowerCase().includes('invalid email')) {
+  if (message.includes('invalidEmail') || lower.includes('invalid email')) {
     return 'כתובת האימייל לא תקינה.';
   }
 
   if (message.includes('publishable key')) {
     return 'כרגע לא ניתן להשלים תשלום. נסה שוב בעוד רגע.';
+  }
+
+  if (
+    lower.includes('payment method domain') ||
+    lower.includes('register your domain') ||
+    lower.includes('domain is not registered')
+  ) {
+    return 'כדי לשלם עם אפל פיי או גוגל פיי צריך לרשום את הדומיין ב-Stripe (sandbox וגם live).';
+  }
+
+  if (lower.includes('https')) {
+    return 'אפל פיי וגוגל פיי עובדים רק על HTTPS. אפשר להמשיך כרגע באשראי ידני.';
   }
 
   return 'לא הצלחנו להשלים את התשלום. נסו שוב בעוד רגע.';

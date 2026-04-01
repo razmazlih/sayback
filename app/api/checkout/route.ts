@@ -25,6 +25,9 @@ const JSON_HEADERS = {
 } as const;
 const JSON_CONTENT_TYPE = "application/json";
 const ABSOLUTE_HTTP_URL_PATTERN = /^https?:\/\//i;
+const LOCALHOST_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0"]);
+const PAYMENT_METHOD_DOMAIN_SYNC_WINDOW_MS = 10 * 60_000;
+const paymentMethodDomainSyncAttempts = new Map<string, number>();
 const USER_CHECKOUT_RATE_LIMIT = {
   limit: 8,
   windowMs: 60_000,
@@ -108,6 +111,12 @@ export async function POST(request: NextRequest) {
     const stripe = getStripe();
     const selectedPlan = getCheckoutPlan(body.plan);
     const origin = getRequestOrigin(request);
+
+    await ensureWalletDomainIsRegistered({
+      stripe,
+      origin,
+    });
+
     const customer = await ensureStripeCustomer({
       stripe,
       email: authenticatedUser.email,
@@ -125,6 +134,7 @@ export async function POST(request: NextRequest) {
         ...selectedPlan.metadata,
         userId: authenticatedUser.uid,
       },
+      origin_context: "web",
       locale: "auto",
       billing_address_collection: "auto",
       allow_promotion_codes: false,
@@ -284,6 +294,72 @@ async function ensureStripeCustomer({
 
   await setStripeCustomerId(uid, customer.id);
   return customer;
+}
+
+async function ensureWalletDomainIsRegistered({
+  stripe,
+  origin,
+}: {
+  stripe: Stripe;
+  origin: string;
+}) {
+  let parsedOrigin: URL;
+
+  try {
+    parsedOrigin = new URL(origin);
+  } catch {
+    return;
+  }
+
+  if (
+    parsedOrigin.protocol !== "https:" ||
+    LOCALHOST_HOSTS.has(parsedOrigin.hostname.toLowerCase())
+  ) {
+    return;
+  }
+
+  const domainName = parsedOrigin.hostname.toLowerCase();
+  const now = Date.now();
+  const lastAttempt = paymentMethodDomainSyncAttempts.get(domainName);
+
+  if (
+    typeof lastAttempt === "number" &&
+    now - lastAttempt < PAYMENT_METHOD_DOMAIN_SYNC_WINDOW_MS
+  ) {
+    return;
+  }
+
+  paymentMethodDomainSyncAttempts.set(domainName, now);
+
+  try {
+    const listedDomains = await stripe.paymentMethodDomains.list({
+      domain_name: domainName,
+      limit: 1,
+    });
+
+    let domain =
+      listedDomains.data.find((candidate) => candidate.domain_name === domainName) ?? null;
+
+    if (!domain) {
+      domain = await stripe.paymentMethodDomains.create({
+        domain_name: domainName,
+        enabled: true,
+      });
+    } else if (!domain.enabled) {
+      domain = await stripe.paymentMethodDomains.update(domain.id, {
+        enabled: true,
+      });
+    }
+
+    if (domain.apple_pay.status !== "active" || domain.google_pay.status !== "active") {
+      await stripe.paymentMethodDomains.validate(domain.id);
+    }
+  } catch (error) {
+    console.error("Stripe wallet domain sync failed", {
+      domainName,
+      error,
+    });
+  }
 }
 
 function normalizeEmail(value: string | null) {
