@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SayBack Instagram Pack V2</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&family=Heebo:wght@400;500;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #130f0b;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: 'Rubik', 'Heebo', sans-serif;
+        background:
+          radial-gradient(circle at 8% 12%, #ffd77c 0%, transparent 36%),
+          radial-gradient(circle at 90% 6%, #ff8e63 0%, transparent 30%),
+          linear-gradient(180deg, #fff8ea 0%, #ffe8c0 100%);
+        color: var(--ink);
+      }
+
+      .wrap {
+        width: max-content;
+        margin: 24px;
+        display: grid;
+        grid-template-columns: repeat(4, 1080px);
+        gap: 120px;
+      }
+
+      .post {
+        position: relative;
+        width: 1080px;
+        height: 1350px;
+        border-radius: 58px;
+        border: 6px solid #111;
+        overflow: hidden;
+        padding: 74px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        isolation: isolate;
+      }
+
+      .post::before,
+      .post::after {
+        content: '';
+        position: absolute;
+        border-radius: 999px;
+        z-index: -1;
+      }
+
+      .post::before {
+        width: 520px;
+        height: 520px;
+        top: -180px;
+        left: -150px;
+        opacity: 0.52;
+      }
+
+      .post::after {
+        width: 420px;
+        height: 420px;
+        bottom: -130px;
+        right: -130px;
+        opacity: 0.46;
+      }
+
+      .theme-a {
+        background: linear-gradient(165deg, #f7ff4f 0%, #ffe8af 72%, #ffd775 100%);
+      }
+
+      .theme-a::before {
+        background: #ff623d;
+      }
+
+      .theme-a::after {
+        background: #6ce8ff;
+      }
+
+      .theme-b {
+        color: #fff;
+        background: linear-gradient(160deg, #111111 0%, #2a1309 58%, #552412 100%);
+      }
+
+      .theme-b::before {
+        background: #ff5e3a;
+      }
+
+      .theme-b::after {
+        background: #ffd400;
+      }
+
+      .theme-c {
+        background: linear-gradient(160deg, #d7f9ff 0%, #fff9ed 62%, #ffe4a8 100%);
+      }
+
+      .theme-c::before {
+        background: #67dcff;
+      }
+
+      .theme-c::after {
+        background: #ff6e45;
+      }
+
+      .theme-d {
+        background: linear-gradient(160deg, #ff6843 0%, #ff9360 50%, #ffd873 100%);
+      }
+
+      .theme-d::before {
+        background: #f7ff4f;
+      }
+
+      .theme-d::after {
+        background: #111;
+      }
+
+      .theme-e {
+        background: linear-gradient(155deg, #fffef8 0%, #fff0cf 68%, #ffd200 100%);
+      }
+
+      .theme-e::before {
+        background: #ff9360;
+      }
+
+      .theme-e::after {
+        background: #7fe5ff;
+      }
+
+      .theme-f {
+        color: #fff;
+        background: linear-gradient(155deg, #1d140d 0%, #4e2a18 55%, #834018 100%);
+      }
+
+      .theme-f::before {
+        background: #6ce8ff;
+      }
+
+      .theme-f::after {
+        background: #ffd500;
+      }
+
+      .theme-g {
+        background: linear-gradient(160deg, #f6f3ff 0%, #ffe9cf 55%, #ffcfa9 100%);
+      }
+
+      .theme-g::before {
+        background: #ff4d00;
+      }
+
+      .theme-g::after {
+        background: #8eeeff;
+      }
+
+      .theme-h {
+        color: #fff;
+        background: linear-gradient(160deg, #0f1b2b 0%, #214a66 48%, #2b6d86 100%);
+      }
+
+      .theme-h::before {
+        background: #ffd400;
+      }
+
+      .theme-h::after {
+        background: #ff7e56;
+      }
+
+      .top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .brand {
+        border: 4px solid #111;
+        border-radius: 999px;
+        min-height: 70px;
+        padding: 12px 28px;
+        font-size: 30px;
+        font-weight: 900;
+        line-height: 1;
+        background: #fff;
+        color: #111;
+        box-shadow: 0 6px 0 #111;
+      }
+
+      .theme-b .brand,
+      .theme-f .brand,
+      .theme-h .brand {
+        border-color: #fff;
+        box-shadow: 0 6px 0 rgba(255, 255, 255, 0.28);
+      }
+
+      .serial {
+        font-size: 26px;
+        font-weight: 900;
+        border: 3px solid currentColor;
+        border-radius: 18px;
+        padding: 10px 18px;
+      }
+
+      .middle {
+        margin-top: 38px;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+      }
+
+      h1 {
+        margin: 0;
+        white-space: pre-line;
+        font-size: 95px;
+        font-weight: 900;
+        line-height: 1.03;
+        letter-spacing: -0.02em;
+        text-wrap: balance;
+      }
+
+      .sub {
+        margin: 0;
+        font-size: 43px;
+        line-height: 1.3;
+        font-weight: 700;
+      }
+
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .tag {
+        border: 3px solid currentColor;
+        border-radius: 999px;
+        padding: 12px 20px;
+        font-size: 28px;
+        font-weight: 900;
+        line-height: 1;
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .theme-b .tag,
+      .theme-f .tag,
+      .theme-h .tag {
+        background: rgba(0, 0, 0, 0.3);
+      }
+
+      .bottom {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 18px;
+      }
+
+      .url {
+        font-size: 24px;
+        font-weight: 700;
+        opacity: 0.84;
+        margin-bottom: 10px;
+      }
+
+      .cta {
+        font-size: 39px;
+        line-height: 1;
+        font-weight: 900;
+        padding: 24px 34px;
+        border-radius: 28px;
+        border: 4px solid #111;
+        color: #f7ff4f;
+        background: #111;
+        box-shadow: 0 8px 0 #111;
+      }
+
+      .theme-b .cta,
+      .theme-f .cta,
+      .theme-h .cta {
+        border-color: #f7ff4f;
+        background: #f7ff4f;
+        color: #111;
+        box-shadow: 0 8px 0 rgba(247, 255, 79, 0.42);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap" id="postsWrap"></main>
+
+    <script>
+      const posts = [
+        { theme: 'theme-a', title: 'מה לענות\nבלי לחץ?', body: 'SayBack נותן 3 תשובות קצרות, טבעיות ומוכנות לשליחה.', tags: ['מהיר', 'עברית טבעית', 'מדויק'], cta: 'לקבל 3 תשובות' },
+        { theme: 'theme-b', title: 'לא להיתקע\nעל הודעה אחת', body: 'במקום לחפש מילים, מקבלים ניסוח שעובד כבר בהודעה הבאה.', tags: ['פחות חשיבה', 'יותר פעולה', 'תוצאה'], cta: 'לענות עכשיו' },
+        { theme: 'theme-c', title: 'שלב 1:\nמדביקים הודעה', body: 'אפשר טקסט רגיל או צילום מסך. המערכת מבינה את ההקשר.', tags: ['טקסט', 'צילום מסך', 'קל'], cta: 'להדביק הודעה' },
+        { theme: 'theme-d', title: 'שלב 2:\nבוחרים טון', body: 'עדין, ישיר, זורם, מצחיק או פלרטטני. אתה מחליט את הווייב.', tags: ['עדין', 'ישיר', 'פלרטטני'], cta: 'לבחור טון' },
+        { theme: 'theme-e', title: 'שלב 3:\nשולחים תשובה', body: 'בוחרים את ההצעה שהכי יושבת טוב, מעתיקים ושולחים.', tags: ['בחר', 'העתק', 'שלח'], cta: 'לסגור פינה' },
+        { theme: 'theme-f', title: 'אין לך זמן\nלנסח?', body: 'SayBack חוסך דקות יקרות בכל שיחה ומוריד עומס מנטלי.', tags: ['חוסך זמן', 'פוקוס', 'קליל'], cta: 'לשחרר עומס' },
+        { theme: 'theme-g', title: 'קראש כתב\nאחרי שבוע?', body: 'עונים חכם וקליל בלי להיראות לחוצים או זמינים מדי.', tags: ['קראש', 'פלרטטני', 'בסטייל'], cta: 'לתשובת קראש' },
+        { theme: 'theme-h', title: 'אקס שולח\n"מה קורה?"', body: 'מנסחים גבול ברור או פתיחה חדשה, לפי מה שנכון לך.', tags: ['אקס', 'גבולות', 'בהירות'], cta: 'לנסח נכון' },
+        { theme: 'theme-a', title: 'לקוח מבקש\nמחיר נמוך?', body: 'שומרים על הערך שלך עם תשובה מקצועית וחדה.', tags: ['לקוח', 'אסרטיבי', 'מקצועי'], cta: 'לתשובת לקוח' },
+        { theme: 'theme-b', title: 'הבוס כותב\nמאוחר בערב?', body: 'עונים מכבד, ברור ומקצועי עם גבולות בריאים.', tags: ['בוס', 'מכבד', 'ברור'], cta: 'לענות לבוס' },
+        { theme: 'theme-c', title: 'יד2:\n"אחרון כמה?"', body: 'ניסוח מו"מ קצר שמקדם את העסקה לסגירה.', tags: ['יד2', 'מו"מ', 'סגירה'], cta: 'להתקדם לעסקה' },
+        { theme: 'theme-d', title: 'צריך לדבר', body: 'מורידים מתח, מחזירים שליטה, ומגיבים בטון הנכון.', tags: ['רוגע', 'שליטה', 'דיוק'], cta: 'לענות בלי לחץ' },
+        { theme: 'theme-e', title: '3 חינם\nלהתחלה', body: 'התנסות מהירה בלי התחייבות, כדי לראות שזה עובד.', tags: ['חינם', 'מהיר', 'לבדוק'], cta: 'לנסות בחינם' },
+        { theme: 'theme-f', title: '50 שימושים\n9.90₪', body: 'חבילת קרדיטים חד-פעמית: עד 150 תשובות.', tags: ['חד-פעמי', 'משתלם', 'בלי התחייבות'], cta: 'לקנות 50 שימושים' },
+        { theme: 'theme-g', title: 'ללא הגבלה\n24.90₪', body: 'למי שכותבים הרבה ורוצים מענה מהיר כל יום.', tags: ['חודשי', 'ללא הגבלה', 'שקט נפשי'], cta: 'לפתוח ללא הגבלה' },
+        { theme: 'theme-h', title: 'אתה נשמע\nכמו עצמך', body: 'התשובות טבעיות ולא רובוטיות, מותאמות לסגנון שלך.', tags: ['אותנטי', 'אישי', 'מדויק'], cta: 'לשמור על הקול שלך' },
+        { theme: 'theme-a', title: 'הודעה נכנסת,\nתשובה יוצאת', body: 'תהליך קצר שעובד בחיים האמיתיים, לא רק בתיאוריה.', tags: ['פרקטי', 'מיידי', 'יעיל'], cta: 'להתחיל לענות' },
+        { theme: 'theme-b', title: 'גם וואטסאפ\nגם אינסטגרם', body: 'כל צ׳אט שבו כותבים לך, SayBack עוזר לענות חכם.', tags: ['WhatsApp', 'Instagram', 'DM'], cta: 'לכל השיחות' },
+        { theme: 'theme-c', title: 'לא שומרים\nאת ההודעות שלך', body: 'פרטיות לפני הכול. מקבלים תשובה וממשיכים הלאה.', tags: ['פרטיות', 'בטוח', 'דיסקרטי'], cta: 'להתחיל בביטחון' },
+        { theme: 'theme-d', title: 'אופציית ריכוך\nבלחיצה', body: 'יש תשובה טובה אבל חדה מדי? מרככים במקום.', tags: ['softer', 'נעים', 'עדין'], cta: 'לרכך תגובה' },
+        { theme: 'theme-e', title: 'אופציית חידוד\nבלחיצה', body: 'צריך יותר אסרטיביות? מחדדים את התשובה מיד.', tags: ['sharper', 'חד', 'ברור'], cta: 'לחדד תגובה' },
+        { theme: 'theme-f', title: 'ניסוח מחדש\nבקליק', body: 'לא התחברת לנוסח? מייצרים וריאציה חדשה מיד.', tags: ['retry', 'עוד אופציה', 'בול'], cta: 'לנסות שוב' },
+        { theme: 'theme-g', title: 'יותר ביטחון\nלפני שליחה', body: 'רואים כמה ניסוחים, בוחרים נכון, ושולחים בראש שקט.', tags: ['ביטחון', 'בחירה חכמה', 'שליחה'], cta: 'לענות בראש שקט' },
+        { theme: 'theme-h', title: 'דקה אחת\nוסגרת עניין', body: 'SayBack נועד לרגעים שאין לך כוח או זמן להתלבט.', tags: ['דקה', 'בלי דרמה', 'יעיל'], cta: 'לסיים מהר' },
+        { theme: 'theme-a', title: 'תשובות\nשמתקדמות לשיחה', body: 'לא רק "להגיב". להוביל את השיחה לכיוון שרצית.', tags: ['הובלה', 'כיוון', 'תוצאה'], cta: 'להוביל שיחה' },
+        { theme: 'theme-b', title: 'מתאים גם\nלעסקים קטנים', body: 'לקוח חדש, לקוח קיים, פנייה מורכבת. יש לך תשובה מוכנה.', tags: ['עסקים', 'לקוחות', 'שירות'], cta: 'לתשובות עסקיות' },
+        { theme: 'theme-c', title: 'גם לדייטינג\nגם לעבודה', body: 'אותו כלי, טונים שונים, תוצאות שמתאימות לסיטואציה.', tags: ['דייטינג', 'עבודה', 'גמישות'], cta: 'לעבור סיטואציה' },
+        { theme: 'theme-d', title: '3 אפשרויות\nכל פעם', body: 'זווית עדינה, זווית ישירה, וזווית מאוזנת לבחירה מהירה.', tags: ['3 אופציות', 'השוואה', 'בחירה'], cta: 'לראות את השלישייה' },
+        { theme: 'theme-e', title: 'פחות התלבטות,\nיותר שליטה', body: 'כשהמילים מגיעות מהר יותר, כל השיחה מרגישה קלה יותר.', tags: ['שליטה', 'קלות', 'זרימה'], cta: 'לכתוב בקלות' },
+        { theme: 'theme-f', title: 'SayBack', body: 'הדרך המהירה לענות טוב יותר בכל צ׳אט, בעברית טבעית.', tags: ['3 תשובות', 'RTL', 'מוכן עכשיו'], cta: 'להצטרף עכשיו' },
+      ];
+
+      const wrap = document.getElementById('postsWrap');
+      wrap.style.gridTemplateRows = `repeat(${Math.ceil(posts.length / 4)}, 1350px)`;
+
+      posts.forEach((post, index) => {
+        const card = document.createElement('article');
+        card.className = `post ${post.theme}`;
+
+        const top = document.createElement('div');
+        top.className = 'top';
+
+        const serial = document.createElement('span');
+        serial.className = 'serial';
+        serial.textContent = `${String(index + 1).padStart(2, '0')}/${String(posts.length).padStart(2, '0')}`;
+
+        const brand = document.createElement('span');
+        brand.className = 'brand';
+        brand.textContent = 'SayBack';
+
+        top.appendChild(serial);
+        top.appendChild(brand);
+
+        const middle = document.createElement('div');
+        middle.className = 'middle';
+
+        const title = document.createElement('h1');
+        title.textContent = post.title;
+
+        const sub = document.createElement('p');
+        sub.className = 'sub';
+        sub.textContent = post.body;
+
+        const tags = document.createElement('div');
+        tags.className = 'tags';
+
+        post.tags.forEach((label) => {
+          const el = document.createElement('span');
+          el.className = 'tag';
+          el.textContent = label;
+          tags.appendChild(el);
+        });
+
+        middle.appendChild(title);
+        middle.appendChild(sub);
+        middle.appendChild(tags);
+
+        const bottom = document.createElement('div');
+        bottom.className = 'bottom';
+
+        const url = document.createElement('span');
+        url.className = 'url';
+        url.textContent = 'sayback.co.il';
+
+        const cta = document.createElement('span');
+        cta.className = 'cta';
+        cta.textContent = post.cta;
+
+        bottom.appendChild(url);
+        bottom.appendChild(cta);
+
+        card.appendChild(top);
+        card.appendChild(middle);
+        card.appendChild(bottom);
+        wrap.appendChild(card);
+      });
+    </script>
+  </body>
+</html>

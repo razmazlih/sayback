@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SayBack Instagram Pack V3</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&family=Heebo:wght@400;500;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-cream: #fff7e6;
+        --ink: #19130f;
+        --surface: #fffdf8;
+        --brand: #ff4d00;
+        --brand-soft: #ff8f5a;
+        --accent: #ffd400;
+        --lime: #f7ff4f;
+        --cyan: #6ce8ff;
+        --danger: #d7263d;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: 'Rubik', 'Heebo', sans-serif;
+        background:
+          radial-gradient(circle at 10% 8%, #ffe38a 0%, transparent 40%),
+          radial-gradient(circle at 88% 0%, #ff8f5a 0%, transparent 34%),
+          linear-gradient(180deg, #fff8e8 0%, #fff4db 100%);
+        color: var(--ink);
+      }
+
+      .wrap {
+        width: max-content;
+        margin: 26px;
+        display: grid;
+        grid-template-columns: repeat(4, 1080px);
+        gap: 120px;
+      }
+
+      .post {
+        position: relative;
+        width: 1080px;
+        height: 1350px;
+        border: 6px solid #111;
+        border-radius: 56px;
+        overflow: hidden;
+        padding: 72px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        isolation: isolate;
+      }
+
+      .post::before,
+      .post::after {
+        content: '';
+        position: absolute;
+        z-index: -1;
+      }
+
+      .post::before {
+        width: 520px;
+        height: 520px;
+        border-radius: 999px;
+        top: -170px;
+        left: -150px;
+        opacity: 0.54;
+      }
+
+      .post::after {
+        width: 460px;
+        height: 460px;
+        border-radius: 999px;
+        bottom: -170px;
+        right: -150px;
+        opacity: 0.5;
+      }
+
+      .theme-01 {
+        background: linear-gradient(165deg, #f7ff4f 0%, #ffe9b7 62%, #ffd16f 100%);
+      }
+      .theme-01::before {
+        background: #ff623d;
+      }
+      .theme-01::after {
+        background: #6ce8ff;
+      }
+
+      .theme-02 {
+        color: #fff;
+        background: linear-gradient(158deg, #111111 0%, #2b1308 55%, #5d2410 100%);
+      }
+      .theme-02::before {
+        background: #ff4d00;
+      }
+      .theme-02::after {
+        background: #f7ff4f;
+      }
+
+      .theme-03 {
+        background: linear-gradient(162deg, #d8f9ff 0%, #fff9ef 60%, #ffe4b4 100%);
+      }
+      .theme-03::before {
+        background: #6ce8ff;
+      }
+      .theme-03::after {
+        background: #ff5f37;
+      }
+
+      .theme-04 {
+        background: linear-gradient(165deg, #ff6945 0%, #ff8f5a 52%, #ffd972 100%);
+      }
+      .theme-04::before {
+        background: #f7ff4f;
+      }
+      .theme-04::after {
+        background: #19130f;
+      }
+
+      .theme-05 {
+        background: linear-gradient(165deg, #fffdf8 0%, #fff1cf 62%, #ffd400 100%);
+      }
+      .theme-05::before {
+        background: #ff8f5a;
+      }
+      .theme-05::after {
+        background: #8eeeff;
+      }
+
+      .theme-06 {
+        color: #fff;
+        background: linear-gradient(158deg, #1a130f 0%, #4f2a16 58%, #844018 100%);
+      }
+      .theme-06::before {
+        background: #6ce8ff;
+      }
+      .theme-06::after {
+        background: #ffd400;
+      }
+
+      .theme-07 {
+        background: linear-gradient(165deg, #fff6f0 0%, #ffe4d0 55%, #ffc9a2 100%);
+      }
+      .theme-07::before {
+        background: #d7263d;
+      }
+      .theme-07::after {
+        background: #ffd400;
+      }
+
+      .theme-08 {
+        color: #fff;
+        background: linear-gradient(160deg, #0f1b2b 0%, #1f4664 52%, #2f6c85 100%);
+      }
+      .theme-08::before {
+        background: #ffd400;
+      }
+      .theme-08::after {
+        background: #ff7f57;
+      }
+
+      .pulse {
+        position: absolute;
+        inset: auto auto 250px -120px;
+        width: 320px;
+        height: 320px;
+        border-radius: 999px;
+        border: 30px solid rgba(255, 255, 255, 0.14);
+        z-index: -1;
+        transform: rotate(-12deg);
+      }
+
+      .slash {
+        position: absolute;
+        top: 132px;
+        right: -86px;
+        width: 300px;
+        height: 20px;
+        border-radius: 999px;
+        transform: rotate(-24deg);
+        background: rgba(17, 17, 17, 0.22);
+      }
+
+      .theme-02 .slash,
+      .theme-06 .slash,
+      .theme-08 .slash {
+        background: rgba(255, 255, 255, 0.25);
+      }
+
+      .head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .brand {
+        min-height: 70px;
+        border-radius: 999px;
+        border: 4px solid #111;
+        padding: 12px 26px;
+        font-size: 30px;
+        line-height: 1;
+        font-weight: 900;
+        background: #fff;
+        color: #111;
+        box-shadow: 0 6px 0 #111;
+      }
+
+      .theme-02 .brand,
+      .theme-06 .brand,
+      .theme-08 .brand {
+        border-color: #fff;
+        box-shadow: 0 6px 0 rgba(255, 255, 255, 0.3);
+      }
+
+      .kicker {
+        border-radius: 999px;
+        border: 3px solid currentColor;
+        padding: 10px 18px;
+        font-size: 23px;
+        font-weight: 900;
+        line-height: 1;
+      }
+
+      .main {
+        margin-top: 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+      }
+
+      h1 {
+        margin: 0;
+        white-space: pre-line;
+        font-size: 96px;
+        line-height: 1.03;
+        letter-spacing: -0.02em;
+        font-weight: 900;
+        text-wrap: balance;
+      }
+
+      .desc {
+        margin: 0;
+        font-size: 42px;
+        line-height: 1.3;
+        font-weight: 700;
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .chip {
+        border-radius: 999px;
+        border: 3px solid currentColor;
+        padding: 12px 20px;
+        font-size: 27px;
+        line-height: 1;
+        font-weight: 900;
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .theme-02 .chip,
+      .theme-06 .chip,
+      .theme-08 .chip {
+        background: rgba(0, 0, 0, 0.28);
+      }
+
+      .foot {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .url {
+        margin-bottom: 10px;
+        font-size: 22px;
+        font-weight: 700;
+        opacity: 0.88;
+      }
+
+      .cta {
+        border-radius: 30px;
+        border: 4px solid #111;
+        background: #111;
+        color: #f7ff4f;
+        box-shadow: 0 8px 0 #111;
+        padding: 24px 34px;
+        font-size: 39px;
+        line-height: 1;
+        font-weight: 900;
+      }
+
+      .theme-02 .cta,
+      .theme-06 .cta,
+      .theme-08 .cta {
+        border-color: #f7ff4f;
+        background: #f7ff4f;
+        color: #111;
+        box-shadow: 0 8px 0 rgba(247, 255, 79, 0.45);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap" id="postsWrap"></main>
+
+    <script>
+      const posts = [
+        { theme: 'theme-01', kicker: 'מושך ומהיר', title: 'לא יודעים\nמה לענות?', body: 'SayBack מחזיר לכם שלוש תשובות טבעיות תוך רגע.', chips: ['מהיר', 'טבעי', 'מדויק'], cta: 'לקבל 3 תשובות' },
+        { theme: 'theme-02', kicker: 'לחץ יורד', title: 'הודעה אחת\nלא עוצרת אותך', body: 'במקום להיתקע על ניסוח, שולחים תשובה בקליק.', chips: ['פחות סטרס', 'יותר זרימה', 'פעולה'], cta: 'לענות עכשיו' },
+        { theme: 'theme-03', kicker: 'עובד חכם', title: 'טקסט או\nצילום מסך', body: 'מדביקים הודעה או מעלים תמונה ומקבלים ניסוח מוכן.', chips: ['טקסט', 'תמונה', 'מיידי'], cta: 'להתחיל מהודעה' },
+        { theme: 'theme-04', kicker: 'בדיוק בטון', title: 'עדין? ישיר?\nפלרטטני?', body: 'אתם בוחרים את הטון והמערכת מדייקת לכל סיטואציה.', chips: ['עדין', 'ישיר', 'פלרטטני'], cta: 'לבחור טון' },
+        { theme: 'theme-05', kicker: 'רלוונטי תמיד', title: 'קראש, אקס,\nלקוח, בוס', body: 'אותו כלי, תשובות שונות, התאמה לפי מי שמולכם.', chips: ['קראש', 'לקוח', 'בוס'], cta: 'לבחור סיטואציה' },
+        { theme: 'theme-06', kicker: 'סוגר פינות', title: '3 אופציות\nכל פעם', body: 'משווים בין תשובות ובוחרים את הנוסח הכי מדויק.', chips: ['3 אפשרויות', 'השוואה', 'בחירה מהירה'], cta: 'לראות שלישייה' },
+        { theme: 'theme-07', kicker: 'בטוח לשימוש', title: 'פרטיות\nלפני הכול', body: 'לא שומרים את ההודעות שלך. נקי, מהיר, דיסקרטי.', chips: ['פרטיות', 'בטוח', 'דיסקרטי'], cta: 'להתחיל בביטחון' },
+        { theme: 'theme-08', kicker: 'ממיר לשיחה', title: 'להגיב חכם\nולא מתוך לחץ', body: 'תשובות קצרות שמקדמות שיחה במקום לגרור אותה.', chips: ['מטרה ברורה', 'תשובה חדה', 'זרימה'], cta: 'להוביל שיחה' },
+
+        { theme: 'theme-01', kicker: 'לרגעי דייטינג', title: 'קראש כתב\nפתאום?', body: 'עונים קליל בלי להיראות זמינים מדי ובלי משחקים.', chips: ['פלרטוט חכם', 'קליל', 'אותנטי'], cta: 'לתשובת קראש' },
+        { theme: 'theme-02', kicker: 'גבולות ברורים', title: 'אקס שלח\n"מה קורה?"', body: 'מנסחים גבול נקי או פתיחה מחודשת לפי מה שמתאים לך.', chips: ['אקס', 'בהירות', 'שליטה'], cta: 'לנסח נכון' },
+        { theme: 'theme-03', kicker: 'עסקי ומדויק', title: 'לקוח מבקש\nהנחה?', body: 'תשובה מקצועית ששומרת על הערך שלך.', chips: ['לקוח', 'אסרטיבי', 'שירותי'], cta: 'לתשובת לקוח' },
+        { theme: 'theme-04', kicker: 'עבודה חכמה', title: 'הבוס כתב\nבשעה מאוחרת?', body: 'עונים מקצועי ומכבד, עם גבולות בריאים.', chips: ['מקצועי', 'מכבד', 'ברור'], cta: 'לענות לבוס' },
+        { theme: 'theme-05', kicker: 'יד2 אפקטיבי', title: '"אחרון כמה"\nולא נלחצים', body: 'ניסוח מו"מ קצר שמקדם לכיוון סגירה.', chips: ['יד2', 'מו"מ', 'סגירה'], cta: 'להתקדם לעסקה' },
+        { theme: 'theme-06', kicker: 'מוריד עומס', title: 'אין זמן\nלחשוב שעה', body: 'SayBack חוסך דקות יקרות בכל תגובה.', chips: ['חוסך זמן', 'זריז', 'קל'], cta: 'לשחרר עומס' },
+        { theme: 'theme-07', kicker: 'עיצוב להמרה', title: 'בחר, העתק,\nשלח', body: 'תהליך קצר שמחזיר לך ביטחון לפני כל שליחה.', chips: ['בחירה', 'העתקה', 'שליחה'], cta: 'לענות בביטחון' },
+        { theme: 'theme-08', kicker: 'שקט מנטלי', title: 'פחות התלבטות\nיותר תוצאות', body: 'כשהניסוח מוכן, אתה פנוי לדבר עצמו.', chips: ['פוקוס', 'דיוק', 'מהירות'], cta: 'לעבור למצב פעולה' },
+
+        { theme: 'theme-01', kicker: 'חינם להתחלה', title: '3 שימושים\nחינם', body: 'נכנסים, בודקים, מרגישים את ההבדל בשיחה הראשונה.', chips: ['התנסות', 'ללא התחייבות', 'מהיר'], cta: 'לנסות בחינם' },
+        { theme: 'theme-02', kicker: 'משתלם מאוד', title: '50 שימושים\nב-9.90₪', body: 'חבילה חד פעמית, עד 150 תשובות מוכנות לשליחה.', chips: ['חד-פעמי', 'משתלם', 'מיידי'], cta: 'לקנות 50 שימושים' },
+        { theme: 'theme-03', kicker: 'לכבדים בשימוש', title: 'ללא הגבלה\n24.90₪', body: 'מענה מהיר לאורך כל החודש למי שכותבים הרבה.', chips: ['חודשי', 'ללא הגבלה', 'שקט נפשי'], cta: 'לפתוח ללא הגבלה' },
+        { theme: 'theme-04', kicker: 'אותנטי', title: 'נשמעים\nכמו עצמך', body: 'התשובות טבעיות ולא רובוטיות, מותאמות לקול שלך.', chips: ['אותנטי', 'אנושי', 'קצר ולעניין'], cta: 'לשמור על הקול שלך' },
+        { theme: 'theme-05', kicker: 'פיצר חזק', title: 'ריכוך\nבלחיצה', body: 'אם יצא חד מדי, מרככים מיד בלי להתחיל מחדש.', chips: ['softer', 'עדין', 'נעים'], cta: 'לרכך תגובה' },
+        { theme: 'theme-06', kicker: 'פיצר חד', title: 'חידוד\nבלחיצה', body: 'צריך תגובה אסרטיבית יותר? מקבלים גרסה חדה.', chips: ['sharper', 'אסרטיבי', 'ברור'], cta: 'לחדד תגובה' },
+        { theme: 'theme-07', kicker: 'עוד ניסיון', title: 'ניסוח מחדש\nבקליק', body: 'לא התחברת לנוסח? יוצרים וריאציה חדשה מיד.', chips: ['retry', 'וריאציה', 'בול'], cta: 'לנסות שוב' },
+        { theme: 'theme-08', kicker: 'תהליך ממכר', title: 'נכנסת הודעה\nיצאה תשובה', body: 'זרימה מהירה שמתאימה לחיים האמיתיים.', chips: ['פשוט', 'מהיר', 'יעיל'], cta: 'להתחיל עכשיו' },
+
+        { theme: 'theme-01', kicker: 'עובד בכל צ׳אט', title: 'גם וואטסאפ\nגם אינסטגרם', body: 'כל מקום שכותבים לך - יש לך תשובה מוכנה.', chips: ['WhatsApp', 'Instagram', 'DM'], cta: 'לכל השיחות' },
+        { theme: 'theme-02', kicker: 'כלי יום-יומי', title: 'מתאים גם\nלעסקים קטנים', body: 'פניות לקוח, מעקבים והצעות - הכל הופך מהיר יותר.', chips: ['עסקים', 'לקוחות', 'יעילות'], cta: 'לתשובות עסקיות' },
+        { theme: 'theme-03', kicker: 'מכוון מטרה', title: 'לא רק להגיב,\nלהוביל', body: 'התשובות נבנות כדי לקדם את השיחה קדימה.', chips: ['הובלה', 'כיוון', 'תוצאה'], cta: 'להוביל תגובה' },
+        { theme: 'theme-04', kicker: 'אפס בלבול', title: '3 תשובות\n= 3 אסטרטגיות', body: 'רכה, חדה, ומאוזנת. אתה בוחר מה נכון עכשיו.', chips: ['רכה', 'חדה', 'מאוזנת'], cta: 'לבחור אסטרטגיה' },
+        { theme: 'theme-05', kicker: 'אנרגיה גבוהה', title: 'תשובות\nשנכנסות בול', body: 'טקסטים קצרים שמרגישים טבעי ומחזיקים קצב שיחה.', chips: ['קצב', 'בול בפוני', 'טבעי'], cta: 'לשדרג שיחה' },
+        { theme: 'theme-06', kicker: 'בלי מאמץ', title: 'דקה אחת\nוסגרת עניין', body: 'נולד לרגעים שאין כוח או זמן להתלבט.', chips: ['דקה', 'בלי דרמה', 'קליל'], cta: 'לסיים מהר' },
+        { theme: 'theme-07', kicker: 'תמיד מוכן', title: 'עונים טוב יותר\nבכל מצב', body: 'דייטינג, עבודה, מכירות, שירות - הכול באותו כלי.', chips: ['דייטינג', 'עבודה', 'מכירות'], cta: 'להתחיל לענות' },
+        { theme: 'theme-08', kicker: 'SayBack', title: 'עברית טבעית\nבקצב שלך', body: 'הדרך החכמה לענות מהר, יפה, ומדויק.', chips: ['RTL', '3 תשובות', 'מוכן עכשיו'], cta: 'להצטרף עכשיו' },
+      ];
+
+      const wrap = document.getElementById('postsWrap');
+      wrap.style.gridTemplateRows = `repeat(${Math.ceil(posts.length / 4)}, 1350px)`;
+
+      posts.forEach((post) => {
+        const card = document.createElement('article');
+        card.className = `post ${post.theme}`;
+
+        const pulse = document.createElement('div');
+        pulse.className = 'pulse';
+
+        const slash = document.createElement('div');
+        slash.className = 'slash';
+
+        const head = document.createElement('div');
+        head.className = 'head';
+
+        const kicker = document.createElement('span');
+        kicker.className = 'kicker';
+        kicker.textContent = post.kicker;
+
+        const brand = document.createElement('span');
+        brand.className = 'brand';
+        brand.textContent = 'SayBack';
+
+        head.appendChild(kicker);
+        head.appendChild(brand);
+
+        const main = document.createElement('div');
+        main.className = 'main';
+
+        const title = document.createElement('h1');
+        title.textContent = post.title;
+
+        const desc = document.createElement('p');
+        desc.className = 'desc';
+        desc.textContent = post.body;
+
+        const chips = document.createElement('div');
+        chips.className = 'chips';
+        post.chips.forEach((label) => {
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = label;
+          chips.appendChild(chip);
+        });
+
+        main.appendChild(title);
+        main.appendChild(desc);
+        main.appendChild(chips);
+
+        const foot = document.createElement('div');
+        foot.className = 'foot';
+
+        const url = document.createElement('span');
+        url.className = 'url';
+        url.textContent = 'לינק בביו';
+
+        const cta = document.createElement('span');
+        cta.className = 'cta';
+        cta.textContent = post.cta;
+
+        foot.appendChild(url);
+        foot.appendChild(cta);
+
+        card.appendChild(pulse);
+        card.appendChild(slash);
+        card.appendChild(head);
+        card.appendChild(main);
+        card.appendChild(foot);
+        wrap.appendChild(card);
+      });
+    </script>
+  </body>
+</html>

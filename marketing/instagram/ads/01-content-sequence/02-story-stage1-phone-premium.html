@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SayBack Story - Stage 1 Clean Premium</title>
+  <style>
+    :root {
+      --orange-1: #ff4f1a;
+      --orange-2: #ff7a44;
+      --yellow: #ffd54d;
+      --ink: #111111;
+      --card: #0f1011;
+      --lime: #ecff4f;
+      --cream: #fff5e1;
+      --cta-1: #ff7b57;
+      --cta-2: #ff603b;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 1080px;
+      height: 1920px;
+      margin: 0;
+      overflow: hidden;
+      font-family: "Rubik", "Arial", sans-serif;
+      color: #20150f;
+      background:
+        radial-gradient(circle at 8% 0%, rgba(255,232,126,0.92) 0%, rgba(255,232,126,0) 36%),
+        radial-gradient(circle at 100% 18%, rgba(255,157,108,0.6) 0%, rgba(255,157,108,0) 42%),
+        linear-gradient(166deg, var(--orange-1) 0%, var(--orange-2) 52%, var(--yellow) 100%);
+    }
+
+    .canvas {
+      width: 1080px;
+      height: 1920px;
+      padding: 62px 54px 66px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .texture {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px);
+      background-size: 52px 52px;
+      opacity: 0.16;
+      mask-image: radial-gradient(circle at 50% 40%, #000 28%, transparent 80%);
+    }
+
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 2;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 54px;
+      font-weight: 900;
+      color: #1a110d;
+      letter-spacing: 0.2px;
+    }
+
+    .logo {
+      width: 82px;
+      height: 82px;
+      border-radius: 24px;
+      background: #111;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.24);
+      position: relative;
+      flex: 0 0 auto;
+    }
+
+    .logo::before {
+      content: "?";
+      position: absolute;
+      right: 18px;
+      top: 18px;
+      width: 46px;
+      height: 36px;
+      border-radius: 14px;
+      background: var(--lime);
+      color: #111;
+      display: grid;
+      place-items: center;
+      font-size: 27px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .logo::after {
+      content: "";
+      position: absolute;
+      right: 21px;
+      top: 48px;
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      background: var(--lime);
+      transform: rotate(45deg);
+    }
+
+    .chip {
+      font-size: 31px;
+      font-weight: 900;
+      color: #3c2516;
+      background: rgba(255,246,228,0.8);
+      border: 2px solid rgba(17,17,17,0.11);
+      border-radius: 20px;
+      padding: 11px 16px;
+      backdrop-filter: blur(3px);
+    }
+
+    .hero {
+      margin-top: 20px;
+      background: var(--card);
+      border: 4px solid #101010;
+      border-radius: 42px;
+      padding: 40px 40px 36px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.32);
+      overflow: hidden;
+      position: relative;
+      z-index: 2;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 8% 9%, rgba(255,127,82,0.25), transparent 40%),
+        radial-gradient(circle at 90% 0%, rgba(236,255,79,0.23), transparent 36%);
+    }
+
+    h1 {
+      margin: 0;
+      color: #fff8ec;
+      font-size: 90px;
+      line-height: 1.02;
+      font-weight: 900;
+      letter-spacing: -0.8px;
+      position: relative;
+      z-index: 1;
+    }
+
+    h1 .em { color: var(--lime); }
+
+    .hero p {
+      margin: 16px 0 0;
+      color: #f7e8d3;
+      font-size: 40px;
+      line-height: 1.2;
+      font-weight: 700;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-badge {
+      margin-top: 18px;
+      width: fit-content;
+      background: rgba(255,121,86,0.98);
+      border: 3px solid #101010;
+      border-radius: 16px;
+      color: #fff;
+      font-size: 29px;
+      font-weight: 900;
+      padding: 8px 14px;
+      box-shadow: 0 7px 0 #101010;
+      position: relative;
+      z-index: 1;
+    }
+
+    .stage-label {
+      width: fit-content;
+      margin: 22px auto 18px;
+      background: rgba(255,248,232,0.86);
+      border: 2px solid rgba(16,16,16,0.14);
+      border-radius: 999px;
+      padding: 11px 22px;
+      font-size: 31px;
+      font-weight: 900;
+      color: #2c1c12;
+      z-index: 2;
+    }
+
+    .phone-zone {
+      position: relative;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .phone-shadow {
+      position: absolute;
+      width: 540px;
+      height: 1010px;
+      border-radius: 78px;
+      background: rgba(0,0,0,0.33);
+      filter: blur(32px);
+      transform: translateY(28px);
+    }
+
+    .phone {
+      position: relative;
+      width: 540px;
+      height: 1010px;
+      border-radius: 70px;
+      background: #0d0d0e;
+      border: 4px solid #040404;
+      box-shadow:
+        0 30px 70px rgba(0,0,0,0.35),
+        inset 0 0 0 2px rgba(255,255,255,0.08);
+      padding: 18px;
+      overflow: hidden;
+    }
+
+    .notch {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 210px;
+      height: 34px;
+      border-radius: 999px;
+      background: #070707;
+      z-index: 4;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+
+    .screen {
+      width: 100%;
+      height: 100%;
+      border-radius: 52px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: #000;
+      position: relative;
+    }
+
+    .screen img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top center;
+      display: block;
+    }
+
+    .callout {
+      position: absolute;
+      right: 92px;
+      top: -10px;
+      background: var(--cream);
+      border: 3px solid #111;
+      border-radius: 18px;
+      box-shadow: 0 8px 0 #111;
+      padding: 12px 14px;
+      width: 245px;
+      text-align: center;
+      z-index: 5;
+    }
+
+    .callout .l1 {
+      font-size: 28px;
+      line-height: 1.1;
+      font-weight: 900;
+      color: #23160f;
+    }
+
+    .callout .l2 {
+      margin-top: 4px;
+      font-size: 31px;
+      line-height: 1.05;
+      font-weight: 900;
+      color: #ff4f1a;
+    }
+
+    .cta {
+      margin-top: 14px;
+      background: linear-gradient(180deg, var(--cta-1) 0%, var(--cta-2) 100%);
+      border: 3px solid #111;
+      border-radius: 30px;
+      box-shadow: 0 14px 0 #111;
+      color: #fff;
+      text-align: center;
+      font-size: 54px;
+      font-weight: 900;
+      letter-spacing: 0.2px;
+      padding: 22px 16px;
+      z-index: 2;
+      flex: 0 0 auto;
+    }
+
+    .meta {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 29px;
+      font-weight: 800;
+      color: rgba(35,21,12,0.76);
+      z-index: 2;
+      flex: 0 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <main class="canvas">
+    <div class="texture" aria-hidden="true"></div>
+
+    <header class="top">
+      <div class="chip">סטורי ממיר</div>
+      <div class="brand">SayBack<div class="logo" aria-hidden="true"></div></div>
+    </header>
+
+    <section class="hero">
+      <h1>שלב <span class="em">1</span>: מדביקים הודעה</h1>
+      <p>כך זה נראה בפועל בטלפון. מעלים צילום מסך או טקסט ומתחילים.</p>
+      <div class="hero-badge">3 שימושים ראשונים בחינם</div>
+    </section>
+
+    <div class="stage-label">המסך הראשון שהלקוח רואה</div>
+
+    <section class="phone-zone" aria-label="מוקאפ טלפון עם שלב 1">
+      <div class="callout">
+        <div class="l1">רואים בדיוק מה מקבלים</div>
+        <div class="l2">תוך 10 שניות</div>
+      </div>
+      <div class="phone-shadow"></div>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <img src="./refs/02-story-stage1-crops/crop-950.png" alt="צילום מסך של שלב 1 באתר SayBack" />
+        </div>
+      </div>
+    </section>
+
+    <div class="cta">נסו עכשיו בלינק בביו</div>
+    <div class="meta">WhatsApp • Instagram • לקוחות • דייטינג</div>
+  </main>
+</body>
+</html>

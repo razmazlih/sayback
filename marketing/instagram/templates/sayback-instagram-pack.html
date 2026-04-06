@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SayBack Instagram Pack</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&family=Heebo:wght@400;500;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --cream: #fff7e6;
+        --ink: #17120f;
+        --brand: #ff4d00;
+        --accent: #ffd400;
+        --cyan: #6ce8ff;
+        --lime: #f7ff4f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: 'Rubik', 'Heebo', sans-serif;
+        background:
+          radial-gradient(circle at 8% 10%, #ffdc87 0, transparent 32%),
+          radial-gradient(circle at 90% 4%, #ff7f57 0, transparent 28%),
+          linear-gradient(180deg, #fff9ef 0%, #ffeecf 100%);
+        color: var(--ink);
+      }
+
+      .wrap {
+        width: max-content;
+        margin: 24px;
+        display: grid;
+        grid-template-columns: repeat(4, 1080px);
+        gap: 120px;
+      }
+
+      .post {
+        position: relative;
+        width: 1080px;
+        height: 1350px;
+        border-radius: 56px;
+        overflow: hidden;
+        border: 6px solid #111;
+        padding: 76px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        isolation: isolate;
+      }
+
+      .post::before,
+      .post::after {
+        content: '';
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(2px);
+        z-index: -1;
+      }
+
+      .post::before {
+        width: 520px;
+        height: 520px;
+        top: -150px;
+        left: -130px;
+        opacity: 0.55;
+      }
+
+      .post::after {
+        width: 430px;
+        height: 430px;
+        bottom: -140px;
+        right: -120px;
+        opacity: 0.48;
+      }
+
+      .v1 {
+        background: linear-gradient(170deg, #f7ff4f 0%, #ffe9ad 70%, #ffd770 100%);
+      }
+      .v1::before {
+        background: #ff623d;
+      }
+      .v1::after {
+        background: #6ce8ff;
+      }
+
+      .v2 {
+        background: linear-gradient(160deg, #111111 0%, #2a1308 60%, #522213 100%);
+        color: #fff;
+      }
+      .v2::before {
+        background: #ff623d;
+      }
+      .v2::after {
+        background: #f7ff4f;
+      }
+
+      .v3 {
+        background: linear-gradient(165deg, #d7f9ff 0%, #fff9ef 65%, #ffe9bc 100%);
+      }
+      .v3::before {
+        background: #6ce8ff;
+      }
+      .v3::after {
+        background: #ff623d;
+      }
+
+      .v4 {
+        background: linear-gradient(170deg, #ff6a3f 0%, #ff8f5a 48%, #ffd96f 100%);
+      }
+      .v4::before {
+        background: #f7ff4f;
+      }
+      .v4::after {
+        background: #111111;
+      }
+
+      .v5 {
+        background: linear-gradient(170deg, #fffdf8 0%, #fff1cf 68%, #ffd400 100%);
+      }
+      .v5::before {
+        background: #ff8f5a;
+      }
+      .v5::after {
+        background: #6ce8ff;
+      }
+
+      .v6 {
+        background: linear-gradient(155deg, #20140f 0%, #4f2a16 55%, #7a3c16 100%);
+        color: #fff;
+      }
+      .v6::before {
+        background: #6ce8ff;
+      }
+      .v6::after {
+        background: #ffd400;
+      }
+
+      .top-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 72px;
+        border-radius: 999px;
+        border: 4px solid #111;
+        padding: 12px 28px;
+        font-weight: 900;
+        font-size: 30px;
+        line-height: 1;
+        letter-spacing: 0.03em;
+        background: #fff;
+        color: #111;
+        box-shadow: 0 6px 0 #111;
+      }
+
+      .v2 .brand,
+      .v6 .brand {
+        border-color: #fff;
+        box-shadow: 0 6px 0 rgba(255, 255, 255, 0.28);
+      }
+
+      .index {
+        font-size: 28px;
+        font-weight: 900;
+        padding: 10px 18px;
+        border-radius: 18px;
+        border: 3px solid currentColor;
+        backdrop-filter: blur(2px);
+      }
+
+      .content {
+        margin-top: 38px;
+        display: flex;
+        flex-direction: column;
+        gap: 34px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 98px;
+        font-weight: 900;
+        line-height: 1.04;
+        letter-spacing: -0.02em;
+        text-wrap: balance;
+      }
+
+      .body {
+        margin: 0;
+        font-size: 44px;
+        line-height: 1.32;
+        font-weight: 700;
+        max-width: 100%;
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .chip {
+        border-radius: 999px;
+        border: 3px solid currentColor;
+        padding: 12px 20px;
+        font-size: 28px;
+        line-height: 1;
+        font-weight: 900;
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .v2 .chip,
+      .v6 .chip {
+        background: rgba(0, 0, 0, 0.3);
+      }
+
+      .bottom {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .cta {
+        border-radius: 30px;
+        border: 4px solid #111;
+        background: #111;
+        color: #f7ff4f;
+        font-size: 40px;
+        font-weight: 900;
+        line-height: 1;
+        padding: 24px 34px;
+        box-shadow: 0 8px 0 #111;
+      }
+
+      .v2 .cta,
+      .v6 .cta {
+        background: #f7ff4f;
+        color: #111;
+        border-color: #f7ff4f;
+        box-shadow: 0 8px 0 rgba(247, 255, 79, 0.42);
+      }
+
+      .url {
+        font-size: 24px;
+        font-weight: 700;
+        opacity: 0.85;
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap" id="postsWrap"></main>
+
+    <script>
+      const posts = [
+        {
+          variant: 'v1',
+          title: 'לא יודעים\nמה לענות?',
+          body: 'SayBack נותן לכם 3 תשובות קצרות שנשמעות כמוכם, תוך רגע.',
+          chips: ['וואטסאפ', 'אינסטגרם', 'דייטינג'],
+          cta: 'לקבל 3 תשובות',
+        },
+        {
+          variant: 'v2',
+          title: 'תקועים על\nוי כחול?',
+          body: 'במקום לחשוב שעה, מדביקים הודעה ומקבלים ניסוח מוכן לשליחה.',
+          chips: ['פחות לחץ', 'יותר ביטחון', 'תשובה מיידית'],
+          cta: 'לשלוח חכם יותר',
+        },
+        {
+          variant: 'v3',
+          title: 'צילום מסך\nאחד וזהו',
+          body: 'מעלים צילום מסך של השיחה, ו‑SayBack בונה לכם תשובות רלוונטיות.',
+          chips: ['גם מתמונה', 'גם מטקסט', 'הכל בעברית'],
+          cta: 'להעלות צילום מסך',
+        },
+        {
+          variant: 'v4',
+          title: 'קודם סיטואציה,\nאחר כך תשובה',
+          body: 'קראש? אקס? לקוח? בוס? בוחרים הקשר ומקבלים תשובה שמתאימה לדינמיקה.',
+          chips: ['קראש', 'לקוח', 'יד2'],
+          cta: 'לבחור סיטואציה',
+        },
+        {
+          variant: 'v5',
+          title: 'הטון קובע\nאת התוצאה',
+          body: 'עדין, ישיר, זורם, מצחיק או פלרטטני. אתם שולטים בווייב.',
+          chips: ['עדין', 'ישיר', 'פלרטטני'],
+          cta: 'לבחור טון',
+        },
+        {
+          variant: 'v6',
+          title: '3 זוויות\nלכל הודעה',
+          body: 'במקום תשובה אחת "על עיוור" תקבלו שלוש אפשרויות חכמות לבחירה.',
+          chips: ['השוואה מהירה', 'בחירה מדויקת', 'שליחה קלה'],
+          cta: 'לראות 3 אופציות',
+        },
+        {
+          variant: 'v1',
+          title: 'ריכוך? חידוד?\nניסוח מחדש?',
+          body: 'לחיצה אחת ומעדכנים את התשובה עד שזה מרגיש בול נכון.',
+          chips: ['softer', 'sharper', 'retry'],
+          cta: 'לשפר את הניסוח',
+        },
+        {
+          variant: 'v2',
+          title: 'קראש כתב\nפתאום?',
+          body: 'עונים זורם וקליל, בלי להיראות זמינים מדי ובלי לשחק משחקים.',
+          chips: ['פלרטטני', 'קליל', 'מדויק'],
+          cta: 'לתשובת קראש',
+        },
+        {
+          variant: 'v3',
+          title: 'אקס בודק\nדופק?',
+          body: 'SayBack יעזור לנסח גבול ברור או פתיחה נקייה, בהתאם למה שאתם רוצים.',
+          chips: ['בהירות', 'גבולות', 'שליטה'],
+          cta: 'לענות לאקס',
+        },
+        {
+          variant: 'v4',
+          title: 'לקוח מבקש\nהנחה גדולה?',
+          body: 'שומרים על הערך שלכם עם תשובה מקצועית שלא שוברת את המחיר.',
+          chips: ['שירותי', 'אסרטיבי', 'סוגר עסקה'],
+          cta: 'לתשובת לקוח',
+        },
+        {
+          variant: 'v5',
+          title: 'הבוס שלח\nהודעה בלילה?',
+          body: 'מנסחים תגובה מקצועית עם גבולות בריאים, בלי חיכוך מיותר.',
+          chips: ['מקצועי', 'מכבד', 'ברור'],
+          cta: 'לענות לבוס',
+        },
+        {
+          variant: 'v6',
+          title: 'יד2: "אחרון\nכמה?"',
+          body: 'מקבלים ניסוח קצר שמקדם את המשא ומתן לכיוון סגירה.',
+          chips: ['מו"מ', 'הצעת נגד', 'סגירה'],
+          cta: 'להתקדם לעסקה',
+        },
+        {
+          variant: 'v1',
+          title: 'פרטיות לפני\nהכל',
+          body: 'לא שומרים את ההודעות שלכם. אתם מקבלים תשובה וממשיכים הלאה.',
+          chips: ['דיסקרטי', 'בטוח', 'בלי דרמה'],
+          cta: 'להתחיל בביטחון',
+        },
+        {
+          variant: 'v2',
+          title: '3 חינם\nלהתחלה',
+          body: 'נכנסים, מנסים, רואים שזה עובד. בלי התחייבות בשלב הראשון.',
+          chips: ['התנסות מהירה', 'תוצאה מיידית', 'החלטה חכמה'],
+          cta: 'לנסות בחינם',
+        },
+        {
+          variant: 'v3',
+          title: '50 שימושים\nב־9.90₪',
+          body: 'חבילת קרדיטים חד‑פעמית: עד 150 תשובות מוכנות לשימוש.',
+          chips: ['חד-פעמי', 'בלי התחייבות', 'משתלם'],
+          cta: 'לקנות 50 שימושים',
+        },
+        {
+          variant: 'v4',
+          title: 'ללא הגבלה\n24.90₪ לחודש',
+          body: 'למי שכותבים הרבה ורוצים תשובות מהירות בכל רגע.',
+          chips: ['חודשי', 'חופשי', 'שקט נפשי'],
+          cta: 'לפתוח ללא הגבלה',
+        },
+        {
+          variant: 'v5',
+          title: 'מוכן לוואטסאפ\nתוך רגע',
+          body: 'לא עוד טיוטות ארוכות. פשוט לבחור, להעתיק, לשלוח.',
+          chips: ['בחר', 'העתק', 'שלח'],
+          cta: 'לענות עכשיו',
+        },
+        {
+          variant: 'v6',
+          title: 'הודעה נכנסת\nתשובה יוצאת',
+          body: 'תהליך קצר וברור שמתאים לחיים האמיתיים ולשיחות אמיתיות.',
+          chips: ['מהיר', 'טבעי', 'אישי'],
+          cta: 'לזרום עם השיחה',
+        },
+        {
+          variant: 'v1',
+          title: 'פחות התלבטות\nיותר פעולה',
+          body: 'SayBack מוריד את העומס המנטלי ועוזר לכם להגיב בדיוק בזמן.',
+          chips: ['מנטלי קל', 'תגובה חכמה', 'בלי תקיעות'],
+          cta: 'לשחרר עומס',
+        },
+        {
+          variant: 'v2',
+          title: 'אתם נשארים\nאתם',
+          body: 'התשובות נשמעות טבעיות, לא רובוטיות, ומתאימות לקול שלכם.',
+          chips: ['אותנטי', 'קצר', 'לעניין'],
+          cta: 'לשמור על הקול שלך',
+        },
+        {
+          variant: 'v3',
+          title: '3 תשובות =\n3 אסטרטגיות',
+          body: 'אחת מרככת, אחת חדה יותר ואחת מאוזנת. אתם מחליטים מה נכון עכשיו.',
+          chips: ['רכה', 'חדה', 'מאוזנת'],
+          cta: 'לבחור אסטרטגיה',
+        },
+        {
+          variant: 'v4',
+          title: 'גם אינסטגרם,\nגם וואטסאפ',
+          body: 'כל מקום שבו אנשים כותבים לכם - SayBack מוכן לעזור לענות.',
+          chips: ['DM', 'צ׳אט', 'לקוחות'],
+          cta: 'להתחיל מכל שיחה',
+        },
+        {
+          variant: 'v5',
+          title: 'מילה אחת\nלפני שליחה',
+          body: 'עוברים על 3 תשובות, בוחרים את הטובה ביותר, ושולחים בראש שקט.',
+          chips: ['דיוק', 'מהירות', 'תוצאה'],
+          cta: 'לענות בביטחון',
+        },
+        {
+          variant: 'v6',
+          title: 'SayBack',
+          body: 'הדרך החכמה לענות מהר, טבעי, ובדיוק בטון שמתאים לכם.',
+          chips: ['3 תשובות', 'עברית טבעית', 'מוכן עכשיו'],
+          cta: 'להצטרף עכשיו',
+        },
+      ];
+
+      const wrap = document.getElementById('postsWrap');
+      wrap.style.gridTemplateRows = `repeat(${Math.ceil(posts.length / 4)}, 1350px)`;
+
+      posts.forEach((post, idx) => {
+        const article = document.createElement('article');
+        article.className = `post ${post.variant}`;
+        article.dataset.postIndex = String(idx + 1).padStart(2, '0');
+
+        const top = document.createElement('div');
+        top.className = 'top-row';
+
+        const brand = document.createElement('span');
+        brand.className = 'brand';
+        brand.textContent = 'SayBack';
+
+        const index = document.createElement('span');
+        index.className = 'index';
+        index.textContent = `${String(idx + 1).padStart(2, '0')}/${String(posts.length).padStart(2, '0')}`;
+
+        top.appendChild(index);
+        top.appendChild(brand);
+
+        const content = document.createElement('div');
+        content.className = 'content';
+
+        const title = document.createElement('h1');
+        title.textContent = post.title;
+        title.style.whiteSpace = 'pre-line';
+
+        const body = document.createElement('p');
+        body.className = 'body';
+        body.textContent = post.body;
+
+        const chips = document.createElement('div');
+        chips.className = 'chips';
+
+        post.chips.forEach((chipLabel) => {
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.textContent = chipLabel;
+          chips.appendChild(chip);
+        });
+
+        content.appendChild(title);
+        content.appendChild(body);
+        content.appendChild(chips);
+
+        const bottom = document.createElement('div');
+        bottom.className = 'bottom';
+
+        const cta = document.createElement('div');
+        cta.className = 'cta';
+        cta.textContent = post.cta;
+
+        const url = document.createElement('div');
+        url.className = 'url';
+        url.textContent = 'sayback.co.il';
+
+        bottom.appendChild(url);
+        bottom.appendChild(cta);
+
+        article.appendChild(top);
+        article.appendChild(content);
+        article.appendChild(bottom);
+        wrap.appendChild(article);
+      });
+    </script>
+  </body>
+</html>

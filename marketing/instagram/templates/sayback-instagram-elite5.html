@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SayBack Elite Instagram 5</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&family=Heebo:wght@400;500;700;900&family=Secular+One&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #19130f;
+        --cream: #fff7e6;
+        --surface: #fffdf8;
+        --brand: #ff4d00;
+        --brand-soft: #ff8f5a;
+        --accent: #ffd400;
+        --lime: #f7ff4f;
+        --cyan: #6ce8ff;
+        --danger: #d7263d;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 10% 8%, #ffe38a 0%, transparent 40%),
+          radial-gradient(circle at 88% 0%, #ff8f5a 0%, transparent 34%),
+          linear-gradient(180deg, #fff8e8 0%, #fff4db 100%);
+        font-family: 'Heebo', 'Rubik', sans-serif;
+        color: var(--ink);
+      }
+
+      .grid {
+        width: max-content;
+        margin: 24px;
+        display: grid;
+        grid-template-columns: repeat(3, 1080px);
+        gap: 110px;
+      }
+
+      .post {
+        width: 1080px;
+        height: 1350px;
+        position: relative;
+        overflow: hidden;
+        border: 6px solid #111;
+        border-radius: 56px;
+        padding: 72px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        isolation: isolate;
+      }
+
+      .top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .brand {
+        min-height: 70px;
+        border-radius: 999px;
+        border: 4px solid currentColor;
+        background: var(--surface);
+        padding: 12px 26px;
+        font-family: 'Secular One', 'Rubik', sans-serif;
+        font-size: 28px;
+        line-height: 1;
+        letter-spacing: 0.01em;
+      }
+
+      .badge {
+        border-radius: 999px;
+        border: 3px solid currentColor;
+        padding: 10px 18px;
+        font-weight: 900;
+        font-size: 23px;
+        line-height: 1;
+      }
+
+      .title {
+        margin: 0;
+        white-space: pre-line;
+        font-family: 'Secular One', 'Rubik', sans-serif;
+        line-height: 1.02;
+        letter-spacing: -0.02em;
+      }
+
+      .desc {
+        margin: 0;
+        font-weight: 700;
+        line-height: 1.28;
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .chip {
+        border-radius: 999px;
+        border: 3px solid currentColor;
+        padding: 12px 20px;
+        font-size: 27px;
+        line-height: 1;
+        font-weight: 900;
+      }
+
+      .bottom {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 18px;
+      }
+
+      .link {
+        margin-bottom: 10px;
+        font-size: 28px;
+        font-weight: 900;
+      }
+
+      .cta {
+        border-radius: 30px;
+        border: 4px solid currentColor;
+        padding: 24px 34px;
+        line-height: 1;
+        font-family: 'Secular One', 'Rubik', sans-serif;
+        font-size: 38px;
+        letter-spacing: 0.01em;
+      }
+
+      /* Post 1 - Energy Burst */
+      .style-1 {
+        background: linear-gradient(160deg, #f7ff4f 0%, #ffe5a8 58%, #ffd26d 100%);
+        color: #111;
+      }
+
+      .style-1::before {
+        content: '';
+        position: absolute;
+        width: 680px;
+        height: 680px;
+        border-radius: 999px;
+        background: rgba(255, 77, 0, 0.35);
+        left: -240px;
+        top: -210px;
+        z-index: -2;
+      }
+
+      .style-1::after {
+        content: '';
+        position: absolute;
+        width: 500px;
+        height: 500px;
+        border-radius: 999px;
+        background: rgba(108, 232, 255, 0.34);
+        right: -180px;
+        bottom: -170px;
+        z-index: -2;
+      }
+
+      .style-1 .burst {
+        position: absolute;
+        right: 60px;
+        top: 160px;
+        width: 220px;
+        height: 220px;
+        clip-path: polygon(50% 0%, 61% 28%, 90% 10%, 72% 39%, 100% 50%, 72% 61%, 90% 90%, 61% 72%, 50% 100%, 39% 72%, 10% 90%, 28% 61%, 0% 50%, 28% 39%, 10% 10%, 39% 28%);
+        background: rgba(255, 255, 255, 0.45);
+        transform: rotate(10deg);
+      }
+
+      .style-1 .title {
+        font-size: 108px;
+      }
+
+      .style-1 .desc {
+        font-size: 44px;
+      }
+
+      .style-1 .chip {
+        background: rgba(255, 255, 255, 0.74);
+      }
+
+      .style-1 .cta {
+        background: #111;
+        color: var(--lime);
+        box-shadow: 0 8px 0 #111;
+      }
+
+      /* Post 2 - Midnight Signal */
+      .style-2 {
+        background: linear-gradient(155deg, #111111 0%, #251409 52%, #5a2411 100%);
+        color: #fff;
+      }
+
+      .style-2::before {
+        content: '';
+        position: absolute;
+        width: 720px;
+        height: 720px;
+        border-radius: 999px;
+        border: 34px solid rgba(108, 232, 255, 0.22);
+        left: -340px;
+        bottom: -320px;
+        z-index: -2;
+      }
+
+      .style-2::after {
+        content: '';
+        position: absolute;
+        width: 620px;
+        height: 620px;
+        border-radius: 999px;
+        border: 28px solid rgba(247, 255, 79, 0.28);
+        right: -300px;
+        top: -260px;
+        z-index: -2;
+      }
+
+      .style-2 .signal {
+        position: absolute;
+        left: 64px;
+        top: 170px;
+        width: 200px;
+        height: 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.4);
+        box-shadow: 0 36px 0 rgba(255, 255, 255, 0.25), 0 72px 0 rgba(255, 255, 255, 0.14);
+      }
+
+      .style-2 .brand,
+      .style-2 .badge,
+      .style-2 .chip,
+      .style-2 .cta {
+        border-color: #f7ff4f;
+      }
+
+      .style-2 .chip {
+        background: rgba(0, 0, 0, 0.32);
+      }
+
+      .style-2 .title {
+        font-size: 104px;
+      }
+
+      .style-2 .desc {
+        font-size: 43px;
+      }
+
+      .style-2 .cta {
+        background: var(--lime);
+        color: #111;
+        box-shadow: 0 8px 0 rgba(247, 255, 79, 0.42);
+      }
+
+      /* Post 3 - Layered Proof */
+      .style-3 {
+        background: linear-gradient(160deg, #d8f9ff 0%, #fffaf0 60%, #ffe3b1 100%);
+        color: #111;
+      }
+
+      .style-3 .paper-a,
+      .style-3 .paper-b {
+        position: absolute;
+        border-radius: 34px;
+        border: 4px solid #111;
+        z-index: -1;
+      }
+
+      .style-3 .paper-a {
+        width: 520px;
+        height: 300px;
+        background: #fff;
+        right: -120px;
+        top: 250px;
+        transform: rotate(-14deg);
+      }
+
+      .style-3 .paper-b {
+        width: 460px;
+        height: 260px;
+        background: #f7ff4f;
+        left: -110px;
+        bottom: 210px;
+        transform: rotate(11deg);
+      }
+
+      .style-3 .title {
+        font-size: 98px;
+      }
+
+      .style-3 .desc {
+        font-size: 42px;
+      }
+
+      .style-3 .chip {
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .style-3 .cta {
+        background: #111;
+        color: var(--lime);
+        box-shadow: 0 8px 0 #111;
+      }
+
+      /* Post 4 - Offer Strike */
+      .style-4 {
+        background: linear-gradient(165deg, #ff6a44 0%, #ff8f5a 52%, #ffd973 100%);
+        color: #111;
+      }
+
+      .style-4::before {
+        content: '';
+        position: absolute;
+        width: 1300px;
+        height: 260px;
+        background: rgba(255, 255, 255, 0.3);
+        transform: rotate(-20deg);
+        top: 340px;
+        left: -120px;
+        z-index: -1;
+      }
+
+      .style-4 .price {
+        position: absolute;
+        left: 72px;
+        top: 250px;
+        font-family: 'Secular One', 'Rubik', sans-serif;
+        font-size: 106px;
+        line-height: 1;
+        padding: 12px 20px;
+        border: 4px solid #111;
+        border-radius: 24px;
+        background: rgba(247, 255, 79, 0.8);
+      }
+
+      .style-4 .title {
+        font-size: 96px;
+      }
+
+      .style-4 .desc {
+        font-size: 41px;
+      }
+
+      .style-4 .chip {
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .style-4 .cta {
+        background: #111;
+        color: var(--lime);
+        box-shadow: 0 8px 0 #111;
+      }
+
+      /* Post 5 - Precision Trust */
+      .style-5 {
+        background: linear-gradient(160deg, #fffdf8 0%, #fff2cf 58%, #ffd400 100%);
+        color: #111;
+      }
+
+      .style-5::before {
+        content: '';
+        position: absolute;
+        width: 540px;
+        height: 540px;
+        border-radius: 999px;
+        background: rgba(255, 77, 0, 0.22);
+        left: -180px;
+        top: -180px;
+        z-index: -2;
+      }
+
+      .style-5::after {
+        content: '';
+        position: absolute;
+        width: 560px;
+        height: 560px;
+        border-radius: 999px;
+        background: rgba(108, 232, 255, 0.28);
+        right: -210px;
+        bottom: -210px;
+        z-index: -2;
+      }
+
+      .style-5 .quote {
+        position: absolute;
+        right: 72px;
+        top: 190px;
+        width: 190px;
+        height: 190px;
+        border-radius: 999px;
+        border: 10px solid rgba(17, 17, 17, 0.16);
+      }
+
+      .style-5 .title {
+        font-size: 96px;
+      }
+
+      .style-5 .desc {
+        font-size: 41px;
+      }
+
+      .style-5 .chip {
+        background: rgba(255, 255, 255, 0.78);
+      }
+
+      .style-5 .cta {
+        background: #111;
+        color: var(--lime);
+        box-shadow: 0 8px 0 #111;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="grid">
+      <article class="post style-1">
+        <div class="burst"></div>
+        <div class="top">
+          <span class="badge">מהיר ומדויק</span>
+          <span class="brand">SayBack</span>
+        </div>
+        <div>
+          <h1 class="title">לא יודעים
+מה לענות?</h1>
+          <p class="desc">שלוש תשובות טבעיות תוך רגע, בלי להיתקע על ניסוח.</p>
+          <div class="chips">
+            <span class="chip">מהיר</span>
+            <span class="chip">טבעי</span>
+            <span class="chip">מדויק</span>
+          </div>
+        </div>
+        <div class="bottom">
+          <span class="link">לינק בביו</span>
+          <span class="cta">לקבל 3 תשובות</span>
+        </div>
+      </article>
+
+      <article class="post style-2">
+        <div class="signal"></div>
+        <div class="top">
+          <span class="badge">מצב לילה</span>
+          <span class="brand">SayBack</span>
+        </div>
+        <div>
+          <h1 class="title">אפס לחץ.
+אפס פאדיחה.</h1>
+          <p class="desc">קראש, אקס או לקוח - עונים חכם ובטון שמתאים בדיוק לך.</p>
+          <div class="chips">
+            <span class="chip">קראש</span>
+            <span class="chip">אקס</span>
+            <span class="chip">לקוח</span>
+          </div>
+        </div>
+        <div class="bottom">
+          <span class="link">לינק בביו</span>
+          <span class="cta">לשלוח בביטחון</span>
+        </div>
+      </article>
+
+      <article class="post style-3">
+        <div class="paper-a"></div>
+        <div class="paper-b"></div>
+        <div class="top">
+          <span class="badge">פשוט עובד</span>
+          <span class="brand">SayBack</span>
+        </div>
+        <div>
+          <h1 class="title">הדבק.
+בחר.
+שלח.</h1>
+          <p class="desc">טקסט או צילום מסך, הטון שלך, ותשובה מוכנה בשלוש שניות.</p>
+          <div class="chips">
+            <span class="chip">צילום מסך</span>
+            <span class="chip">טון אישי</span>
+            <span class="chip">מוכן מיד</span>
+          </div>
+        </div>
+        <div class="bottom">
+          <span class="link">לינק בביו</span>
+          <span class="cta">להתחיל עכשיו</span>
+        </div>
+      </article>
+
+      <article class="post style-4">
+        <div class="price">9.90₪</div>
+        <div class="top">
+          <span class="badge">הצעה חכמה</span>
+          <span class="brand">SayBack</span>
+        </div>
+        <div>
+          <h1 class="title">50 שימושים.
+מקסימום ערך.</h1>
+          <p class="desc">עד 150 תשובות מוכנות. חד-פעמי, מהיר, בלי התחייבות.</p>
+          <div class="chips">
+            <span class="chip">חד-פעמי</span>
+            <span class="chip">עד 150 תשובות</span>
+            <span class="chip">משתלם</span>
+          </div>
+        </div>
+        <div class="bottom">
+          <span class="link">לינק בביו</span>
+          <span class="cta">לתפוס את החבילה</span>
+        </div>
+      </article>
+
+      <article class="post style-5">
+        <div class="quote"></div>
+        <div class="top">
+          <span class="badge">לעסקים ולחיים</span>
+          <span class="brand">SayBack</span>
+        </div>
+        <div>
+          <h1 class="title">תשובות
+ששומרות ערך</h1>
+          <p class="desc">מנסחים ברור, מקצועי ומדויק - ומתקדמים לשלב הבא בשיחה.</p>
+          <div class="chips">
+            <span class="chip">מקצועי</span>
+            <span class="chip">חד</span>
+            <span class="chip">סוגר עניין</span>
+          </div>
+        </div>
+        <div class="bottom">
+          <span class="link">לינק בביו</span>
+          <span class="cta">לעבוד חכם יותר</span>
+        </div>
+      </article>
+    </main>
+  </body>
+</html>
