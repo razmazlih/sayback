@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SayBack Marketing Posts</title>
+    <style>
+      @font-face {
+        font-family: "Assistant";
+        src: local("Assistant"), local("Rubik"), local("Arial");
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: #0b1020;
+        color: #f8fafc;
+        font-family: "Assistant", "Rubik", Arial, sans-serif;
+      }
+
+      .wrap {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 40px;
+        padding: 40px;
+        justify-items: center;
+      }
+
+      .post {
+        position: relative;
+        width: 1080px;
+        height: 1080px;
+        border-radius: 54px;
+        overflow: hidden;
+        isolation: isolate;
+        box-shadow: 0 34px 90px rgba(0, 0, 0, 0.45);
+      }
+
+      .content {
+        position: absolute;
+        inset: 0;
+        padding: 94px 88px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      .badge {
+        width: fit-content;
+        font-size: 36px;
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 14px 28px;
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+      }
+
+      .title {
+        font-size: 118px;
+        line-height: 0.98;
+        margin: 0;
+        font-weight: 800;
+        letter-spacing: -1px;
+        max-width: 78%;
+      }
+
+      .sub {
+        margin: 0;
+        font-size: 52px;
+        line-height: 1.25;
+        max-width: 82%;
+        font-weight: 500;
+      }
+
+      .cta {
+        width: fit-content;
+        font-size: 40px;
+        font-weight: 700;
+        padding: 16px 34px;
+        border-radius: 24px;
+      }
+
+      .ring,
+      .glow,
+      .grid,
+      .shape,
+      .stripe {
+        position: absolute;
+        pointer-events: none;
+      }
+
+      .p1 {
+        background: radial-gradient(circle at 82% 16%, #fb7185 0%, #e11d48 28%, #111827 72%);
+      }
+
+      .p1 .badge {
+        background: rgba(255, 255, 255, 0.18);
+      }
+
+      .p1 .cta {
+        background: #fff;
+        color: #991b1b;
+      }
+
+      .p1 .ring {
+        inset: 130px -170px auto auto;
+        width: 520px;
+        height: 520px;
+        border: 36px solid rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+      }
+
+      .p2 {
+        background:
+          linear-gradient(125deg, #052e16 0%, #14532d 40%, #0f172a 100%);
+      }
+
+      .p2 .badge {
+        background: rgba(187, 247, 208, 0.2);
+      }
+
+      .p2 .cta {
+        background: #bbf7d0;
+        color: #14532d;
+      }
+
+      .p2 .grid {
+        inset: auto -80px -120px auto;
+        width: 660px;
+        height: 660px;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.18) 2px, transparent 2px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.18) 2px, transparent 2px);
+        background-size: 52px 52px;
+        opacity: 0.34;
+        transform: rotate(12deg);
+      }
+
+      .p3 {
+        background: linear-gradient(155deg, #1e1b4b 0%, #4338ca 50%, #93c5fd 100%);
+      }
+
+      .p3 .badge {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .p3 .cta {
+        background: #f8fafc;
+        color: #312e81;
+      }
+
+      .p3 .shape {
+        inset: 64px auto auto -110px;
+        width: 430px;
+        height: 430px;
+        border-radius: 42% 58% 55% 45% / 62% 44% 56% 38%;
+        background: rgba(255, 255, 255, 0.18);
+      }
+
+      .p4 {
+        background:
+          linear-gradient(140deg, #111827 0%, #0ea5e9 46%, #dbeafe 100%);
+      }
+
+      .p4 .badge {
+        background: rgba(15, 23, 42, 0.34);
+      }
+
+      .p4 .cta {
+        background: #082f49;
+        color: #dbeafe;
+      }
+
+      .p4 .stripe {
+        inset: auto -220px -180px auto;
+        width: 820px;
+        height: 420px;
+        background:
+          repeating-linear-gradient(
+            -35deg,
+            rgba(255, 255, 255, 0.25) 0,
+            rgba(255, 255, 255, 0.25) 20px,
+            rgba(2, 132, 199, 0.05) 20px,
+            rgba(2, 132, 199, 0.05) 46px
+          );
+        border-radius: 120px;
+        transform: rotate(-12deg);
+      }
+
+      .p5 {
+        background: linear-gradient(160deg, #18181b 0%, #52525b 52%, #f4f4f5 100%);
+      }
+
+      .p5 .badge {
+        background: rgba(255, 255, 255, 0.16);
+      }
+
+      .p5 .cta {
+        background: #fafafa;
+        color: #18181b;
+      }
+
+      .p5 .glow {
+        inset: -140px auto auto -140px;
+        width: 560px;
+        height: 560px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 70%);
+      }
+
+      .brand {
+        font-size: 36px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        opacity: 0.96;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <section class="post p1" id="post-1">
+        <div class="ring"></div>
+        <div class="content">
+          <div>
+            <div class="badge">שיחה חכמה תוך שניות</div>
+            <h1 class="title">נתקעת על הודעה?</h1>
+            <p class="sub">SayBack מייצר לך 3 תשובות טבעיות ומדויקות, מוכנות לשליחה.</p>
+          </div>
+          <div>
+            <div class="cta">נסו עכשיו</div>
+            <div class="brand">sayback.co.il</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="post p2" id="post-2">
+        <div class="grid"></div>
+        <div class="content">
+          <div>
+            <div class="badge">יותר תוצאות, פחות זמן</div>
+            <h1 class="title">משיבים מהר יותר</h1>
+            <p class="sub">מפסיקים להתלבט על ניסוח. מקבלים תשובות חכמות ושומרים על זרימה בצ׳אט.</p>
+          </div>
+          <div>
+            <div class="cta">שדרגו את השיחה</div>
+            <div class="brand">SayBack</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="post p3" id="post-3">
+        <div class="shape"></div>
+        <div class="content">
+          <div>
+            <div class="badge">מתחילים בלי סיכון</div>
+            <h1 class="title">3 שימושים ראשונים חינם</h1>
+            <p class="sub">תנסו על שיחה אמיתית, תרגישו את הקצב, ותבינו כמה קל לענות נכון.</p>
+          </div>
+          <div>
+            <div class="cta">לנסות חינם</div>
+            <div class="brand">SayBack • עברית מלאה</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="post p4" id="post-4">
+        <div class="stripe"></div>
+        <div class="content">
+          <div>
+            <div class="badge">שליטה בטון התשובה</div>
+            <h1 class="title">עדין, חד או מחדש</h1>
+            <p class="sub">בלחיצה אחת משנים סגנון: softer, sharper או retry עד שיושב בדיוק.</p>
+          </div>
+          <div>
+            <div class="cta">נסחו כמו מקצוענים</div>
+            <div class="brand">SayBack AI</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="post p5" id="post-5">
+        <div class="glow"></div>
+        <div class="content">
+          <div>
+            <div class="badge">זרימת עבודה פשוטה</div>
+            <h1 class="title">הודעה נכנסת. תשובה יוצאת.</h1>
+            <p class="sub">מזהים כוונה, מקבלים 3 הצעות, בוחרים ושולחים. מהיר, ברור ובלי תקיעות.</p>
+          </div>
+          <div>
+            <div class="cta">להתחיל היום</div>
+            <div class="brand">sayback.co.il</div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>

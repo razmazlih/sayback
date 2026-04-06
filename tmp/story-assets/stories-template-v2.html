@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SayBack Stories v2</title>
+  <style>
+    :root {
+      --bg-main: #fff7e6;
+      --ink: #19130f;
+      --surface: #fffdf8;
+      --accent: #ff4d00;
+      --accent-soft: #ffd8c7;
+      --panel: #fff8ea;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 1080px;
+      height: 1920px;
+      overflow: hidden;
+      font-family: "Rubik", "Heebo", "Noto Sans Hebrew", "Arial", sans-serif;
+      background: var(--bg-main);
+      color: var(--ink);
+    }
+
+    body {
+      position: relative;
+      padding: 74px;
+      background-image:
+        radial-gradient(circle at 10% 10%, #ffe38a 0%, transparent 36%),
+        radial-gradient(circle at 90% 2%, #ff8f5a 0%, transparent 30%),
+        linear-gradient(180deg, #fff8e8 0%, #fff3d9 100%);
+    }
+
+    .frame {
+      width: 100%;
+      height: 100%;
+      border: 4px solid #111;
+      border-radius: 56px;
+      background: var(--surface);
+      box-shadow: 0 24px 0 #111;
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    .frame::before,
+    .frame::after {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      z-index: -1;
+    }
+
+    .frame::before {
+      width: 420px;
+      height: 420px;
+      top: -120px;
+      left: -80px;
+      background: color-mix(in srgb, var(--accent) 19%, #fff5d8);
+    }
+
+    .frame::after {
+      width: 330px;
+      height: 330px;
+      right: -90px;
+      bottom: -95px;
+      background: color-mix(in srgb, var(--accent) 14%, #fff6c5);
+    }
+
+    .content {
+      width: 100%;
+      height: 100%;
+      padding: 118px 62px 146px;
+      display: grid;
+      grid-template-rows: auto auto auto auto auto;
+      gap: 26px;
+      align-content: start;
+    }
+
+    .top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand,
+    .kicker {
+      border: 3px solid #111;
+      border-radius: 999px;
+      padding: 9px 16px;
+      font-size: 27px;
+      font-weight: 820;
+      line-height: 1;
+      background: #fff;
+    }
+
+    .brand {
+      background: #f7ff4f;
+    }
+
+    .kicker {
+      background: var(--accent-soft);
+    }
+
+    .title {
+      margin: 0;
+      font-size: 78px;
+      line-height: 1.03;
+      letter-spacing: -1.5px;
+      font-weight: 920;
+    }
+
+    .subtitle {
+      margin: 0;
+      font-size: 37px;
+      line-height: 1.36;
+      font-weight: 660;
+      color: #2a221c;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .chip {
+      border: 2.5px solid #111;
+      border-radius: 999px;
+      padding: 10px 15px;
+      font-size: 24px;
+      font-weight: 760;
+      background: #fff;
+      box-shadow: 0 5px 0 #111;
+    }
+
+    .panel {
+      border: 3px solid #111;
+      border-radius: 28px;
+      background: var(--panel);
+      box-shadow: 0 12px 0 #111;
+      padding: 20px 20px 18px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .panel-title {
+      font-size: 24px;
+      font-weight: 860;
+      margin: 0;
+      color: #241d16;
+    }
+
+    .line {
+      border: 2px solid #111;
+      border-radius: 14px;
+      padding: 11px 13px;
+      font-size: 24px;
+      font-weight: 700;
+      background: #fff;
+      line-height: 1.32;
+    }
+
+    .line:nth-child(2) { background: color-mix(in srgb, var(--accent-soft) 44%, white); }
+    .line:nth-child(3) { background: #fff5d4; }
+    .line:nth-child(4) { background: #dbf6ff; }
+
+    .proof {
+      margin: 0;
+      font-size: 27px;
+      line-height: 1.38;
+      font-weight: 700;
+      color: #201915;
+    }
+
+    .cta-wrap {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 6px;
+    }
+
+    .cta {
+      border: 4px solid #111;
+      border-radius: 24px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 35px;
+      font-weight: 880;
+      line-height: 1.2;
+      padding: 16px 20px;
+      box-shadow: 0 10px 0 #111;
+      max-width: 76%;
+    }
+
+    .serial {
+      border: 2px solid #111;
+      border-radius: 12px;
+      padding: 7px 10px;
+      font-size: 21px;
+      font-weight: 760;
+      background: #fff;
+      white-space: nowrap;
+    }
+
+    .tone-a { --panel: #fff7e9; }
+    .tone-b { --panel: #e8f9f5; }
+    .tone-c { --panel: #f0ebff; }
+    .tone-d { --panel: #fff5d9; }
+    .tone-e { --panel: #ffe9e9; }
+  </style>
+</head>
+<body>
+  <article class="frame" id="frame">
+    <main class="content">
+      <div class="top-row">
+        <div class="brand">SayBack</div>
+        <div class="kicker" id="kicker"></div>
+      </div>
+
+      <section>
+        <h1 class="title" id="title"></h1>
+        <p class="subtitle" id="subtitle"></p>
+      </section>
+
+      <div class="chips" id="chips"></div>
+
+      <section class="panel">
+        <p class="panel-title" id="panelTitle"></p>
+        <div class="line" id="line1"></div>
+        <div class="line" id="line2"></div>
+        <div class="line" id="line3"></div>
+      </section>
+
+      <p class="proof" id="proof"></p>
+
+      <div class="cta-wrap">
+        <div class="cta" id="cta"></div>
+        <div class="serial" id="serial"></div>
+      </div>
+    </main>
+  </article>
+
+  <script>
+    const slides = [
+      {
+        id: 1,
+        kicker: 'מה זה SayBack',
+        title: 'נתקעת על הודעה?',
+        subtitle: 'מעלים צילום מסך או טקסט, בוחרים טון, ומקבלים מיד 3 תשובות קצרות וטבעיות בעברית.',
+        chips: ['וואטסאפ', 'אינסטגרם', 'לקוחות', 'דייטינג'],
+        panelTitle: 'איך זה עובד בפועל',
+        lines: ['1) מדביקים הודעה שקיבלת', '2) בוחרים סיטואציה + טון', '3) מעתיקים תשובה ושולחים'],
+        proof: 'במקום להתלבט 10 דקות, יש לך ניסוח מוכן תוך שניות.',
+        cta: 'נסו עכשיו בחינם',
+        accent: '#ff4d00',
+        accentSoft: '#ffd8c7',
+        toneClass: 'tone-a',
+      },
+      {
+        id: 2,
+        kicker: 'למי זה מתאים',
+        title: 'שיחות עסקיות ודייטינג',
+        subtitle: 'SayBack מתאים את הניסוח לסיטואציה כדי שתענה ברור, מקצועי, ובטון שמתאים לך.',
+        chips: ['לקוח', 'בוס', 'קראש', 'אקס', 'יד2'],
+        panelTitle: 'מה מקבלים בכל יצירה',
+        lines: ['אפשרות עדינה לשמירה על יחסים', 'אפשרות ישירה להצבת גבול ברור', 'אפשרות זורמת להמשך שיחה'],
+        proof: 'אותו מסר, כמה זוויות נכונות. אתה בוחר מה לשלוח.',
+        cta: 'העתק-הדבק וסגור עניינים',
+        accent: '#0f766e',
+        accentSoft: '#c6f7ee',
+        toneClass: 'tone-b',
+      },
+      {
+        id: 3,
+        kicker: 'עריכה מהירה',
+        title: 'לא אהבת? משפרים בשנייה',
+        subtitle: 'אפשר לרכך, לחדד או לנסח מחדש כל תשובה בלי להתחיל מאפס.',
+        chips: ['Softer', 'Sharper', 'Retry'],
+        panelTitle: 'שליטה מלאה על הטון',
+        lines: ['יותר עדין: פחות חד ויותר נעים', 'יותר חד: ברור, אסרטיבי וקצר', 'נסח מחדש: כיוון חדש לאותה סיטואציה'],
+        proof: 'ככה תמיד יש תשובה שמתאימה בדיוק למי שמולך.',
+        cta: 'פחות התלבטות, יותר תוצאות',
+        accent: '#7c3aed',
+        accentSoft: '#e8ddff',
+        toneClass: 'tone-c',
+      },
+      {
+        id: 4,
+        kicker: 'למה לקוחות אוהבים',
+        title: 'נשמע טבעי. לא רובוטי.',
+        subtitle: 'התשובות כתובות בעברית יומיומית, קצרות, ונראות כמו משהו שבאמת היית שולח.',
+        chips: ['עברית טבעית', 'קצר ולעניין', 'קריא בנייד'],
+        panelTitle: 'מה זה נותן ביום-יום',
+        lines: ['חוסך זמן על כל הודעה נכנסת', 'מוריד לחץ לפני שליחה', 'מעלה סיכוי לתגובה טובה'],
+        proof: 'כשקל לענות מהר, השיחות מתקדמות והעסק זז.',
+        cta: 'תן לשיחה לעבוד בשבילך',
+        accent: '#ca8a04',
+        accentSoft: '#fff4c2',
+        toneClass: 'tone-d',
+      },
+      {
+        id: 5,
+        kicker: 'הצטרפות',
+        title: 'מתחילים חינם וממשיכים לפי צורך',
+        subtitle: '3 שימושים ראשונים חינם. אחר כך בוחרים קרדיטים או מסלול חודשי ללא הגבלה.',
+        chips: ['3 תשובות בכל שימוש', 'תשלום מאובטח', 'בלי התחייבות'],
+        panelTitle: 'המסלולים',
+        lines: ['50 שימושים: 9.90₪', 'ללא הגבלה חודשי: 24.90₪', 'התחלה מהירה בחינם עכשיו'],
+        proof: 'פרסם את הסטורי עם לינק ל-SayBack ותמשוך לקוחות שרוצים לענות חכם ומהר.',
+        cta: 'שלחו סטורי והביאו לקוחות חדשים',
+        accent: '#dc2626',
+        accentSoft: '#ffd7d7',
+        toneClass: 'tone-e',
+      },
+    ];
+
+    const params = new URLSearchParams(window.location.search);
+    const id = Number.parseInt(params.get('slide') || '1', 10);
+    const data = slides.find((item) => item.id === id) || slides[0];
+
+    document.documentElement.style.setProperty('--accent', data.accent);
+    document.documentElement.style.setProperty('--accent-soft', data.accentSoft);
+    document.getElementById('frame').classList.add(data.toneClass);
+
+    document.getElementById('kicker').textContent = data.kicker;
+    document.getElementById('title').textContent = data.title;
+    document.getElementById('subtitle').textContent = data.subtitle;
+    document.getElementById('panelTitle').textContent = data.panelTitle;
+    document.getElementById('line1').textContent = data.lines[0];
+    document.getElementById('line2').textContent = data.lines[1];
+    document.getElementById('line3').textContent = data.lines[2];
+    document.getElementById('proof').textContent = data.proof;
+    document.getElementById('cta').textContent = data.cta;
+    document.getElementById('serial').textContent = `סטורי ${data.id}/5`;
+
+    const chips = document.getElementById('chips');
+    for (const label of data.chips) {
+      const chip = document.createElement('div');
+      chip.className = 'chip';
+      chip.textContent = label;
+      chips.appendChild(chip);
+    }
+  </script>
+</body>
+</html>
