@@ -1,3 +1,5 @@
+import { MAX_INCOMING_MESSAGE_LENGTH } from '@/lib/message-limits';
+
 export const HOME_DEEPLINK_QUERY_KEYS = {
   example: 'example',
   message: 'message',
@@ -8,7 +10,7 @@ export const HOME_DEEPLINK_QUERY_KEYS = {
 
 export const HOME_DEEPLINK_LIMITS = {
   example: 64,
-  message: 700,
+  message: MAX_INCOMING_MESSAGE_LENGTH,
   situation: 24,
   tone: 24,
   agrees: 8,

@@ -3,6 +3,7 @@ import {
   acquireStripeEventProcessing,
   applyCreditPackPurchase,
   findUserIdByStripeCustomerId,
+  isBillingBypassEnabled,
   markStripeEventFailed,
   markStripeEventProcessed,
   setStripeCustomerId,
@@ -24,6 +25,19 @@ const WEBHOOK_RESPONSE_HEADERS = {
 } as const;
 
 export async function POST(request: Request) {
+  if (isBillingBypassEnabled()) {
+    return Response.json(
+      {
+        received: true,
+        ignored: true,
+      },
+      {
+        status: 200,
+        headers: WEBHOOK_RESPONSE_HEADERS,
+      },
+    );
+  }
+
   const signature = request.headers.get("stripe-signature");
 
   if (!signature) {

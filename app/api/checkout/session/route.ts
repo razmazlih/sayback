@@ -3,6 +3,7 @@ import { requireAuthenticatedUser, UnauthorizedError } from "@/lib/auth";
 import {
   applyCreditPackPurchase,
   getBillingSnapshot,
+  isBillingBypassEnabled,
   setStripeCustomerId,
   syncSubscriptionState,
 } from "@/lib/billing";
@@ -34,6 +35,15 @@ const IP_CHECKOUT_SESSION_RATE_LIMIT = {
 } as const;
 
 export async function GET(request: Request) {
+  if (isBillingBypassEnabled()) {
+    return json(
+      {
+        error: "Checkout is temporarily disabled.",
+      },
+      503,
+    );
+  }
+
   let authenticatedUser: Awaited<ReturnType<typeof requireAuthenticatedUser>> | null = null;
 
   try {

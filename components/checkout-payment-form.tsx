@@ -48,6 +48,13 @@ export function CheckoutPaymentForm({
       stripe={stripePromise}
       options={{
         clientSecret,
+        elementsOptions: {
+          appearance: {
+            variables: {
+              fontSizeBase: '16px',
+            },
+          },
+        },
       }}
     >
       <CheckoutPaymentFormInner submitLabel={submitLabel} onComplete={onComplete} />

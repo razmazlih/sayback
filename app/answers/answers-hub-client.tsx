@@ -88,7 +88,7 @@ export function AnswersHubClient({
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder='למשל: "צריך לדבר", לקוח, אקס'
-            className="min-h-[48px] w-full rounded-[18px] border-2 border-black bg-[#fffdf7] px-4 py-2 text-sm font-bold text-black outline-none transition focus:bg-white"
+            className="min-h-[48px] w-full rounded-[18px] border-2 border-black bg-[#fffdf7] px-4 py-2 text-base font-bold text-black outline-none transition focus:bg-white"
           />
         </div>
 

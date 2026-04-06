@@ -1,7 +1,11 @@
 import type { NextRequest } from "next/server";
 import type Stripe from "stripe";
 import { requireAuthenticatedUser, UnauthorizedError } from "@/lib/auth";
-import { getBillingSnapshot, setStripeCustomerId } from "@/lib/billing";
+import {
+  getBillingSnapshot,
+  isBillingBypassEnabled,
+  setStripeCustomerId,
+} from "@/lib/billing";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import {
   StripeConfigError,
@@ -38,6 +42,15 @@ const IP_CHECKOUT_RATE_LIMIT = {
 } as const;
 
 export async function POST(request: NextRequest) {
+  if (isBillingBypassEnabled()) {
+    return json(
+      {
+        error: "Checkout is temporarily disabled.",
+      },
+      503,
+    );
+  }
+
   let body: CheckoutRequestBody;
   let authenticatedUser: Awaited<ReturnType<typeof requireAuthenticatedUser>> | null = null;
 

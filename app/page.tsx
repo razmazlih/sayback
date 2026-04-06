@@ -13,6 +13,8 @@ const HOME_TITLE = "SayBack | תשובות מהירות להודעות";
 const HOME_DESCRIPTION =
   "SayBack עוזר לך לענות מהר ובסטייל להודעות בוואטסאפ, אינסטגרם, דייטינג ולקוחות. מעלים הודעה ובוחרים טון כדי לקבל 3 תשובות טבעיות בעברית.";
 const UNLIMITED_MONTHLY_PRICE_ILS = "24.90";
+const BILLING_BYPASS_ENABLED =
+  process.env.BILLING_BYPASS?.trim().toLowerCase() === "true";
 
 const siteUrl = resolveSiteUrl();
 const siteOrigin = siteUrl.origin;
@@ -59,39 +61,43 @@ const softwareApplicationJsonLd = {
     "התאמה לסיטואציה ולטון",
     "אפשרות לרכך, לחדד או לנסח מחדש",
   ],
-  offers: [
-    {
-      "@type": "Offer",
-      name: `${CREDIT_PACK_USES} שימושים חד-פעמי`,
-      price: creditPackPrice,
-      priceCurrency: currencyCode,
-      availability: "https://schema.org/InStock",
-      description: `${CREDIT_PACK_REPLIES_PER_USE} תשובות בכל שימוש, עד ${
-        CREDIT_PACK_USES * CREDIT_PACK_REPLIES_PER_USE
-      } תשובות.`,
-      url: `${siteOrigin}/`,
-    },
-    {
-      "@type": "Offer",
-      name: "ללא הגבלה חודשי",
-      price: UNLIMITED_MONTHLY_PRICE_ILS,
-      priceCurrency: "ILS",
-      availability: "https://schema.org/InStock",
-      description: "מנוי חודשי ללא הגבלה ליצירת תשובות.",
-      url: `${siteOrigin}/`,
-      category: "subscription",
-      priceSpecification: {
-        "@type": "UnitPriceSpecification",
-        price: UNLIMITED_MONTHLY_PRICE_ILS,
-        priceCurrency: "ILS",
-        referenceQuantity: {
-          "@type": "QuantitativeValue",
-          value: 1,
-          unitText: "MONTH",
-        },
-      },
-    },
-  ],
+  ...(BILLING_BYPASS_ENABLED
+    ? {}
+    : {
+        offers: [
+          {
+            "@type": "Offer",
+            name: `${CREDIT_PACK_USES} שימושים חד-פעמי`,
+            price: creditPackPrice,
+            priceCurrency: currencyCode,
+            availability: "https://schema.org/InStock",
+            description: `${CREDIT_PACK_REPLIES_PER_USE} תשובות בכל שימוש, עד ${
+              CREDIT_PACK_USES * CREDIT_PACK_REPLIES_PER_USE
+            } תשובות.`,
+            url: `${siteOrigin}/`,
+          },
+          {
+            "@type": "Offer",
+            name: "ללא הגבלה חודשי",
+            price: UNLIMITED_MONTHLY_PRICE_ILS,
+            priceCurrency: "ILS",
+            availability: "https://schema.org/InStock",
+            description: "מנוי חודשי ללא הגבלה ליצירת תשובות.",
+            url: `${siteOrigin}/`,
+            category: "subscription",
+            priceSpecification: {
+              "@type": "UnitPriceSpecification",
+              price: UNLIMITED_MONTHLY_PRICE_ILS,
+              priceCurrency: "ILS",
+              referenceQuantity: {
+                "@type": "QuantitativeValue",
+                value: 1,
+                unitText: "MONTH",
+              },
+            },
+          },
+        ],
+      }),
 };
 
 export default function HomePage() {

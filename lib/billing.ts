@@ -5,6 +5,8 @@ export const FREE_LIMIT = 3;
 export const DAILY_FREE_LIMIT = 1;
 export const CREDIT_PACK_SIZE = CREDIT_PACK_USES;
 export const CREDIT_PACK_BASE_AMOUNT = CREDIT_PACK_PRICE_AGOROT;
+const BILLING_BYPASS_ENABLED =
+  process.env.BILLING_BYPASS?.trim().toLowerCase() === "true";
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due"]);
 const STRIPE_EVENT_LOCK_TTL_MS = 2 * 60 * 1000;
@@ -49,6 +51,7 @@ export type BillingSnapshot = {
   hasUnlimited: boolean;
   subscriptionStatus: string | null;
   stripeCustomerId: string | null;
+  billingBypassEnabled: boolean;
   accessState: "free" | "credits" | "unlimited" | "blocked";
 };
 
@@ -130,6 +133,10 @@ function isUnlimitedStatus(status: string | null) {
   return status ? ACTIVE_SUBSCRIPTION_STATUSES.has(status) : false;
 }
 
+export function isBillingBypassEnabled() {
+  return BILLING_BYPASS_ENABLED;
+}
+
 function normalizeBillingDocument(
   data: unknown,
   currentDailyUsageDate = getDailyUsageDate(),
@@ -172,6 +179,7 @@ function buildSnapshot(document: NormalizedBillingDocument): BillingSnapshot {
     hasUnlimited,
     subscriptionStatus: document.subscriptionStatus,
     stripeCustomerId: document.stripeCustomerId,
+    billingBypassEnabled: false,
     accessState: hasUnlimited
       ? "unlimited"
       : document.credits > 0
@@ -179,6 +187,23 @@ function buildSnapshot(document: NormalizedBillingDocument): BillingSnapshot {
         : dailyRemaining > 0 || freeRemaining > 0
           ? "free"
           : "blocked",
+  };
+}
+
+function buildBillingBypassSnapshot(): BillingSnapshot {
+  return {
+    freeLimit: 0,
+    freeUsed: 0,
+    freeRemaining: 0,
+    dailyLimit: 0,
+    dailyUsed: 0,
+    dailyRemaining: 0,
+    credits: 0,
+    hasUnlimited: true,
+    subscriptionStatus: null,
+    stripeCustomerId: null,
+    billingBypassEnabled: true,
+    accessState: "unlimited",
   };
 }
 
@@ -214,6 +239,10 @@ async function getCouponRedemptionDocRef(code: string, uid: string) {
 }
 
 export async function getBillingSnapshot(uid: string): Promise<BillingSnapshot> {
+  if (isBillingBypassEnabled()) {
+    return buildBillingBypassSnapshot();
+  }
+
   const ref = await getBillingDocRef(uid);
   const snapshot = (await (ref as { get: () => Promise<{ exists: boolean; data: () => unknown }> }).get()) as {
     exists: boolean;
@@ -226,6 +255,14 @@ export async function getBillingSnapshot(uid: string): Promise<BillingSnapshot> 
 export async function getBillingSubscriptionRecord(
   uid: string,
 ): Promise<BillingSubscriptionRecord> {
+  if (isBillingBypassEnabled()) {
+    return {
+      stripeCustomerId: null,
+      subscriptionId: null,
+      subscriptionStatus: null,
+    };
+  }
+
   const ref = await getBillingDocRef(uid);
   const snapshot = (await (ref as { get: () => Promise<{ exists: boolean; data: () => unknown }> }).get()) as {
     exists: boolean;
@@ -241,6 +278,14 @@ export async function getBillingSubscriptionRecord(
 }
 
 export async function consumeGenerationAccess(uid: string): Promise<ConsumptionResult> {
+  if (isBillingBypassEnabled()) {
+    return {
+      allowed: true,
+      snapshot: buildBillingBypassSnapshot(),
+      consumption: "unlimited",
+    };
+  }
+
   const firestore = await getFirestore();
   const billingRef = await getBillingDocRef(uid);
 
@@ -328,6 +373,10 @@ export async function refundGenerationAccess(
   uid: string,
   consumption: ConsumptionKind,
 ): Promise<void> {
+  if (isBillingBypassEnabled()) {
+    return;
+  }
+
   if (consumption === "unlimited") {
     return;
   }

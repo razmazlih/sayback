@@ -34,6 +34,15 @@ Privacy guardrails in this project:
 - Free mode (default): set `LOCAL_FREE_AI=true` and no OpenAI/ChatGPT calls are made.
 - Paid mode (optional): set `LOCAL_FREE_AI=false` and provide `OPENAI_API_KEY`.
 
+## Temporary Billing Bypass
+
+To run unlimited generations and disable checkout/paywall UI:
+
+- `BILLING_BYPASS=true` (server-side enforcement)
+- `NEXT_PUBLIC_BILLING_BYPASS=true` (client-side UI hide)
+
+Use both flags together.
+
 ## Local Development
 
 ```bash

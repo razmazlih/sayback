@@ -89,6 +89,15 @@ body {
   display: none;
 }
 
+/* Prevent iOS Safari focus-zoom on form controls in mobile layouts. */
+@media (max-width: 1023px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 @media (min-width: 1024px) {
   .mobile-section-anchor {
     scroll-margin-top: 1.5rem;
