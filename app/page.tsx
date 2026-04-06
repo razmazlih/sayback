@@ -111,7 +111,7 @@ export default function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: toSafeJsonLd(softwareApplicationJsonLd) }}
       />
-      <HomePageClient />
+      <HomePageClient mode="generator" />
     </>
   );
 }

@@ -27,6 +27,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "daily",
       priority: 1,
     },
+    {
+      url: `${siteUrl.origin}/home`,
+      lastModified,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
     ...answerHubEntries,
     {
       url: `${siteUrl.origin}/privacy`,

@@ -183,6 +183,7 @@ const mobileSectionNavItems: Array<{ id: MobileNavSectionId; label: string; step
   { id: 'results', label: 'תשובות', stepLabel: 'שלב 2' },
   { id: 'examples', label: 'דוגמאות', stepLabel: 'שלב 3' },
 ];
+type HomePageClientMode = 'generator' | 'full';
 
 const examples: ExampleScenario[] = [
   {
@@ -1244,7 +1245,11 @@ function PaywallModal({
   );
 }
 
-export default function Home() {
+export default function Home({
+  mode = 'full',
+}: {
+  mode?: HomePageClientMode;
+}) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const lastOutgoingInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -1307,6 +1312,10 @@ export default function Home() {
   const [mobileNavHeight, setMobileNavHeight] = useState(0);
   const authRecoveryPromiseRef = useRef<Promise<void> | null>(null);
   const authTokenPromiseRef = useRef<Promise<string> | null>(null);
+  const isGeneratorPrimaryMode = mode === 'generator';
+  const mobileNavItems = isGeneratorPrimaryMode
+    ? mobileSectionNavItems.filter((item) => item.id !== 'examples')
+    : mobileSectionNavItems;
 
   const hasUnlimitedAccess = billingBypassEnabled || paidPlan === 'unlimited_monthly';
   const hasCreditBalance = paidCredits > 0;
@@ -2775,61 +2784,99 @@ export default function Home() {
       style={mobileNavHeight > 0 ? { paddingBottom: `${mobileNavHeight}px` } : undefined}
     >
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-5">
-        <section className="overflow-hidden rounded-[30px] border-2 border-black bg-[#f7ff4f] shadow-[0_10px_0_0_#ff623d] sm:rounded-[36px] sm:shadow-[0_12px_0_0_#ff623d]">
-          <div className="relative px-4 py-5 sm:px-8 sm:py-8">
-            <div
-              aria-hidden="true"
-              className="absolute -left-10 top-0 h-36 w-36 rounded-full bg-[#ff623d] blur-3xl"
-            />
-            <div
-              aria-hidden="true"
-              className="absolute bottom-0 right-0 h-32 w-32 rounded-full bg-[#6ce8ff] blur-3xl"
-            />
+        {isGeneratorPrimaryMode ? (
+          <section className="overflow-hidden rounded-[30px] border-2 border-black bg-[#f7ff4f] shadow-[0_10px_0_0_#ff623d] sm:rounded-[36px] sm:shadow-[0_12px_0_0_#ff623d]">
+            <div className="relative px-4 py-5 sm:px-8 sm:py-8">
+              <div
+                aria-hidden="true"
+                className="absolute -left-10 top-0 h-36 w-36 rounded-full bg-[#ff623d] blur-3xl"
+              />
+              <div
+                aria-hidden="true"
+                className="absolute bottom-0 right-0 h-32 w-32 rounded-full bg-[#6ce8ff] blur-3xl"
+              />
 
-            <div className="relative max-w-3xl space-y-3 sm:space-y-4">
-              <div className="inline-flex min-h-[40px] items-center gap-2 rounded-full border-2 border-black bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-black">
-                SayBack
-              </div>
-              <div className="space-y-2.5 sm:space-y-3">
-                <h1 className="text-[2.1rem] font-black leading-[1.06] tracking-tight text-black sm:text-6xl">
-                  לא יודעים מה לענות? מקבלים 3 תשובות שנשמעות כמוכם
+              <div className="relative max-w-3xl space-y-3 sm:space-y-4">
+                <p className="inline-flex min-h-[40px] items-center gap-2 rounded-full border-2 border-black bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-black">
+                  SayBack
+                </p>
+                <h1 className="text-[2rem] font-black leading-[1.08] tracking-tight text-black sm:text-5xl">
+                  מהודעה מלחיצה לתשובה מעולה בתוך רגע
                 </h1>
                 <p className="max-w-2xl text-[0.98rem] font-bold leading-7 text-neutral-900 sm:text-lg">
-                  מדביקים הודעה או מעלים צילום מסך, בוחרים סיטואציה וסגנון, ומקבלים תוך רגע 3 תשובות קצרות, טבעיות ומוכנות להעתקה.
+                  מדביקים את ההודעה שקיבלתם, בוחרים וייב, ומקבלים מיד 3 תשובות קצרות, טבעיות
+                  ובול לסיטואציה. רוצים השראה עמוקה יותר? מחכה לכם עמוד עם מדריך ודוגמאות אמיתיות.
                 </p>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <Link
+                    href="/home"
+                    className={`inline-flex min-h-[44px] items-center justify-center rounded-full border-2 border-black bg-white px-4 py-2 text-sm font-black text-black transition hover:-translate-y-0.5 ${lightSurfaceFocusClass}`}
+                  >
+                    למדריך המלא ודוגמאות
+                  </Link>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        ) : (
+          <>
+            <section className="overflow-hidden rounded-[30px] border-2 border-black bg-[#f7ff4f] shadow-[0_10px_0_0_#ff623d] sm:rounded-[36px] sm:shadow-[0_12px_0_0_#ff623d]">
+              <div className="relative px-4 py-5 sm:px-8 sm:py-8">
+                <div
+                  aria-hidden="true"
+                  className="absolute -left-10 top-0 h-36 w-36 rounded-full bg-[#ff623d] blur-3xl"
+                />
+                <div
+                  aria-hidden="true"
+                  className="absolute bottom-0 right-0 h-32 w-32 rounded-full bg-[#6ce8ff] blur-3xl"
+                />
 
-        <section
-          aria-label="למה זה עובד מהר"
-          className="rounded-[26px] border-2 border-black bg-[#fff9ef] p-3 shadow-[0_8px_0_0_#111111] sm:rounded-[30px] sm:p-4"
-        >
-          <ul className="grid gap-2 sm:grid-cols-3">
-            {['3 חינם להתחלה', 'לא שומרים את ההודעות שלך', 'מוכן לוואטסאפ תוך רגע'].map((item) => (
-              <li
-                key={item}
-                className="rounded-2xl border-2 border-black bg-white px-3.5 py-2.5 text-center text-sm font-black text-black"
+                <div className="relative max-w-3xl space-y-3 sm:space-y-4">
+                  <div className="inline-flex min-h-[40px] items-center gap-2 rounded-full border-2 border-black bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-black">
+                    SayBack
+                  </div>
+                  <div className="space-y-2.5 sm:space-y-3">
+                    <h1 className="text-[2.1rem] font-black leading-[1.06] tracking-tight text-black sm:text-6xl">
+                      לא יודעים מה לענות? מקבלים 3 תשובות שנשמעות כמוכם
+                    </h1>
+                    <p className="max-w-2xl text-[0.98rem] font-bold leading-7 text-neutral-900 sm:text-lg">
+                      מדביקים הודעה או מעלים צילום מסך, בוחרים סיטואציה וסגנון, ומקבלים תוך רגע 3 תשובות קצרות, טבעיות ומוכנות להעתקה.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section
+              aria-label="למה זה עובד מהר"
+              className="rounded-[26px] border-2 border-black bg-[#fff9ef] p-3 shadow-[0_8px_0_0_#111111] sm:rounded-[30px] sm:p-4"
+            >
+              <ul className="grid gap-2 sm:grid-cols-3">
+                {['3 חינם להתחלה', 'לא שומרים את ההודעות שלך', 'מוכן לוואטסאפ תוך רגע'].map((item) => (
+                  <li
+                    key={item}
+                    className="rounded-2xl border-2 border-black bg-white px-3.5 py-2.5 text-center text-sm font-black text-black"
+                  >
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            <section className="rounded-[26px] border-2 border-black bg-[#111111] p-3 shadow-[0_8px_0_0_#111111] sm:rounded-[30px] sm:p-4">
+              <button
+                type="button"
+                onClick={() => {
+                  trackEvent('hero_cta_click');
+                  scrollToComposeSection();
+                }}
+                className={`inline-flex min-h-[56px] w-full items-center justify-center rounded-[22px] border-2 border-black bg-gradient-to-b from-[#ff7a56] to-[#ff623d] px-5 py-3 text-base font-black text-white shadow-[0_8px_0_0_#111111] transition hover:-translate-y-0.5 hover:shadow-[0_10px_0_0_#111111] active:translate-y-0 active:shadow-[0_5px_0_0_#111111] ${darkSurfaceFocusClass}`}
               >
-                {item}
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="rounded-[26px] border-2 border-black bg-[#111111] p-3 shadow-[0_8px_0_0_#111111] sm:rounded-[30px] sm:p-4">
-          <button
-            type="button"
-            onClick={() => {
-              trackEvent('hero_cta_click');
-              scrollToComposeSection();
-            }}
-            className={`inline-flex min-h-[56px] w-full items-center justify-center rounded-[22px] border-2 border-black bg-gradient-to-b from-[#ff7a56] to-[#ff623d] px-5 py-3 text-base font-black text-white shadow-[0_8px_0_0_#111111] transition hover:-translate-y-0.5 hover:shadow-[0_10px_0_0_#111111] active:translate-y-0 active:shadow-[0_5px_0_0_#111111] ${darkSurfaceFocusClass}`}
-          >
-            לקבל 3 תשובות עכשיו
-          </button>
-        </section>
+                לקבל 3 תשובות עכשיו
+              </button>
+            </section>
+          </>
+        )}
 
         <section className="grid w-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-5">
           <div
@@ -3208,15 +3255,17 @@ export default function Home() {
                   >
                     לטופס
                   </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      scrollToMobileSection('examples', { source: 'navigation' })
-                    }
-                    className={`min-h-[36px] rounded-full border-2 border-black bg-[#fff6d8] px-3 py-1 text-[0.72rem] font-black text-black ${lightSurfaceFocusClass}`}
-                  >
-                    לדוגמאות
-                  </button>
+                  {!isGeneratorPrimaryMode ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        scrollToMobileSection('examples', { source: 'navigation' })
+                      }
+                      className={`min-h-[36px] rounded-full border-2 border-black bg-[#fff6d8] px-3 py-1 text-[0.72rem] font-black text-black ${lightSurfaceFocusClass}`}
+                    >
+                      לדוגמאות
+                    </button>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -3256,34 +3305,36 @@ export default function Home() {
           </div>
         </section>
 
-        <section
-          ref={examplesSectionRef}
-          id="examples-section"
-          className="mobile-section-anchor w-full min-w-0 rounded-[30px] border-2 border-black bg-[#d34f24] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]"
-        >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="inline-flex min-h-[32px] items-center rounded-full border-2 border-black bg-white px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-[#9a2f10] lg:hidden">
-                {mobileSectionNavItems[2].stepLabel}
+        {!isGeneratorPrimaryMode ? (
+          <section
+            ref={examplesSectionRef}
+            id="examples-section"
+            className="mobile-section-anchor w-full min-w-0 rounded-[30px] border-2 border-black bg-[#d34f24] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]"
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="inline-flex min-h-[32px] items-center rounded-full border-2 border-black bg-white px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-[#9a2f10] lg:hidden">
+                  {mobileSectionNavItems[2].stepLabel}
+                </p>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-black">דוגמאות פתיחה</p>
+                <h2 className="mt-2 text-2xl font-black text-black sm:text-3xl">4 מצבים שמכירים מהחיים</h2>
+              </div>
+              <p className="max-w-xl text-sm font-bold leading-6 text-black">
+                לחיצה על כרטיס מכניסה את הדוגמה לטופס ותיתן לך נקודת פתיחה מהירה.
               </p>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-black">דוגמאות פתיחה</p>
-              <h2 className="mt-2 text-2xl font-black text-black sm:text-3xl">4 מצבים שמכירים מהחיים</h2>
             </div>
-            <p className="max-w-xl text-sm font-bold leading-6 text-black">
-              לחיצה על כרטיס מכניסה את הדוגמה לטופס ותיתן לך נקודת פתיחה מהירה.
-            </p>
-          </div>
 
-          <div className="mt-5 grid gap-4 md:[grid-template-columns:repeat(2,minmax(0,1fr))] xl:[grid-template-columns:repeat(4,minmax(0,1fr))]">
-            {examples.map((scenario) => (
-              <ExampleCard
-                key={scenario.title}
-                scenario={scenario}
-                onUse={applyExample}
-              />
-            ))}
-          </div>
-        </section>
+            <div className="mt-5 grid gap-4 md:[grid-template-columns:repeat(2,minmax(0,1fr))] xl:[grid-template-columns:repeat(4,minmax(0,1fr))]">
+              {examples.map((scenario) => (
+                <ExampleCard
+                  key={scenario.title}
+                  scenario={scenario}
+                  onUse={applyExample}
+                />
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {!billingBypassEnabled ? (
           <section
@@ -3381,46 +3432,48 @@ export default function Home() {
           </section>
         ) : null}
 
-        <section className="w-full min-w-0 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8b2d10]">מדריכי תשובות</p>
-              <h2 className="mt-2 text-2xl font-black text-black sm:text-3xl">מה לענות ל...</h2>
+        {!isGeneratorPrimaryMode ? (
+          <section className="w-full min-w-0 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8b2d10]">מדריכי תשובות</p>
+                <h2 className="mt-2 text-2xl font-black text-black sm:text-3xl">מה לענות ל...</h2>
+              </div>
+              <p className="max-w-xl text-sm font-bold leading-6 text-neutral-700">
+                דפי דוגמה קצרים למצבים אמיתיים: מה לכתוב, למה זה עובד, ו־3 תשובות מוכנות שאפשר לקחת מיד.
+              </p>
             </div>
-            <p className="max-w-xl text-sm font-bold leading-6 text-neutral-700">
-              דפי דוגמה קצרים למצבים אמיתיים: מה לכתוב, למה זה עובד, ו־3 תשובות מוכנות שאפשר לקחת מיד.
-            </p>
-          </div>
 
-          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {answerHubHighlights.map((item) => (
+            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {answerHubHighlights.map((item) => (
+                <Link
+                  key={item.slug}
+                  href={`/answers/${item.slug}`}
+                  className={`block rounded-[22px] border-2 border-black bg-white p-4 shadow-[0_6px_0_0_#111111] transition hover:-translate-y-0.5 ${lightSurfaceFocusClass}`}
+                >
+                  <p className="text-sm font-black leading-6 text-black">{item.query}</p>
+                  <p className="mt-2 text-sm font-bold leading-6 text-neutral-700">{item.teaser}</p>
+                  <span className="mt-3 inline-block text-xs font-black text-[#9a2f10]">לעמוד המלא</span>
+                </Link>
+              ))}
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center gap-2.5">
               <Link
-                key={item.slug}
-                href={`/answers/${item.slug}`}
-                className={`block rounded-[22px] border-2 border-black bg-white p-4 shadow-[0_6px_0_0_#111111] transition hover:-translate-y-0.5 ${lightSurfaceFocusClass}`}
+                href="/answers"
+                className={`inline-flex min-h-[44px] items-center justify-center rounded-full border-2 border-black bg-[#f7ff4f] px-4 py-2 text-sm font-black text-black transition hover:-translate-y-0.5 ${lightSurfaceFocusClass}`}
               >
-                <p className="text-sm font-black leading-6 text-black">{item.query}</p>
-                <p className="mt-2 text-sm font-bold leading-6 text-neutral-700">{item.teaser}</p>
-                <span className="mt-3 inline-block text-xs font-black text-[#9a2f10]">לעמוד המלא</span>
+                לכל דפי &quot;מה לענות ל...&quot;
               </Link>
-            ))}
-          </div>
-
-          <div className="mt-5 flex flex-wrap items-center gap-2.5">
-            <Link
-              href="/answers"
-              className={`inline-flex min-h-[44px] items-center justify-center rounded-full border-2 border-black bg-[#f7ff4f] px-4 py-2 text-sm font-black text-black transition hover:-translate-y-0.5 ${lightSurfaceFocusClass}`}
-            >
-              לכל דפי &quot;מה לענות ל...&quot;
-            </Link>
-            <Link
-              href="/#compose-section"
-              className={`inline-flex min-h-[44px] items-center justify-center rounded-full border-2 border-black bg-white px-4 py-2 text-sm font-black text-black transition hover:-translate-y-0.5 ${lightSurfaceFocusClass}`}
-            >
-              לפתוח את כלי התשובות
-            </Link>
-          </div>
-        </section>
+              <Link
+                href="/#compose-section"
+                className={`inline-flex min-h-[44px] items-center justify-center rounded-full border-2 border-black bg-white px-4 py-2 text-sm font-black text-black transition hover:-translate-y-0.5 ${lightSurfaceFocusClass}`}
+              >
+                לפתוח את כלי התשובות
+              </Link>
+            </div>
+          </section>
+        ) : null}
 
         <footer className="w-full min-w-0 rounded-[24px] border-2 border-black bg-[#fff6d8] px-4 py-4 text-sm font-bold text-neutral-800 shadow-[0_8px_0_0_#111111]">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -3459,8 +3512,12 @@ export default function Home() {
               </div>
             ) : null}
 
-            <nav aria-label="ניווט מהיר במובייל" className="grid grid-cols-3 gap-2">
-              {mobileSectionNavItems.map((item) => {
+            <nav
+              aria-label="ניווט מהיר במובייל"
+              className="grid gap-2"
+              style={{ gridTemplateColumns: `repeat(${mobileNavItems.length}, minmax(0, 1fr))` }}
+            >
+              {mobileNavItems.map((item) => {
                 const isActive = activeMobileSection === item.id;
                 return (
                   <button
