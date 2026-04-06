@@ -1,11 +1,24 @@
-import { AIRequestError, generateReplies } from "@/lib/ai";
+import { AIRequestError, generateRepliesWithModelSource, type AIModelSource } from "@/lib/ai";
 import { requireAuthenticatedUser, UnauthorizedError } from "@/lib/auth";
 import {
   consumeGenerationAccess,
   getBillingSnapshot,
+  isBillingBypassEnabled,
   refundGenerationAccess,
 } from "@/lib/billing";
+import {
+  completeLocalUsageLog,
+  startLocalUsageLog,
+  type GenerationConsumption,
+} from "@/lib/local-usage-logs";
+import { persistUsageLog, type PersistedUsageLogStatus } from "@/lib/persisted-usage-logs";
 import { consumeRateLimit } from "@/lib/rate-limit";
+import {
+  MAX_CONVERSATION_BACKGROUND_LENGTH,
+  MAX_LAST_OUTGOING_MESSAGE_LENGTH,
+  MAX_NO_REPLY_DURATION_VALUE,
+} from "@/lib/message-limits";
+import { after } from "next/server";
 import { isIP } from "node:net";
 
 export const runtime = "nodejs";
@@ -25,6 +38,10 @@ const IP_GENERATE_RATE_LIMIT = {
   limit: 80,
   windowMs: 60_000,
 } as const;
+const BILLING_BYPASS_USER_QUOTA = {
+  limit: 10,
+  windowMs: 2 * 60 * 60_000,
+} as const;
 
 interface GenerateRequestBody {
   message?: string;
@@ -32,15 +49,38 @@ interface GenerateRequestBody {
   context?: string;
   tone?: string;
   continuePreference?: string | null;
+  conversationBackground?: string;
+  noReplyMode?: boolean;
+  noReplyDurationValue?: number;
+  noReplyDurationUnit?: string;
+  lastOutgoingMessage?: string;
   refineInstruction?: string;
   action?: string;
   sourceReply?: string;
 }
 
+type PersistedUsageLogBase = {
+  uid: string;
+  message: string | null;
+  hasImage: boolean;
+  context: string | null;
+  tone: string | null;
+  continuePreference: string | null;
+  conversationBackground: string | null;
+  noReplyMode: boolean | null;
+  noReplyDurationValue: number | null;
+  noReplyDurationUnit: string | null;
+  lastOutgoingMessage: string | null;
+  action: string | null;
+  sourceReply: string | null;
+};
+
 export async function POST(request: Request) {
   let body: GenerateRequestBody;
   let authenticatedUserUid: string | null = null;
-  let consumption: "initial_free" | "daily_free" | "credits" | "unlimited" | null = null;
+  let consumption: GenerationConsumption | null = null;
+  let localUsageLogId: string | null = null;
+  let persistedUsageLogBase: PersistedUsageLogBase | null = null;
 
   try {
     const authenticatedUser = await requireAuthenticatedUser(request);
@@ -102,6 +142,49 @@ export async function POST(request: Request) {
     );
   }
 
+  if (authenticatedUserUid) {
+    localUsageLogId = startLocalUsageLog({
+      uid: authenticatedUserUid,
+      message: body.message,
+      imageBase64: body.imageBase64 ? "1" : undefined,
+      context: body.context,
+      tone: body.tone,
+      continuePreference: body.continuePreference ?? null,
+      conversationBackground: body.conversationBackground,
+      noReplyMode: body.noReplyMode,
+      noReplyDurationValue: body.noReplyDurationValue,
+      noReplyDurationUnit: body.noReplyDurationUnit,
+      lastOutgoingMessage: body.lastOutgoingMessage,
+      action: body.action,
+      sourceReply: body.sourceReply,
+    });
+    persistedUsageLogBase = {
+      uid: authenticatedUserUid,
+      message: normalizeOptionalText(body.message, 3000),
+      hasImage: typeof body.imageBase64 === "string" && body.imageBase64.length > 0,
+      context: normalizeOptionalText(body.context, 80),
+      tone: normalizeOptionalText(body.tone, 80),
+      continuePreference: normalizeOptionalText(body.continuePreference ?? null, 24),
+      conversationBackground: normalizeOptionalText(
+        body.conversationBackground,
+        MAX_CONVERSATION_BACKGROUND_LENGTH,
+      ),
+      noReplyMode: normalizeOptionalBoolean(body.noReplyMode),
+      noReplyDurationValue: normalizeOptionalInteger(
+        body.noReplyDurationValue,
+        1,
+        MAX_NO_REPLY_DURATION_VALUE,
+      ),
+      noReplyDurationUnit: normalizeOptionalText(body.noReplyDurationUnit, 16),
+      lastOutgoingMessage: normalizeOptionalText(
+        body.lastOutgoingMessage,
+        MAX_LAST_OUTGOING_MESSAGE_LENGTH,
+      ),
+      action: normalizeOptionalText(body.action, 24),
+      sourceReply: normalizeOptionalText(body.sourceReply, 3000),
+    };
+  }
+
   try {
     if (!authenticatedUserUid) {
       throw new UnauthorizedError();
@@ -110,9 +193,20 @@ export async function POST(request: Request) {
     const access = await consumeGenerationAccess(authenticatedUserUid);
 
     if (!access.allowed) {
+      const blockedError = "No billing access is available for this account.";
+
+      completeLocalUsageLog(localUsageLogId, {
+        status: "error",
+        error: blockedError,
+      });
+      schedulePersistedUsageLog(persistedUsageLogBase, {
+        status: "blocked",
+        error: blockedError,
+      });
+
       return noStoreJson(
         {
-          error: "No billing access is available for this account.",
+          error: blockedError,
           billing: access.snapshot,
         },
         402,
@@ -120,8 +214,24 @@ export async function POST(request: Request) {
     }
 
     consumption = access.consumption;
-    const result = await generateReplies(body);
+    const generated = await generateRepliesWithModelSource(body);
+    const result = generated.result;
     const billing = await getBillingSnapshot(authenticatedUserUid);
+
+    completeLocalUsageLog(localUsageLogId, {
+      status: "success",
+      consumption,
+      intent: result.intent,
+      replies: result.replies,
+      modelSource: generated.modelSource,
+    });
+    schedulePersistedUsageLog(persistedUsageLogBase, {
+      status: "success",
+      consumption,
+      intent: result.intent,
+      replies: result.replies,
+      modelSource: generated.modelSource,
+    });
 
     return noStoreJson(
       {
@@ -131,6 +241,19 @@ export async function POST(request: Request) {
       200,
     );
   } catch (error) {
+    const errorMessage = readErrorMessage(error);
+
+    completeLocalUsageLog(localUsageLogId, {
+      status: "error",
+      consumption,
+      error: errorMessage,
+    });
+    schedulePersistedUsageLog(persistedUsageLogBase, {
+      status: "error",
+      consumption,
+      error: errorMessage,
+    });
+
     if (authenticatedUserUid && consumption) {
       try {
         await refundGenerationAccess(authenticatedUserUid, consumption);
@@ -173,6 +296,79 @@ function hasJsonContentType(request: Request) {
   return typeof contentType === "string" && contentType.toLowerCase().includes(JSON_CONTENT_TYPE);
 }
 
+function schedulePersistedUsageLog(
+  base: PersistedUsageLogBase | null,
+  updates: {
+    status: PersistedUsageLogStatus;
+    consumption?: GenerationConsumption | null;
+    modelSource?: AIModelSource | null;
+    intent?: string | null;
+    replies?: [string, string, string] | null;
+    error?: string | null;
+  },
+) {
+  if (!base) {
+    return;
+  }
+
+  after(async () => {
+    await persistUsageLog({
+      ...base,
+      ...updates,
+    });
+  });
+}
+
+function readErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+
+  return "Unexpected server error.";
+}
+
+function normalizeOptionalText(value: string | null | undefined, maxLength: number) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, Math.max(0, maxLength - 1))}…`;
+}
+
+function normalizeOptionalBoolean(value: boolean | null | undefined) {
+  if (value === true || value === false) {
+    return value;
+  }
+
+  return null;
+}
+
+function normalizeOptionalInteger(
+  value: number | null | undefined,
+  min: number,
+  max: number,
+) {
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    return null;
+  }
+
+  if (value < min || value > max) {
+    return null;
+  }
+
+  return value;
+}
+
 async function enforceRateLimits(request: Request, uid: string) {
   try {
     const userRateLimit = await consumeRateLimit({
@@ -191,6 +387,26 @@ async function enforceRateLimits(request: Request, uid: string) {
           "Retry-After": String(userRateLimit.retryAfterSeconds),
         },
       );
+    }
+
+    if (isBillingBypassEnabled()) {
+      const billingBypassUserQuota = await consumeRateLimit({
+        scope: `generate:billing-bypass:uid:${uid}`,
+        limit: BILLING_BYPASS_USER_QUOTA.limit,
+        windowMs: BILLING_BYPASS_USER_QUOTA.windowMs,
+      });
+
+      if (!billingBypassUserQuota.allowed) {
+        return noStoreJson(
+          {
+            error: "הגעת למגבלת השימוש הזמנית. אפשר לנסות שוב בעוד כשעתיים.",
+          },
+          429,
+          {
+            "Retry-After": String(billingBypassUserQuota.retryAfterSeconds),
+          },
+        );
+      }
     }
 
     const clientIp = readClientIp(request);

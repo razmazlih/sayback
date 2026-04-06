@@ -1,18 +1,27 @@
+import {
+  MAX_CONVERSATION_BACKGROUND_LENGTH,
+  MAX_INCOMING_MESSAGE_LENGTH,
+  MAX_LAST_OUTGOING_MESSAGE_LENGTH,
+  MAX_NO_REPLY_DURATION_VALUE,
+} from "@/lib/message-limits";
+
 const CONTEXT_OPTIONS = ["קראש", "אקס", "לקוח", "בוס", "יד2"] as const;
 const TONE_OPTIONS = ["עדין", "ישיר", "זורם", "מצחיק", "פלרטטני"] as const;
 const CONTINUE_PREFERENCE_OPTIONS = ["כן", "לא"] as const;
 const REPLY_ACTION_OPTIONS = ["softer", "sharper", "retry"] as const;
+const NO_REPLY_DURATION_UNITS = ["minutes", "hours", "days"] as const;
 
-const DEFAULT_MODEL = process.env.OPENAI_MODEL?.trim() || "gpt-5-mini";
+const DEFAULT_MODEL = process.env.OPENAI_MODEL?.trim() || "gpt-5.3-chat-latest";
 const OPENAI_URL = "https://api.openai.com/v1/responses";
 const FREE_AI_MODE_ENABLED = process.env.LOCAL_FREE_AI?.trim().toLowerCase() === "true";
-const MAX_MESSAGE_LENGTH = 4000;
+const MAX_MESSAGE_LENGTH = MAX_INCOMING_MESSAGE_LENGTH;
 const MAX_IMAGE_LENGTH = 10_000_000;
 
 type ContextOption = (typeof CONTEXT_OPTIONS)[number];
 type ToneOption = (typeof TONE_OPTIONS)[number];
 type ContinuePreferenceOption = (typeof CONTINUE_PREFERENCE_OPTIONS)[number];
 type ReplyActionOption = (typeof REPLY_ACTION_OPTIONS)[number];
+type NoReplyDurationUnit = (typeof NO_REPLY_DURATION_UNITS)[number];
 
 type InputContentItem =
   | {
@@ -52,6 +61,11 @@ export interface GenerateRepliesInput {
   context?: string;
   tone?: string;
   continuePreference?: string | null;
+  conversationBackground?: string;
+  noReplyMode?: boolean;
+  noReplyDurationValue?: number;
+  noReplyDurationUnit?: string;
+  lastOutgoingMessage?: string;
   refineInstruction?: string;
   action?: string;
   sourceReply?: string;
@@ -61,6 +75,80 @@ export interface GenerateRepliesResult {
   intent: string;
   replies: [string, string, string];
 }
+
+export type AIModelSource = "api" | "local";
+
+export interface GenerateRepliesWithModelSourceResult {
+  result: GenerateRepliesResult;
+  modelSource: AIModelSource;
+}
+
+type PresetExampleReply = {
+  message: string;
+  context: ContextOption;
+  tone: ToneOption;
+  continuePreference: ContinuePreferenceOption;
+  result: GenerateRepliesResult;
+};
+
+const PRESET_EXAMPLE_REPLIES: readonly PresetExampleReply[] = [
+  {
+    message: "היי, מה קורה? נעלמתי קצת השבוע אבל חשבתי עלייך",
+    context: "קראש",
+    tone: "פלרטטני",
+    continuePreference: "כן",
+    result: {
+      intent: "להחזיר עניין ולהשאיר את השיחה קלילה ומסקרנת.",
+      replies: [
+        "חח נו, יפה שנזכרת. מה גרם לזה דווקא עכשיו?",
+        "אני מקבלת מחשבות יפות כאלה. מה איתך השבוע?",
+        "טוב, זה פתיח לא רע בכלל. מה קורה אצלך?",
+      ],
+    },
+  },
+  {
+    message: "וואלה עברתי ליד המקום שלנו ונזכרתי בך. איך את?",
+    context: "אקס",
+    tone: "ישיר",
+    continuePreference: "לא",
+    result: {
+      intent: "לענות בנימוס אבל לשמור על גבול ברור ולא לעודד בלבול.",
+      replies: [
+        "אני בסדר, תודה. מעדיפה להשאיר את זה מאחורינו.",
+        "תודה ששאלת, הכול טוב. לא נראה לי נכון לפתוח את זה שוב.",
+        "אני מעריכה את ההודעה, אבל עדיף לי לא לחזור לשם.",
+      ],
+    },
+  },
+  {
+    message: "ראיתי את ההצעה, אם תוריד בעוד 20% אני סוגר עכשיו",
+    context: "לקוח",
+    tone: "עדין",
+    continuePreference: "כן",
+    result: {
+      intent: "לשמור על שירות טוב, להסביר גבול ולקרב לסגירה בלי להישבר מיד במחיר.",
+      replies: [
+        "מבין אותך. כרגע זה המחיר הכי מדויק שאני יכול לתת, והוא כבר כולל את מה שסיכמנו.",
+        "אשמח לסגור איתך, אבל זה המחיר הנכון עבור העבודה. אם מתאים לך, אני ממשיך איתך עכשיו.",
+        "רוצה לעזור לך להתקדם מהר, פשוט לא נכון לי לרדת בעוד 20%. אם תרצה, אני זמין לסגור בתנאים ששלחתי.",
+      ],
+    },
+  },
+  {
+    message: "אחרון כמה? בא לקחת היום אם יש מחיר טוב",
+    context: "יד2",
+    tone: "זורם",
+    continuePreference: "כן",
+    result: {
+      intent: "לשמור על עניין מצד הקונה, אבל להבהיר מחיר ותנאי סגירה.",
+      replies: [
+        "אם אתה רציני להיום, המחיר הסופי הוא כמו במודעה ואפשר לתאם איסוף.",
+        "אפשר היום, המחיר נשאר כמו שפרסמתי. אם מתאים לך, שולח מיקום.",
+        "יש גמישות קטנה רק מול קונה שסוגר היום. אם רלוונטי לך, נתקדם.",
+      ],
+    },
+  },
+] as const;
 
 export class AIRequestError extends Error {
   constructor(
@@ -98,10 +186,28 @@ const responseSchema = {
 export async function generateReplies(
   input: GenerateRepliesInput,
 ): Promise<GenerateRepliesResult> {
+  const generated = await generateRepliesWithModelSource(input);
+  return generated.result;
+}
+
+export async function generateRepliesWithModelSource(
+  input: GenerateRepliesInput,
+): Promise<GenerateRepliesWithModelSourceResult> {
   const message = normalizeMessage(input.message);
   const context = normalizeContext(input.context);
   const tone = normalizeTone(input.tone);
   const continuePreference = normalizeContinuePreference(input.continuePreference);
+  const conversationBackground = normalizeOptionalText(
+    input.conversationBackground,
+    MAX_CONVERSATION_BACKGROUND_LENGTH,
+  );
+  const noReplyMode = normalizeNoReplyMode(input.noReplyMode);
+  const noReplyDurationValue = normalizeNoReplyDurationValue(input.noReplyDurationValue);
+  const noReplyDurationUnit = normalizeNoReplyDurationUnit(input.noReplyDurationUnit);
+  const lastOutgoingMessage = normalizeOptionalText(
+    input.lastOutgoingMessage,
+    MAX_LAST_OUTGOING_MESSAGE_LENGTH,
+  );
   const action = normalizeAction(input.action);
   const sourceReply = normalizeOptionalText(input.sourceReply, 220);
   const refineInstruction = buildRefineInstruction({
@@ -111,22 +217,74 @@ export async function generateReplies(
   });
   const imageUrl = normalizeImage(input.imageBase64);
 
-  if (!message && !imageUrl) {
+  if (noReplyMode) {
+    if (imageUrl) {
+      throw new AIRequestError(
+        'In no-reply mode you should send text context only (no screenshot).',
+        400,
+      );
+    }
+
+    if (!lastOutgoingMessage) {
+      throw new AIRequestError(
+        'לא קיבלתי את ההודעה האחרונה ששלחת במצב "לא ענו הרבה זמן".',
+        400,
+      );
+    }
+
+    if (!noReplyDurationUnit || !noReplyDurationValue) {
+      throw new AIRequestError(
+        'במצב "לא ענו הרבה זמן" חייבים לציין כמה זמן לא ענו (מספר + יחידה).',
+        400,
+      );
+    }
+  } else if (!message && !imageUrl) {
     throw new AIRequestError(
       "Provide either a message or a screenshot.",
       400,
     );
   }
 
+  const presetResult = findPresetExampleResult({
+    message,
+    context,
+    tone,
+    continuePreference,
+    action,
+    sourceReply,
+    refineInstruction,
+    imageUrl,
+    conversationBackground,
+    noReplyMode,
+    noReplyDurationValue,
+    noReplyDurationUnit,
+    lastOutgoingMessage,
+  });
+
   if (FREE_AI_MODE_ENABLED) {
-    return generateFreeReplies({
-      message,
-      context,
-      tone,
-      continuePreference,
-      action,
-      sourceReply,
-    });
+    if (presetResult) {
+      return {
+        result: presetResult,
+        modelSource: "local",
+      };
+    }
+
+    return {
+      result: generateFreeReplies({
+        message,
+        context,
+        tone,
+        continuePreference,
+        conversationBackground,
+        noReplyMode,
+        noReplyDurationValue,
+        noReplyDurationUnit,
+        lastOutgoingMessage,
+        action,
+        sourceReply,
+      }),
+      modelSource: "local",
+    };
   }
 
   const apiKey = process.env.OPENAI_API_KEY?.trim();
@@ -138,6 +296,62 @@ export async function generateReplies(
     );
   }
 
+  try {
+    const result = await generateRepliesViaOpenAI({
+      apiKey,
+      message,
+      imageUrl,
+      context,
+      tone,
+      continuePreference,
+      conversationBackground,
+      noReplyMode,
+      noReplyDurationValue,
+      noReplyDurationUnit,
+      lastOutgoingMessage,
+      refineInstruction,
+    });
+
+    return {
+      result,
+      modelSource: "api",
+    };
+  } catch (error) {
+    if (error instanceof AIRequestError) {
+      throw error;
+    }
+
+    throw new AIRequestError("OpenAI request failed.", 502);
+  }
+}
+
+async function generateRepliesViaOpenAI({
+  apiKey,
+  message,
+  imageUrl,
+  context,
+  tone,
+  continuePreference,
+  conversationBackground,
+  noReplyMode,
+  noReplyDurationValue,
+  noReplyDurationUnit,
+  lastOutgoingMessage,
+  refineInstruction,
+}: {
+  apiKey: string;
+  message?: string;
+  imageUrl?: string;
+  context?: ContextOption;
+  tone?: ToneOption;
+  continuePreference?: ContinuePreferenceOption;
+  conversationBackground?: string;
+  noReplyMode?: boolean;
+  noReplyDurationValue?: number;
+  noReplyDurationUnit?: NoReplyDurationUnit;
+  lastOutgoingMessage?: string;
+  refineInstruction?: string;
+}): Promise<GenerateRepliesResult> {
   const response = await fetch(OPENAI_URL, {
     method: "POST",
     headers: {
@@ -148,7 +362,7 @@ export async function generateReplies(
       model: DEFAULT_MODEL,
       store: false,
       reasoning: {
-        effort: "low",
+        effort: "medium",
       },
       max_output_tokens: 350,
       instructions: buildInstructions(),
@@ -161,6 +375,11 @@ export async function generateReplies(
             context,
             tone,
             continuePreference,
+            conversationBackground,
+            noReplyMode,
+            noReplyDurationValue,
+            noReplyDurationUnit,
+            lastOutgoingMessage,
             refineInstruction,
           }),
         },
@@ -210,6 +429,11 @@ function generateFreeReplies({
   context,
   tone,
   continuePreference,
+  conversationBackground,
+  noReplyMode,
+  noReplyDurationValue,
+  noReplyDurationUnit,
+  lastOutgoingMessage,
   action,
   sourceReply,
 }: {
@@ -217,10 +441,21 @@ function generateFreeReplies({
   context?: ContextOption;
   tone?: ToneOption;
   continuePreference?: ContinuePreferenceOption;
+  conversationBackground?: string;
+  noReplyMode?: boolean;
+  noReplyDurationValue?: number;
+  noReplyDurationUnit?: NoReplyDurationUnit;
+  lastOutgoingMessage?: string;
   action?: ReplyActionOption;
   sourceReply?: string;
 }): GenerateRepliesResult {
-  const intent = buildFreeIntent(message, context);
+  const intent = buildFreeIntent({
+    message,
+    context,
+    noReplyMode,
+    noReplyDurationValue,
+    noReplyDurationUnit,
+  });
   const effectiveTone =
     action === "softer" ? "עדין" : action === "sharper" ? "ישיר" : (tone ?? "זורם");
 
@@ -229,16 +464,34 @@ function generateFreeReplies({
     context,
     message,
     continuePreference,
+    conversationBackground,
+    noReplyMode,
+    noReplyDurationValue,
+    noReplyDurationUnit,
+    lastOutgoingMessage,
     sourceReply,
   });
 
   return { intent, replies };
 }
 
-function buildFreeIntent(
-  message?: string,
-  context?: ContextOption,
-): string {
+function buildFreeIntent({
+  message,
+  context,
+  noReplyMode,
+  noReplyDurationValue,
+  noReplyDurationUnit,
+}: {
+  message?: string;
+  context?: ContextOption;
+  noReplyMode?: boolean;
+  noReplyDurationValue?: number;
+  noReplyDurationUnit?: NoReplyDurationUnit;
+}): string {
+  if (noReplyMode && noReplyDurationValue && noReplyDurationUnit) {
+    return `הצד השני שקט כבר ${formatNoReplyDuration(noReplyDurationValue, noReplyDurationUnit)}, וצריך הודעת המשך קצרה שמניעה תשובה בלי לחץ.`;
+  }
+
   const normalized = message?.trim();
 
   if (!normalized) {
@@ -269,14 +522,40 @@ function buildFreeReplies({
   context,
   message,
   continuePreference,
+  conversationBackground,
+  noReplyMode,
+  noReplyDurationValue,
+  noReplyDurationUnit,
+  lastOutgoingMessage,
   sourceReply,
 }: {
   tone: ToneOption;
   context?: ContextOption;
   message?: string;
   continuePreference?: ContinuePreferenceOption;
+  conversationBackground?: string;
+  noReplyMode?: boolean;
+  noReplyDurationValue?: number;
+  noReplyDurationUnit?: NoReplyDurationUnit;
+  lastOutgoingMessage?: string;
   sourceReply?: string;
 }): [string, string, string] {
+  if (
+    noReplyMode &&
+    lastOutgoingMessage &&
+    noReplyDurationValue &&
+    noReplyDurationUnit
+  ) {
+    return buildNoReplyFreeReplies({
+      tone,
+      context,
+      noReplyDurationValue,
+      noReplyDurationUnit,
+      lastOutgoingMessage,
+      conversationBackground,
+    });
+  }
+
   const businessReplies =
     context === "לקוח"
       ? ([
@@ -355,6 +634,62 @@ function buildFreeReplies({
   return replies;
 }
 
+function buildNoReplyFreeReplies({
+  tone,
+  context,
+  noReplyDurationValue,
+  noReplyDurationUnit,
+  lastOutgoingMessage,
+  conversationBackground,
+}: {
+  tone: ToneOption;
+  context?: ContextOption;
+  noReplyDurationValue: number;
+  noReplyDurationUnit: NoReplyDurationUnit;
+  lastOutgoingMessage: string;
+  conversationBackground?: string;
+}): [string, string, string] {
+  const duration = formatNoReplyDuration(noReplyDurationValue, noReplyDurationUnit);
+  const openingByTone: Record<ToneOption, string> = {
+    עדין: "היי, רק מעלה את זה שוב בעדינות :)",
+    ישיר: "היי, מרים/ה את זה שוב כדי לסגור.",
+    זורם: "היי, קופץ/ת לעדכן ולבדוק אם זה עדיין רלוונטי.",
+    מצחיק: "היי, פינג קטן לפני שאני מאשים/ה את הוואטסאפ :)",
+    פלרטטני: "היי, פינג קטן ממני כי נעלמת לי קצת ;) ",
+  };
+  const contextSuffix =
+    context === "לקוח"
+      ? "אם עדיין רלוונטי, אפשר לסגור את זה היום."
+      : context === "בוס"
+        ? "אם תרצה/י, אעדכן מיד מה צריך ממני כדי להתקדם."
+        : "אם זה עדיין מתאים לך, אשמח להמשיך.";
+  const backgroundSuffix = conversationBackground
+    ? "זוכר/ת את מה שדיברנו קודם, אז רק רציתי לבדוק אם מתקדם."
+    : "רק בודק/ת איפה זה עומד.";
+  const compactLastOutgoing =
+    lastOutgoingMessage.length > 90
+      ? `${lastOutgoingMessage.slice(0, 87).trim()}...`
+      : lastOutgoingMessage;
+
+  return [
+    `${openingByTone[tone]} עברו כבר ${duration}. ${contextSuffix}`,
+    `שולח/ת תזכורת קצרה אחרי ${duration} בלי מענה. ${backgroundSuffix}`,
+    `ההודעה האחרונה שלי הייתה: "${compactLastOutgoing}". אם זה עדיין פתוח, נמשיך מכאן?`,
+  ];
+}
+
+function formatNoReplyDuration(value: number, unit: NoReplyDurationUnit) {
+  if (unit === "minutes") {
+    return `${value} דקות`;
+  }
+
+  if (unit === "hours") {
+    return `${value} שעות`;
+  }
+
+  return `${value} ימים`;
+}
+
 function buildInstructions(): string {
   return [
     'You create reply suggestions for an Israeli consumer app called "SayBack".',
@@ -368,6 +703,7 @@ function buildInstructions(): string {
     "- avoid robotic phrasing",
     "- avoid cringe, melodrama, and therapy-speak",
     "- respect the requested tone and context",
+    "- if no-reply mode is enabled, write follow-up messages after silence without sounding needy",
     "- keep self-respect if the incoming message is rude or manipulative",
     "- do not wrap replies in quotes",
   ].join("\n");
@@ -379,6 +715,11 @@ function buildInputContent({
   context,
   tone,
   continuePreference,
+  conversationBackground,
+  noReplyMode,
+  noReplyDurationValue,
+  noReplyDurationUnit,
+  lastOutgoingMessage,
   refineInstruction,
 }: {
   message?: string;
@@ -386,16 +727,35 @@ function buildInputContent({
   context?: ContextOption;
   tone?: ToneOption;
   continuePreference?: ContinuePreferenceOption;
+  conversationBackground?: string;
+  noReplyMode?: boolean;
+  noReplyDurationValue?: number;
+  noReplyDurationUnit?: NoReplyDurationUnit;
+  lastOutgoingMessage?: string;
   refineInstruction?: string;
 }): InputContentItem[] {
+  const noReplyDurationText =
+    noReplyMode && noReplyDurationValue && noReplyDurationUnit
+      ? formatNoReplyDuration(noReplyDurationValue, noReplyDurationUnit)
+      : "לא צוין";
   const details = [
     `הקשר: ${context ?? "כללי"}`,
     `טון רצוי: ${tone ?? "זורם"}`,
     `מסכים/ה עם מה שנאמר: ${continuePreference ?? "לא צוין"}`,
+    `מצב לא ענה הרבה זמן: ${noReplyMode ? "כן" : "לא"}`,
+    `משך זמן ללא מענה: ${noReplyDurationText}`,
+    lastOutgoingMessage
+      ? `הודעה אחרונה שהמשתמש שלח:\n"""\n${lastOutgoingMessage}\n"""`
+      : null,
+    conversationBackground
+      ? `רקע שיחה נוסף:\n"""\n${conversationBackground}\n"""`
+      : null,
     refineInstruction ? `שינוי מבוקש: ${refineInstruction}` : null,
     message
       ? `הודעה שהמשתמש קיבל:\n"""\n${message}\n"""`
-      : "אין טקסט מודבק. צריך להבין את השיחה לפי התמונה.",
+      : noReplyMode
+        ? "אין הודעה חדשה שהתקבלה כרגע, צריך לנסח הודעת המשך אחרי חוסר מענה."
+        : "אין טקסט מודבק. צריך להבין את השיחה לפי התמונה.",
     imageUrl ? "מצורף גם צילום מסך של השיחה." : null,
   ]
     .filter(Boolean)
@@ -485,6 +845,50 @@ function normalizeContinuePreference(
   }
 
   throw new AIRequestError("Invalid continue preference value.", 400);
+}
+
+function normalizeNoReplyMode(value?: boolean): boolean {
+  if (value == null) {
+    return false;
+  }
+
+  if (typeof value !== "boolean") {
+    throw new AIRequestError("Invalid no-reply mode value.", 400);
+  }
+
+  return value;
+}
+
+function normalizeNoReplyDurationValue(value?: number): number | undefined {
+  if (value == null) {
+    return undefined;
+  }
+
+  if (
+    typeof value !== "number" ||
+    !Number.isInteger(value) ||
+    value < 1 ||
+    value > MAX_NO_REPLY_DURATION_VALUE
+  ) {
+    throw new AIRequestError(
+      `Invalid no-reply duration value. Use an integer between 1 and ${MAX_NO_REPLY_DURATION_VALUE}.`,
+      400,
+    );
+  }
+
+  return value;
+}
+
+function normalizeNoReplyDurationUnit(value?: string): NoReplyDurationUnit | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  if ((NO_REPLY_DURATION_UNITS as readonly string[]).includes(value)) {
+    return value as NoReplyDurationUnit;
+  }
+
+  throw new AIRequestError("Invalid no-reply duration unit value.", 400);
 }
 
 function normalizeAction(value?: string): ReplyActionOption | undefined {
@@ -630,5 +1034,72 @@ function validateResponseShape(value: unknown): GenerateRepliesResult {
   return {
     intent: intent.trim(),
     replies: normalizedReplies as [string, string, string],
+  };
+}
+
+function findPresetExampleResult({
+  message,
+  context,
+  tone,
+  continuePreference,
+  conversationBackground,
+  noReplyMode,
+  noReplyDurationValue,
+  noReplyDurationUnit,
+  lastOutgoingMessage,
+  action,
+  sourceReply,
+  refineInstruction,
+  imageUrl,
+}: {
+  message?: string;
+  context?: ContextOption;
+  tone?: ToneOption;
+  continuePreference?: ContinuePreferenceOption;
+  conversationBackground?: string;
+  noReplyMode?: boolean;
+  noReplyDurationValue?: number;
+  noReplyDurationUnit?: NoReplyDurationUnit;
+  lastOutgoingMessage?: string;
+  action?: ReplyActionOption;
+  sourceReply?: string;
+  refineInstruction?: string;
+  imageUrl?: string;
+}): GenerateRepliesResult | null {
+  if (
+    !message ||
+    imageUrl ||
+    action ||
+    sourceReply ||
+    refineInstruction ||
+    conversationBackground ||
+    noReplyMode ||
+    noReplyDurationValue ||
+    noReplyDurationUnit ||
+    lastOutgoingMessage
+  ) {
+    return null;
+  }
+
+  if (!context || !tone || !continuePreference) {
+    return null;
+  }
+
+  const preset = PRESET_EXAMPLE_REPLIES.find((candidate) => {
+    return (
+      candidate.message === message &&
+      candidate.context === context &&
+      candidate.tone === tone &&
+      candidate.continuePreference === continuePreference
+    );
+  });
+
+  if (!preset) {
+    return null;
+  }
+
+  return {
+    intent: preset.result.intent,
+    replies: [...preset.result.replies] as [string, string, string],
   };
 }

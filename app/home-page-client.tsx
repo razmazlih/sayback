@@ -15,12 +15,20 @@ import Link from 'next/link';
 import { trackEvent } from '@/lib/analytics';
 import { buildHomeDeepLink } from '@/lib/home-deeplink';
 import {
+  MAX_CONVERSATION_BACKGROUND_LENGTH,
+  MAX_INCOMING_MESSAGE_LENGTH,
+  MAX_LAST_OUTGOING_MESSAGE_LENGTH,
+  MAX_NO_REPLY_DURATION_VALUE,
+} from '@/lib/message-limits';
+import {
   CREDIT_PACK_PRICE_LABEL,
 } from '@/lib/pricing';
 
 type ContextOption = 'קראש' | 'אקס' | 'לקוח' | 'בוס' | 'יד2';
 type ToneOption = 'עדין' | 'ישיר' | 'זורם' | 'מצחיק' | 'פלרטטני';
 type ContinuePreference = 'כן' | 'לא';
+type ComposeMode = 'incoming' | 'no_reply';
+type NoReplyDurationUnit = 'minutes' | 'hours' | 'days';
 type ReplyAction = 'softer' | 'sharper' | 'retry';
 type SubscriptionAction = 'cancel_next_charge' | 'resume_renewal';
 type CheckoutPlan = 'credits_50' | 'unlimited_monthly';
@@ -60,6 +68,11 @@ type GenerateRequest = {
   context: ContextOption;
   tone: ToneOption;
   continuePreference?: ContinuePreference | null;
+  conversationBackground?: string;
+  noReplyMode?: boolean;
+  noReplyDurationValue?: number;
+  noReplyDurationUnit?: NoReplyDurationUnit;
+  lastOutgoingMessage?: string;
   action?: ReplyAction;
   sourceReply?: string;
 };
@@ -75,6 +88,7 @@ type BillingSnapshot = {
   hasUnlimited: boolean;
   subscriptionStatus: string | null;
   stripeCustomerId: string | null;
+  billingBypassEnabled?: boolean;
   accessState: 'free' | 'credits' | 'unlimited' | 'blocked';
 };
 
@@ -111,6 +125,8 @@ type CouponRedeemResponse = {
 };
 
 const FREE_LIMIT = 3;
+const BILLING_BYPASS_FALLBACK_ENABLED =
+  process.env.NEXT_PUBLIC_BILLING_BYPASS?.trim().toLowerCase() === 'true';
 const MAX_IMAGE_UPLOAD_BYTES = 4 * 1024 * 1024;
 const AUTH_ERROR_MESSAGE = 'לא הצלחנו לחבר מחדש את החשבון. נסה שוב בעוד רגע.';
 const PAYWALL_TITLE = 'ממשיכים בלי להיתקע';
@@ -136,7 +152,7 @@ const UNLIMITED_PLAN_COPY = {
 const DEEP_LINK_PREFILL_BANNER_TEXT = 'מילאנו לך התחלה. אפשר לערוך לפני שמייצרים.';
 const QUERY_PARAM_MAX_LENGTH = {
   example: 64,
-  message: 700,
+  message: MAX_INCOMING_MESSAGE_LENGTH,
   situation: 24,
   tone: 24,
   agrees: 8,
@@ -145,6 +161,23 @@ const QUERY_PARAM_MAX_LENGTH = {
 const contextOptions: ContextOption[] = ['קראש', 'אקס', 'לקוח', 'בוס', 'יד2'];
 const toneOptions: ToneOption[] = ['עדין', 'ישיר', 'זורם', 'מצחיק', 'פלרטטני'];
 const continuePreferenceOptions: ContinuePreference[] = ['כן', 'לא'];
+const composeModeOptions: Array<{ value: ComposeMode; label: string; description: string }> = [
+  {
+    value: 'incoming',
+    label: 'ענו לי עכשיו',
+    description: 'הצד השני שלח הודעה חדשה ואת/ה רוצה לנסח תשובה.',
+  },
+  {
+    value: 'no_reply',
+    label: 'לא ענו הרבה זמן',
+    description: 'כתבת כבר, ועכשיו צריך הודעת המשך שלא נשמעת לחוצה.',
+  },
+];
+const noReplyDurationUnitOptions: Array<{ value: NoReplyDurationUnit; label: string }> = [
+  { value: 'minutes', label: 'דקות' },
+  { value: 'hours', label: 'שעות' },
+  { value: 'days', label: 'ימים' },
+];
 const mobileSectionNavItems: Array<{ id: MobileNavSectionId; label: string; stepLabel: string }> = [
   { id: 'compose', label: 'כתיבה', stepLabel: 'שלב 1' },
   { id: 'results', label: 'תשובות', stepLabel: 'שלב 2' },
@@ -307,12 +340,20 @@ function mapApiErrorMessage(message: string) {
     return 'הבקשה שנשלחה לא תקינה. רענן את הדף ונסה שוב.';
   }
 
+  if (lower.includes('text input is too long')) {
+    return `ההודעה ארוכה מדי. אפשר עד ${MAX_INCOMING_MESSAGE_LENGTH} תווים.`;
+  }
+
   if (lower.includes('no billing access')) {
     return 'המכסה הסתיימה. אפשר לבחור חבילה כדי להמשיך.';
   }
 
   if (lower.includes('unable to start checkout') || lower.includes('unable to load checkout session')) {
     return 'לא הצלחנו לפתוח את התשלום כרגע. נסה שוב בעוד רגע.';
+  }
+
+  if (lower.includes('checkout is temporarily disabled')) {
+    return 'שימושים ללא הגבלה פעילים כרגע.';
   }
 
   if (lower.includes('unexpected server error') || lower.includes('unable to load billing status')) {
@@ -865,7 +906,7 @@ function CouponRedeemPanel({
           spellCheck={false}
           autoCapitalize="characters"
           autoCorrect="off"
-          className={`min-h-[44px] w-full rounded-2xl border-2 border-black bg-white px-3 py-2 text-sm font-black uppercase text-black placeholder:text-neutral-400 ${whiteSurfaceFocusClass}`}
+          className={`min-h-[44px] w-full rounded-2xl border-2 border-black bg-white px-3 py-2 text-base font-black uppercase text-black placeholder:text-neutral-400 ${whiteSurfaceFocusClass}`}
         />
         <button
           type="submit"
@@ -1206,6 +1247,7 @@ function PaywallModal({
 export default function Home() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const lastOutgoingInputRef = useRef<HTMLTextAreaElement | null>(null);
   const mobileNavRef = useRef<HTMLDivElement | null>(null);
   const composeSectionRef = useRef<HTMLDivElement | null>(null);
   const resultsSectionRef = useRef<HTMLDivElement | null>(null);
@@ -1215,7 +1257,12 @@ export default function Home() {
   const hasTrackedBillingStatusViewRef = useRef(false);
   const mobileNavSuppressUntilRef = useRef(0);
   const lastMobileNavClickAtRef = useRef(0);
+  const [composeMode, setComposeMode] = useState<ComposeMode>('incoming');
   const [message, setMessage] = useState('');
+  const [lastOutgoingMessage, setLastOutgoingMessage] = useState('');
+  const [noReplyDurationValue, setNoReplyDurationValue] = useState('');
+  const [noReplyDurationUnit, setNoReplyDurationUnit] = useState<NoReplyDurationUnit>('hours');
+  const [conversationBackground, setConversationBackground] = useState('');
   const [context, setContext] = useState<ContextOption>('קראש');
   const [tone, setTone] = useState<ToneOption>('זורם');
   const [continuePreference, setContinuePreference] = useState<ContinuePreference | null>(null);
@@ -1253,12 +1300,15 @@ export default function Home() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isBillingLoading, setIsBillingLoading] = useState(true);
+  const [billingBypassEnabled, setBillingBypassEnabled] = useState(
+    BILLING_BYPASS_FALLBACK_ENABLED,
+  );
   const [activeMobileSection, setActiveMobileSection] = useState<MobileNavSectionId>('compose');
   const [mobileNavHeight, setMobileNavHeight] = useState(0);
   const authRecoveryPromiseRef = useRef<Promise<void> | null>(null);
   const authTokenPromiseRef = useRef<Promise<string> | null>(null);
 
-  const hasUnlimitedAccess = paidPlan === 'unlimited_monthly';
+  const hasUnlimitedAccess = billingBypassEnabled || paidPlan === 'unlimited_monthly';
   const hasCreditBalance = paidCredits > 0;
   const isSessionReady = isAuthReady && Boolean(authToken) && !isBillingLoading;
   const totalFreeRemaining = useMemo(
@@ -1266,18 +1316,26 @@ export default function Home() {
     [dailyFreeRemaining, freeRemaining],
   );
   const isGenerating = isLoading || busyReplyIndex !== null;
+  const isNoReplyMode = composeMode === 'no_reply';
   const hasMessageContent = message.trim().length > 0;
+  const messageLength = message.length;
+  const hasLastOutgoingContent = lastOutgoingMessage.trim().length > 0;
+  const lastOutgoingMessageLength = lastOutgoingMessage.length;
+  const conversationBackgroundLength = conversationBackground.length;
+  const hasPrimaryInputContent = isNoReplyMode ? hasLastOutgoingContent : hasMessageContent;
   const hasRequiredSelections = Boolean(context) && Boolean(tone);
   const shouldShowMobileStickyGenerate =
-    isSessionReady && hasMessageContent && hasRequiredSelections && !isGenerating;
+    isSessionReady && hasPrimaryInputContent && hasRequiredSelections && !isGenerating;
   const generateButtonLabel = 'לקבל 3 תשובות';
-  const billingStatusLine = hasUnlimitedAccess
-    ? 'מסלול ללא הגבלה פעיל'
-    : hasCreditBalance
-      ? `נשארו לך ${paidCredits} שימושים בחבילה`
-      : totalFreeRemaining > 0
-        ? `נשארו לך ${totalFreeRemaining} שימושים חינם`
-        : 'המכסה החינמית הסתיימה. אפשר לבחור חבילה ולהמשיך.';
+  const billingStatusLine = billingBypassEnabled
+    ? 'שימושים ללא הגבלה פעילים כרגע.'
+    : hasUnlimitedAccess
+      ? 'מסלול ללא הגבלה פעיל'
+      : hasCreditBalance
+        ? `נשארו לך ${paidCredits} שימושים בחבילה`
+        : totalFreeRemaining > 0
+          ? `נשארו לך ${totalFreeRemaining} שימושים חינם`
+          : 'המכסה החינמית הסתיימה. אפשר לבחור חבילה ולהמשיך.';
   const accountStatusLine = isSessionReady
     ? billingStatusLine
     : 'מחברים את החשבון ומעדכנים את היתרה...';
@@ -1299,6 +1357,16 @@ export default function Home() {
   useEffect(() => {
     trackEvent('page_view_home');
   }, []);
+
+  useEffect(() => {
+    if (composeMode !== 'no_reply') {
+      return;
+    }
+
+    setImageBase64(null);
+    setImageName(null);
+    setImageError(null);
+  }, [composeMode]);
 
   useEffect(() => {
     if (!isSessionReady || isBillingLoading || hasTrackedQuotaBadgeViewRef.current) {
@@ -1382,7 +1450,7 @@ export default function Home() {
     }
 
     window.requestAnimationFrame(() => {
-      messageInputRef.current?.focus();
+      (messageInputRef.current ?? lastOutgoingInputRef.current)?.focus();
     });
   }, [scrollToMobileSection]);
 
@@ -1397,7 +1465,12 @@ export default function Home() {
       ? examples.find((scenario) => scenario.id === deepLinkPrefill.exampleId)
       : null;
 
-    setMessage(deepLinkPrefill.message ?? scenarioFromExample?.message ?? '');
+    setComposeMode('incoming');
+    setMessage((deepLinkPrefill.message ?? scenarioFromExample?.message ?? '').slice(0, MAX_INCOMING_MESSAGE_LENGTH));
+    setLastOutgoingMessage('');
+    setNoReplyDurationValue('');
+    setNoReplyDurationUnit('hours');
+    setConversationBackground('');
     setContext(deepLinkPrefill.context ?? scenarioFromExample?.context ?? 'קראש');
     setTone(deepLinkPrefill.tone ?? scenarioFromExample?.tone ?? 'זורם');
     setContinuePreference(
@@ -1428,6 +1501,9 @@ export default function Home() {
   }, [scrollToComposeSection]);
 
   const applyBillingSnapshot = useCallback((billing: BillingSnapshot) => {
+    const hasBillingBypass =
+      billing.billingBypassEnabled === true || BILLING_BYPASS_FALLBACK_ENABLED;
+
     setFreeUsed(Math.max(0, Math.floor(billing.freeUsed)));
     setInitialFreeLimit(Math.max(0, Math.floor(billing.freeLimit)));
     setFreeRemaining(Math.max(0, Math.floor(billing.freeRemaining)));
@@ -1435,11 +1511,21 @@ export default function Home() {
     setDailyFreeRemaining(Math.max(0, Math.floor(billing.dailyRemaining)));
     setPaidCredits(Math.max(0, Math.floor(billing.credits)));
     setSubscriptionStatus(billing.subscriptionStatus);
+    setBillingBypassEnabled(hasBillingBypass);
 
     if (!billing.subscriptionStatus) {
       setManagedSubscription(null);
       setSubscriptionActionError(null);
       setSubscriptionActionNotice(null);
+    }
+
+    if (hasBillingBypass) {
+      setShowPaywall(false);
+      setCheckoutPlan(null);
+      setCheckoutSession(null);
+      setCheckoutError(null);
+      setPaidPlan('unlimited_monthly');
+      return;
     }
 
     if (billing.hasUnlimited) {
@@ -2064,6 +2150,10 @@ export default function Home() {
   }
 
   function openPaywall() {
+    if (billingBypassEnabled) {
+      return;
+    }
+
     setShowPaywall(true);
     setCheckoutSession(null);
     setCheckoutError(null);
@@ -2205,6 +2295,13 @@ export default function Home() {
   }
 
   async function handleCheckout(plan: CheckoutPlan) {
+    if (billingBypassEnabled) {
+      setShowPaywall(false);
+      setCheckoutSession(null);
+      setCheckoutError(null);
+      return;
+    }
+
     setShowPaywall(true);
 
     setCheckoutPlan(plan);
@@ -2266,6 +2363,9 @@ export default function Home() {
     setImageError(null);
 
     const generationMode = payload.action ? 'refine' : 'initial';
+    const payloadComposeMode = payload.noReplyMode ? 'no_reply' : 'incoming';
+    const payloadHasBackground = Boolean(payload.conversationBackground?.trim());
+    const payloadHasLastOutgoing = Boolean(payload.lastOutgoingMessage?.trim());
 
     if (typeof options?.replyIndex === 'number') {
       setBusyReplyIndex(options.replyIndex);
@@ -2295,11 +2395,16 @@ export default function Home() {
         trackEvent('generate_blocked_402', {
           mode: generationMode,
           action: payload.action ?? 'initial',
+          compose_mode: payloadComposeMode,
           context: payload.context,
           tone: payload.tone,
           continue_preference: payload.continuePreference ?? 'unspecified',
           has_image: Boolean(payload.imageBase64),
           has_text: Boolean(payload.message.trim()),
+          has_background: payloadHasBackground,
+          has_last_outgoing: payloadHasLastOutgoing,
+          no_reply_duration_value: payload.noReplyDurationValue ?? null,
+          no_reply_duration_unit: payload.noReplyDurationUnit ?? null,
         });
         openPaywall();
         return;
@@ -2343,11 +2448,16 @@ export default function Home() {
         trackEvent('generate_success', {
           mode: generationMode,
           action: payload.action ?? 'initial',
+          compose_mode: payloadComposeMode,
           context: payload.context,
           tone: payload.tone,
           continue_preference: payload.continuePreference ?? 'unspecified',
           has_image: Boolean(payload.imageBase64),
           has_text: Boolean(payload.message.trim()),
+          has_background: payloadHasBackground,
+          has_last_outgoing: payloadHasLastOutgoing,
+          no_reply_duration_value: payload.noReplyDurationValue ?? null,
+          no_reply_duration_unit: payload.noReplyDurationUnit ?? null,
         });
 
         return;
@@ -2367,21 +2477,31 @@ export default function Home() {
       trackEvent('generate_success', {
         mode: generationMode,
         action: payload.action ?? 'initial',
+        compose_mode: payloadComposeMode,
         context: payload.context,
         tone: payload.tone,
         continue_preference: payload.continuePreference ?? 'unspecified',
         has_image: Boolean(payload.imageBase64),
         has_text: Boolean(payload.message.trim()),
+        has_background: payloadHasBackground,
+        has_last_outgoing: payloadHasLastOutgoing,
+        no_reply_duration_value: payload.noReplyDurationValue ?? null,
+        no_reply_duration_unit: payload.noReplyDurationUnit ?? null,
       });
     } catch (error) {
       trackEvent('generate_error', {
         mode: generationMode,
         action: payload.action ?? 'initial',
+        compose_mode: payloadComposeMode,
         context: payload.context,
         tone: payload.tone,
         continue_preference: payload.continuePreference ?? 'unspecified',
         has_image: Boolean(payload.imageBase64),
         has_text: Boolean(payload.message.trim()),
+        has_background: payloadHasBackground,
+        has_last_outgoing: payloadHasLastOutgoing,
+        no_reply_duration_value: payload.noReplyDurationValue ?? null,
+        no_reply_duration_unit: payload.noReplyDurationUnit ?? null,
       });
       setRequestError(
         mapApiErrorMessage(
@@ -2395,9 +2515,48 @@ export default function Home() {
   }
 
   async function handleMainSubmit() {
-    const trimmedMessage = message.trim();
+    const trimmedMessage = message.trim().slice(0, MAX_INCOMING_MESSAGE_LENGTH);
+    const trimmedLastOutgoingMessage = lastOutgoingMessage
+      .trim()
+      .slice(0, MAX_LAST_OUTGOING_MESSAGE_LENGTH);
+    const trimmedConversationBackground = conversationBackground
+      .trim()
+      .slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH);
+    const parsedNoReplyDuration = Number.parseInt(noReplyDurationValue, 10);
 
-    if (!trimmedMessage && !imageBase64) {
+    if (isNoReplyMode) {
+      if (!trimmedLastOutgoingMessage) {
+        setRequestError('במצב "לא ענו הרבה זמן" צריך למלא מה כתבת בהודעה האחרונה.');
+
+        if (isCompactViewport()) {
+          scrollToMobileSection('compose', { source: 'system' });
+        } else {
+          lastOutgoingInputRef.current?.focus();
+        }
+
+        return;
+      }
+
+      if (
+        !Number.isInteger(parsedNoReplyDuration) ||
+        parsedNoReplyDuration < 1 ||
+        parsedNoReplyDuration > MAX_NO_REPLY_DURATION_VALUE
+      ) {
+        setRequestError(
+          `צריך להזין משך זמן תקין בין 1 ל-${MAX_NO_REPLY_DURATION_VALUE} (${noReplyDurationUnitOptions
+            .map((option) => option.label)
+            .join('/')}).`,
+        );
+
+        if (isCompactViewport()) {
+          scrollToMobileSection('compose', { source: 'system' });
+        } else {
+          lastOutgoingInputRef.current?.focus();
+        }
+
+        return;
+      }
+    } else if (!trimmedMessage && !imageBase64) {
       setRequestError('צריך להדביק הודעה או להעלות צילום מסך כדי לייצר תשובה.');
 
       if (isCompactViewport()) {
@@ -2412,17 +2571,27 @@ export default function Home() {
     trackEvent('generate_click', {
       context,
       tone,
+      compose_mode: composeMode,
       continue_preference: continuePreference ?? 'unspecified',
-      has_image: Boolean(imageBase64),
-      has_text: Boolean(trimmedMessage),
+      has_image: !isNoReplyMode && Boolean(imageBase64),
+      has_text: !isNoReplyMode && Boolean(trimmedMessage),
+      has_background: Boolean(trimmedConversationBackground),
+      has_last_outgoing: Boolean(trimmedLastOutgoingMessage),
+      no_reply_duration_value: Number.isInteger(parsedNoReplyDuration) ? parsedNoReplyDuration : null,
+      no_reply_duration_unit: isNoReplyMode ? noReplyDurationUnit : null,
     });
 
     await runGeneration({
-      message: trimmedMessage,
-      imageBase64,
+      message: isNoReplyMode ? '' : trimmedMessage,
+      imageBase64: isNoReplyMode ? null : imageBase64,
       context,
       tone,
       continuePreference,
+      conversationBackground: trimmedConversationBackground || undefined,
+      noReplyMode: isNoReplyMode,
+      noReplyDurationValue: isNoReplyMode ? parsedNoReplyDuration : undefined,
+      noReplyDurationUnit: isNoReplyMode ? noReplyDurationUnit : undefined,
+      lastOutgoingMessage: isNoReplyMode ? trimmedLastOutgoingMessage : undefined,
     });
   }
 
@@ -2436,20 +2605,50 @@ export default function Home() {
       index,
       context,
       tone,
+      compose_mode: composeMode,
       continue_preference: continuePreference ?? 'unspecified',
-      has_image: Boolean(imageBase64),
-      has_text: Boolean(message.trim()),
+      has_image: !isNoReplyMode && Boolean(imageBase64),
+      has_text: !isNoReplyMode && Boolean(message.trim()),
+      has_background: Boolean(conversationBackground.trim()),
+      has_last_outgoing: Boolean(lastOutgoingMessage.trim()),
     });
 
-    const trimmedMessage = message.trim();
+    const trimmedMessage = message.trim().slice(0, MAX_INCOMING_MESSAGE_LENGTH);
+    const trimmedLastOutgoingMessage = lastOutgoingMessage
+      .trim()
+      .slice(0, MAX_LAST_OUTGOING_MESSAGE_LENGTH);
+    const trimmedConversationBackground = conversationBackground
+      .trim()
+      .slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH);
+    const parsedNoReplyDuration = Number.parseInt(noReplyDurationValue, 10);
+
+    if (
+      isNoReplyMode &&
+      (!trimmedLastOutgoingMessage ||
+        !Number.isInteger(parsedNoReplyDuration) ||
+        parsedNoReplyDuration < 1 ||
+        parsedNoReplyDuration > MAX_NO_REPLY_DURATION_VALUE)
+    ) {
+      setRequestError('כדי לשפר תשובה במצב "לא ענו הרבה זמן" צריך הודעה אחרונה ומשך זמן תקין.');
+      scrollToComposeSection();
+      return;
+    }
 
     await runGeneration(
       {
-        message: trimmedMessage,
-        imageBase64,
+        message: isNoReplyMode ? '' : trimmedMessage,
+        imageBase64: isNoReplyMode ? null : imageBase64,
         context,
         tone,
         continuePreference,
+        conversationBackground: trimmedConversationBackground || undefined,
+        noReplyMode: isNoReplyMode,
+        noReplyDurationValue:
+          isNoReplyMode && Number.isInteger(parsedNoReplyDuration)
+            ? parsedNoReplyDuration
+            : undefined,
+        noReplyDurationUnit: isNoReplyMode ? noReplyDurationUnit : undefined,
+        lastOutgoingMessage: isNoReplyMode ? trimmedLastOutgoingMessage : undefined,
         action,
         sourceReply: result.replies[index],
       },
@@ -2524,7 +2723,12 @@ export default function Home() {
       continue_preference: scenario.continuePreference ?? 'unspecified',
     });
 
-    setMessage(scenario.message);
+    setComposeMode('incoming');
+    setMessage(scenario.message.slice(0, MAX_INCOMING_MESSAGE_LENGTH));
+    setLastOutgoingMessage('');
+    setNoReplyDurationValue('');
+    setNoReplyDurationUnit('hours');
+    setConversationBackground('');
     setContext(scenario.context);
     setTone(scenario.tone);
     setContinuePreference(scenario.continuePreference ?? null);
@@ -2676,59 +2880,212 @@ export default function Home() {
             </div>
 
             <div className="w-full min-w-0 space-y-4 rounded-[28px] border-2 border-black bg-white p-4 sm:p-5">
-              <div className="flex flex-col items-start justify-between gap-3 min-[430px]:flex-row min-[430px]:items-center">
-                <div>
-                  <label htmlFor="incoming-message" className="text-sm font-black text-neutral-900">
-                    מה כתבו לך?
-                  </label>
-                  <p className="text-xs font-bold text-neutral-700">
-                    אפשר להדביק כאן את ההודעה כמו שהיא, או לצרף צילום מסך של השיחה.
-                  </p>
+              <div className="rounded-[22px] border-2 border-black bg-[#fff6d8] p-3">
+                <p className="text-sm font-black text-black">איך ממשיכים מכאן?</p>
+                <p className="mt-1 text-xs font-bold leading-5 text-neutral-700">
+                  בחר/י מצב כתיבה כדי להציג רק את השדות שרלוונטיים עכשיו.
+                </p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {composeModeOptions.map((option) => {
+                    const isSelected = composeMode === option.value;
+
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        aria-pressed={isSelected}
+                        onClick={() => setComposeMode(option.value)}
+                        className={[
+                          `min-h-[48px] rounded-2xl border-2 px-3 py-2 text-right transition ${lightSurfaceFocusClass}`,
+                          isSelected
+                            ? 'border-black bg-[#111111] text-[#f7ff4f]'
+                            : 'border-black bg-white text-black hover:-translate-y-0.5',
+                        ].join(' ')}
+                      >
+                        <span className="block text-sm font-black">{option.label}</span>
+                        <span
+                          className={[
+                            'mt-1 block text-xs font-bold leading-5',
+                            isSelected ? 'text-[#fffcc2]' : 'text-neutral-700',
+                          ].join(' ')}
+                        >
+                          {option.description}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`min-h-[44px] rounded-full border-2 border-black bg-[#fff6d8] px-4 py-2 text-sm font-black text-black ${lightSurfaceFocusClass}`}
-                >
-                  להעלות צילום מסך
-                </button>
               </div>
 
-              <textarea
-                id="incoming-message"
-                ref={messageInputRef}
-                value={message}
-                onChange={(event) => setMessage(event.target.value)}
-                onPaste={handleMessagePaste}
-                placeholder='למשל: "היי, מתאים לך שנדבר בערב?"'
-                className={`min-h-36 w-full rounded-[24px] border-2 border-black bg-[#f9f9f9] px-4 py-4 text-base leading-7 font-medium text-black outline-none transition placeholder:text-neutral-400 focus:-translate-y-0.5 focus:bg-[#fffdf6] sm:min-h-40 sm:rounded-[26px] ${lightSurfaceFocusClass}`}
-              />
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="hidden"
-              />
-
-              {imageName ? (
-                <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border-2 border-black bg-[#fff6d8] px-4 py-3 min-[430px]:flex-row min-[430px]:items-center">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-black text-black">{imageName}</p>
-                    <p className="text-xs font-bold text-neutral-700">הצילום נוסף לטופס ומוכן ליצירה</p>
+              {isNoReplyMode ? (
+                <div className="space-y-4 rounded-[24px] border-2 border-black bg-[#f8f4ed] p-4">
+                  <div>
+                    <label htmlFor="last-outgoing-message" className="text-sm font-black text-neutral-900">
+                      מה כתבתי בהודעה האחרונה?
+                    </label>
+                    <p className="text-xs font-bold text-neutral-700">
+                      זה הטקסט האחרון ששלחת לפני שהצד השני הפסיק לענות.
+                    </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={clearImage}
-                    className={`min-h-[44px] rounded-full border-2 border-black bg-[#111111] px-3 py-2 text-xs font-black text-white ${lightSurfaceFocusClass}`}
-                  >
-                    להסיר
-                  </button>
-                </div>
-              ) : null}
 
-              {imageError ? <p className="text-sm font-bold text-[#c23318]">{imageError}</p> : null}
+                  <textarea
+                    id="last-outgoing-message"
+                    ref={lastOutgoingInputRef}
+                    value={lastOutgoingMessage}
+                    onChange={(event) =>
+                      setLastOutgoingMessage(
+                        event.target.value.slice(0, MAX_LAST_OUTGOING_MESSAGE_LENGTH),
+                      )
+                    }
+                    onPaste={handleMessagePaste}
+                    placeholder='למשל: "היי, רק בודק/ת אם זה עדיין רלוונטי לך"'
+                    maxLength={MAX_LAST_OUTGOING_MESSAGE_LENGTH}
+                    className={`min-h-32 w-full rounded-[22px] border-2 border-black bg-white px-4 py-4 text-base leading-7 font-medium text-black outline-none transition placeholder:text-neutral-400 focus:-translate-y-0.5 focus:bg-[#fffdf6] ${lightSurfaceFocusClass}`}
+                  />
+                  <p className="text-xs font-bold text-neutral-700">
+                    עד {MAX_LAST_OUTGOING_MESSAGE_LENGTH} תווים ({lastOutgoingMessageLength}/
+                    {MAX_LAST_OUTGOING_MESSAGE_LENGTH}).
+                  </p>
+
+                  <div className="rounded-2xl border-2 border-black bg-white p-3">
+                    <label
+                      htmlFor="no-reply-duration-value"
+                      className="text-sm font-black text-neutral-900"
+                    >
+                      כמה זמן לא ענו?
+                    </label>
+                    <p className="mt-1 text-xs font-bold text-neutral-700">
+                      הזן/י מספר ובחרי יחידה: דקות / שעות / ימים.
+                    </p>
+                    <div className="mt-2 grid grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] gap-2">
+                      <input
+                        id="no-reply-duration-value"
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={MAX_NO_REPLY_DURATION_VALUE}
+                        value={noReplyDurationValue}
+                        onChange={(event) =>
+                          setNoReplyDurationValue(
+                            event.target.value
+                              .replace(/[^\d]/g, '')
+                              .slice(0, String(MAX_NO_REPLY_DURATION_VALUE).length),
+                          )
+                        }
+                        placeholder="למשל 3"
+                        className={`min-h-[44px] w-full rounded-xl border-2 border-black bg-white px-3 py-2 text-sm font-bold text-black outline-none transition focus:bg-[#fffdf6] ${lightSurfaceFocusClass}`}
+                      />
+                      <select
+                        id="no-reply-duration-unit"
+                        value={noReplyDurationUnit}
+                        onChange={(event) =>
+                          setNoReplyDurationUnit(event.target.value as NoReplyDurationUnit)
+                        }
+                        className={`min-h-[44px] w-full rounded-xl border-2 border-black bg-white px-3 py-2 text-sm font-black text-black outline-none transition focus:bg-[#fffdf6] ${lightSurfaceFocusClass}`}
+                      >
+                        {noReplyDurationUnitOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4 rounded-[24px] border-2 border-black bg-[#f8f4ed] p-4">
+                  <div className="flex flex-col items-start justify-between gap-3 min-[430px]:flex-row min-[430px]:items-center">
+                    <div>
+                      <label htmlFor="incoming-message" className="text-sm font-black text-neutral-900">
+                        מה כתבו לך?
+                      </label>
+                      <p className="text-xs font-bold text-neutral-700">
+                        אפשר להדביק כאן את ההודעה כמו שהיא, או לצרף צילום מסך של השיחה.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`min-h-[44px] rounded-full border-2 border-black bg-[#fff6d8] px-4 py-2 text-sm font-black text-black ${lightSurfaceFocusClass}`}
+                    >
+                      להעלות צילום מסך
+                    </button>
+                  </div>
+
+                  <textarea
+                    id="incoming-message"
+                    ref={messageInputRef}
+                    value={message}
+                    onChange={(event) =>
+                      setMessage(event.target.value.slice(0, MAX_INCOMING_MESSAGE_LENGTH))
+                    }
+                    onPaste={handleMessagePaste}
+                    placeholder='למשל: "היי, מתאים לך שנדבר בערב?"'
+                    maxLength={MAX_INCOMING_MESSAGE_LENGTH}
+                    className={`min-h-36 w-full rounded-[24px] border-2 border-black bg-white px-4 py-4 text-base leading-7 font-medium text-black outline-none transition placeholder:text-neutral-400 focus:-translate-y-0.5 focus:bg-[#fffdf6] sm:min-h-40 sm:rounded-[26px] ${lightSurfaceFocusClass}`}
+                  />
+                  <p className="text-xs font-bold text-neutral-700">
+                    עד {MAX_INCOMING_MESSAGE_LENGTH} תווים להודעה ({messageLength}/
+                    {MAX_INCOMING_MESSAGE_LENGTH}).
+                  </p>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+
+                  {imageName ? (
+                    <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border-2 border-black bg-[#fff6d8] px-4 py-3 min-[430px]:flex-row min-[430px]:items-center">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-black">{imageName}</p>
+                        <p className="text-xs font-bold text-neutral-700">הצילום נוסף לטופס ומוכן ליצירה</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={clearImage}
+                        className={`min-h-[44px] rounded-full border-2 border-black bg-[#111111] px-3 py-2 text-xs font-black text-white ${lightSurfaceFocusClass}`}
+                      >
+                        להסיר
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {imageError ? <p className="text-sm font-bold text-[#c23318]">{imageError}</p> : null}
+                </div>
+              )}
+
+              <details className="group rounded-[22px] border-2 border-dashed border-black bg-[#fff6d8] open:bg-[#fff2bf]">
+                <summary
+                  className={`flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-black text-black marker:content-none ${lightSurfaceFocusClass}`}
+                >
+                  <span>רקע שיחה נוסף (אופציונלי)</span>
+                  <span className="text-xs transition-transform duration-200 group-open:rotate-180">⌄</span>
+                </summary>
+                <div className="space-y-2 px-3 pb-3">
+                  <p className="text-xs font-bold text-neutral-700">
+                    פרטים קצרים שיעזרו לדייק את הניסוח (למשל: מה היה לפני כן בשיחה).
+                  </p>
+                  <textarea
+                    id="conversation-background"
+                    value={conversationBackground}
+                    onChange={(event) =>
+                      setConversationBackground(
+                        event.target.value.slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH),
+                      )
+                    }
+                    placeholder='למשל: "דיברנו כמה ימים ואז השיחה נעצרה"'
+                    maxLength={MAX_CONVERSATION_BACKGROUND_LENGTH}
+                    className={`min-h-24 w-full rounded-[18px] border-2 border-black bg-white px-3 py-3 text-sm font-medium leading-6 text-black outline-none transition placeholder:text-neutral-400 focus:bg-[#fffdf6] ${lightSurfaceFocusClass}`}
+                  />
+                  <p className="text-xs font-bold text-neutral-700">
+                    עד {MAX_CONVERSATION_BACKGROUND_LENGTH} תווים ({conversationBackgroundLength}/
+                    {MAX_CONVERSATION_BACKGROUND_LENGTH}).
+                  </p>
+                </div>
+              </details>
             </div>
 
             <div className="grid gap-2.5 sm:gap-3">
@@ -2891,7 +3248,7 @@ export default function Home() {
                 <div className="flex w-full min-w-0 min-h-72 flex-col justify-center rounded-[28px] border-2 border-dashed border-black bg-[#f8f4ed] p-5 sm:min-h-80">
                   <h3 className="text-2xl font-black text-black">עוד רגע זה מוכן</h3>
                   <p className="mt-3 max-w-md text-sm font-bold leading-6 text-neutral-700">
-                    הדביקו הודעה או לחצו על אחת הדוגמאות כדי לקבל 3 תשובות מוכנות להעתקה.
+                    בחרו מצב כתיבה, מלאו את השדה הראשי וקבלו 3 תשובות מוכנות להעתקה.
                   </p>
                 </div>
               )}
@@ -2928,11 +3285,12 @@ export default function Home() {
           </div>
         </section>
 
-        <section
-          ref={plansSectionRef}
-          id="plans-section"
-          className="mobile-section-anchor w-full min-w-0 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]"
-        >
+        {!billingBypassEnabled ? (
+          <section
+            ref={plansSectionRef}
+            id="plans-section"
+            className="mobile-section-anchor w-full min-w-0 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]"
+          >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8b2d10]">תשלום</p>
@@ -3020,7 +3378,8 @@ export default function Home() {
               {checkoutError}
             </p>
           ) : null}
-        </section>
+          </section>
+        ) : null}
 
         <section className="w-full min-w-0 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -3065,7 +3424,11 @@ export default function Home() {
 
         <footer className="w-full min-w-0 rounded-[24px] border-2 border-black bg-[#fff6d8] px-4 py-4 text-sm font-bold text-neutral-800 shadow-[0_8px_0_0_#111111]">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p>תשלום מאובטח עם סטרייפ. לא שומרים אצלנו נתוני אשראי.</p>
+            <p>
+              {billingBypassEnabled
+                ? 'כרגע SayBack פתוח לשימוש ללא הגבלה.'
+                : 'תשלום מאובטח עם סטרייפ. לא שומרים אצלנו נתוני אשראי.'}
+            </p>
             <div className="flex items-center gap-3">
               <Link href="/privacy" className={`${lightSurfaceFocusClass} rounded-full px-2 py-1 underline`}>
                 מדיניות פרטיות
@@ -3135,31 +3498,33 @@ export default function Home() {
         </div>
       ) : null}
 
-      <PaywallModal
-        open={showPaywall}
-        onClose={closePaywall}
-        onSelectPlan={handleCheckout}
-        onResetCheckout={resetCheckoutSelection}
-        onPaymentCompleted={handlePaymentCompleted}
-        isCheckoutLoading={checkoutPlan !== null || !isSessionReady}
-        checkoutPlan={checkoutPlan}
-        checkoutError={checkoutError}
-        checkoutSession={checkoutSession}
-        freeRemaining={freeRemaining}
-        freeLimit={initialFreeLimit}
-        dailyFreeRemaining={dailyFreeRemaining}
-        dailyLimit={dailyFreeLimit}
-        paidCredits={paidCredits}
-        hasUnlimitedAccess={hasUnlimitedAccess}
-        showDailyFreeExhaustedHelper={isBlockedOnlyByDailyFreeExhausted}
-        couponCode={couponCode}
-        onCouponCodeChange={handleCouponCodeChange}
-        onRedeemCoupon={handleRedeemCoupon}
-        isRedeemingCoupon={isRedeemingCoupon}
-        isSessionReady={isSessionReady}
-        couponError={couponError}
-        couponNotice={couponNotice}
-      />
+      {!billingBypassEnabled ? (
+        <PaywallModal
+          open={showPaywall}
+          onClose={closePaywall}
+          onSelectPlan={handleCheckout}
+          onResetCheckout={resetCheckoutSelection}
+          onPaymentCompleted={handlePaymentCompleted}
+          isCheckoutLoading={checkoutPlan !== null || !isSessionReady}
+          checkoutPlan={checkoutPlan}
+          checkoutError={checkoutError}
+          checkoutSession={checkoutSession}
+          freeRemaining={freeRemaining}
+          freeLimit={initialFreeLimit}
+          dailyFreeRemaining={dailyFreeRemaining}
+          dailyLimit={dailyFreeLimit}
+          paidCredits={paidCredits}
+          hasUnlimitedAccess={hasUnlimitedAccess}
+          showDailyFreeExhaustedHelper={isBlockedOnlyByDailyFreeExhausted}
+          couponCode={couponCode}
+          onCouponCodeChange={handleCouponCodeChange}
+          onRedeemCoupon={handleRedeemCoupon}
+          isRedeemingCoupon={isRedeemingCoupon}
+          isSessionReady={isSessionReady}
+          couponError={couponError}
+          couponNotice={couponNotice}
+        />
+      ) : null}
     </main>
   );
 }
