@@ -2532,6 +2532,7 @@ export default function Home({
       .trim()
       .slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH);
     const parsedNoReplyDuration = Number.parseInt(noReplyDurationValue, 10);
+    const effectiveContinuePreference = isNoReplyMode ? null : continuePreference;
 
     if (isNoReplyMode) {
       if (!trimmedLastOutgoingMessage) {
@@ -2581,7 +2582,7 @@ export default function Home({
       context,
       tone,
       compose_mode: composeMode,
-      continue_preference: continuePreference ?? 'unspecified',
+      continue_preference: effectiveContinuePreference ?? 'unspecified',
       has_image: !isNoReplyMode && Boolean(imageBase64),
       has_text: !isNoReplyMode && Boolean(trimmedMessage),
       has_background: Boolean(trimmedConversationBackground),
@@ -2595,7 +2596,7 @@ export default function Home({
       imageBase64: isNoReplyMode ? null : imageBase64,
       context,
       tone,
-      continuePreference,
+      continuePreference: effectiveContinuePreference,
       conversationBackground: trimmedConversationBackground || undefined,
       noReplyMode: isNoReplyMode,
       noReplyDurationValue: isNoReplyMode ? parsedNoReplyDuration : undefined,
@@ -2609,13 +2610,15 @@ export default function Home({
       return;
     }
 
+    const effectiveContinuePreference = isNoReplyMode ? null : continuePreference;
+
     trackEvent('refine_click', {
       action,
       index,
       context,
       tone,
       compose_mode: composeMode,
-      continue_preference: continuePreference ?? 'unspecified',
+      continue_preference: effectiveContinuePreference ?? 'unspecified',
       has_image: !isNoReplyMode && Boolean(imageBase64),
       has_text: !isNoReplyMode && Boolean(message.trim()),
       has_background: Boolean(conversationBackground.trim()),
@@ -2649,7 +2652,7 @@ export default function Home({
         imageBase64: isNoReplyMode ? null : imageBase64,
         context,
         tone,
-        continuePreference,
+        continuePreference: effectiveContinuePreference,
         conversationBackground: trimmedConversationBackground || undefined,
         noReplyMode: isNoReplyMode,
         noReplyDurationValue:
@@ -3162,23 +3165,25 @@ export default function Home({
                 }}
               />
 
-              <ChipGroup
-                title="מסכים/ה עם מה שנאמר?"
-                description="רק אם רלוונטי לשיחה: להמשיך את הכיוון או לעצור."
-                options={continuePreferenceOptions}
-                value={continuePreference}
-                onChange={(nextValue) => {
-                  trackEvent('agrees_select', { value: nextValue ?? 'unset' });
-                  setContinuePreference(nextValue);
-                }}
-                helperText={
-                  continuePreference
-                    ? 'מעולה, שמרנו את הבחירה שלך. אפשר לשנות בכל רגע.'
-                    : 'לא חייבים לבחור כאן כדי להמשיך.'
-                }
-                optional
-                allowEmpty
-              />
+              {!isNoReplyMode ? (
+                <ChipGroup
+                  title="מסכים/ה עם מה שנאמר?"
+                  description="רק אם רלוונטי לשיחה: להמשיך את הכיוון או לעצור."
+                  options={continuePreferenceOptions}
+                  value={continuePreference}
+                  onChange={(nextValue) => {
+                    trackEvent('agrees_select', { value: nextValue ?? 'unset' });
+                    setContinuePreference(nextValue);
+                  }}
+                  helperText={
+                    continuePreference
+                      ? 'מעולה, שמרנו את הבחירה שלך. אפשר לשנות בכל רגע.'
+                      : 'לא חייבים לבחור כאן כדי להמשיך.'
+                  }
+                  optional
+                  allowEmpty
+                />
+              ) : null}
             </div>
 
             <div className="hidden sm:flex sm:flex-row sm:items-center sm:justify-between sm:gap-3">
