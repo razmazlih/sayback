@@ -97,7 +97,7 @@ export async function POST(request: Request) {
 
     return noStoreJson(
       {
-        error: "Unable to verify Firebase token.",
+        error: "לא הצלחנו לאמת את ההתחברות. נסו שוב.",
       },
       500,
     );
@@ -114,7 +114,7 @@ export async function POST(request: Request) {
   if (!hasJsonContentType(request)) {
     return noStoreJson(
       {
-        error: "Content-Type must be application/json.",
+        error: "הבקשה לא תקינה. נסו שוב.",
       },
       415,
     );
@@ -126,7 +126,7 @@ export async function POST(request: Request) {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       return noStoreJson(
         {
-          error: "Request body must be a JSON object.",
+          error: "הבקשה לא תקינה. נסו שוב.",
         },
         400,
       );
@@ -136,7 +136,7 @@ export async function POST(request: Request) {
   } catch {
     return noStoreJson(
       {
-        error: "Request body must be valid JSON.",
+        error: "הבקשה לא תקינה. נסו שוב.",
       },
       400,
     );
@@ -193,7 +193,7 @@ export async function POST(request: Request) {
     const access = await consumeGenerationAccess(authenticatedUserUid);
 
     if (!access.allowed) {
-      const blockedError = "No billing access is available for this account.";
+      const blockedError = "כרגע אין שימושים זמינים בחשבון.";
 
       completeLocalUsageLog(localUsageLogId, {
         status: "error",
@@ -284,7 +284,7 @@ export async function POST(request: Request) {
 
     return noStoreJson(
       {
-        error: "Unexpected server error.",
+        error: "יש תקלה זמנית. נסו שוב בעוד רגע.",
       },
       500,
     );
@@ -324,7 +324,7 @@ function readErrorMessage(error: unknown) {
     return error.message;
   }
 
-  return "Unexpected server error.";
+  return "יש תקלה זמנית. נסו שוב בעוד רגע.";
 }
 
 function normalizeOptionalText(value: string | null | undefined, maxLength: number) {
@@ -380,7 +380,7 @@ async function enforceRateLimits(request: Request, uid: string) {
     if (!userRateLimit.allowed) {
       return noStoreJson(
         {
-          error: "Too many requests. Please wait a moment and try again.",
+          error: "יש עומס רגעי. נסו שוב בעוד כמה שניות.",
         },
         429,
         {
@@ -424,7 +424,7 @@ async function enforceRateLimits(request: Request, uid: string) {
     if (!ipRateLimit.allowed) {
       return noStoreJson(
         {
-          error: "Too many requests from this network. Please wait and try again.",
+          error: "יש עומס רגעי מהרשת הזו. נסו שוב בעוד כמה שניות.",
         },
         429,
         {

@@ -3,7 +3,7 @@ import { getAdminAuth } from "@/lib/firebase-admin";
 export class UnauthorizedError extends Error {
   readonly status = 401;
 
-  constructor(message = "Authentication is required.") {
+  constructor(message = "צריך להתחבר כדי להמשיך.") {
     super(message);
     this.name = "UnauthorizedError";
   }
@@ -20,13 +20,13 @@ export async function requireAuthenticatedUser(
   const authorizationHeader = request.headers.get("authorization");
 
   if (!authorizationHeader?.startsWith("Bearer ")) {
-    throw new UnauthorizedError("Missing Firebase bearer token.");
+    throw new UnauthorizedError("צריך להתחבר כדי להמשיך.");
   }
 
   const idToken = authorizationHeader.slice("Bearer ".length).trim();
 
   if (!idToken) {
-    throw new UnauthorizedError("Missing Firebase bearer token.");
+    throw new UnauthorizedError("צריך להתחבר כדי להמשיך.");
   }
 
   const adminAuth = await getAdminAuth();
@@ -36,7 +36,7 @@ export async function requireAuthenticatedUser(
     const uid = readString(decodedToken.uid);
 
     if (!uid) {
-      throw new UnauthorizedError("Firebase token did not include a valid uid.");
+      throw new UnauthorizedError("האימות נכשל. נסו להתחבר שוב.");
     }
 
     return {
@@ -48,7 +48,7 @@ export async function requireAuthenticatedUser(
       throw error;
     }
 
-    throw new UnauthorizedError("Unable to verify Firebase token.");
+    throw new UnauthorizedError("לא הצלחנו לאמת את ההתחברות. נסו שוב.");
   }
 }
 

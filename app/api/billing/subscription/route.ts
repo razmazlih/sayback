@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
   if (!hasJsonContentType(request)) {
     return json(
       {
-        error: "Content-Type must be application/json.",
+        error: "הבקשה לא תקינה. נסו שוב.",
       },
       415,
     );
@@ -144,14 +144,14 @@ export async function POST(request: NextRequest) {
     const parsed = await request.json();
 
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      throw new SubscriptionManagementError("Request body must be a JSON object.", 400);
+      throw new SubscriptionManagementError("הבקשה לא תקינה. נסו שוב.", 400);
     }
 
     const actionCandidate = readString((parsed as { action?: unknown }).action);
 
     if (!isSubscriptionAction(actionCandidate)) {
       throw new SubscriptionManagementError(
-        "action must be one of: cancel_next_charge, resume_renewal.",
+        "פעולת המנוי שבחרת לא תקינה.",
         400,
       );
     }
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
 
     return json(
       {
-        error: "Request body must be valid JSON.",
+        error: "הבקשה לא תקינה. נסו שוב.",
       },
       400,
     );
@@ -451,7 +451,7 @@ async function enforceRateLimits(request: Request, uid: string) {
     if (!userRateLimit.allowed) {
       return json(
         {
-          error: "Too many subscription management attempts. Please wait and try again.",
+          error: "בוצעו יותר מדי פעולות מנוי. נסו שוב בעוד כמה שניות.",
         },
         429,
         {
@@ -475,7 +475,7 @@ async function enforceRateLimits(request: Request, uid: string) {
     if (!ipRateLimit.allowed) {
       return json(
         {
-          error: "Too many subscription management attempts from this network. Please wait and try again.",
+          error: "בוצעו יותר מדי פעולות מנוי מהרשת הזו. נסו שוב בעוד כמה שניות.",
         },
         429,
         {

@@ -6,25 +6,30 @@ import {
   useId,
   useMemo,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react';
+import {
+  describeAction,
+  normalizeStatus,
+  pickPrimaryRefineReply,
+  toCompactMessagePreview,
+  toConsumptionLabel,
+  toDurationUnitLabel,
+  type ActionInfo,
+  type NormalizedStatus,
+} from '@/app/admin/dashboard-domain';
 import type { AdminUsageEntry } from '@/app/admin/types';
+import { normalizeAction, normalizeUid, safeTimestamp } from '@/app/admin/usage-normalizers';
 
 type AdminDashboardClientProps = {
   rows: AdminUsageEntry[];
 };
 
 type SourceFilter = 'all' | AdminUsageEntry['source'];
-type StatusFilter = 'all' | 'success' | 'failed';
+type StatusFilter = 'all' | NormalizedStatus;
+type IntegrityFilter = 'all' | 'invalid_schema';
 type SortOrder = 'newest' | 'oldest';
-
-type ActionInfo = {
-  normalized: string;
-  actionLabel: string;
-  eventTypeLabel: 'הודעה חדשה' | 'תיקון';
-  isRefine: boolean;
-  className: string;
-};
 
 type UserGroup = {
   uid: string;
@@ -39,7 +44,9 @@ type UserGroup = {
   }>;
   totalCount: number;
   successCount: number;
-  nonSuccessCount: number;
+  blockedCount: number;
+  failedCount: number;
+  pendingCount: number;
   newMessageCount: number;
   refineCount: number;
   firstAt: string;
@@ -62,15 +69,24 @@ const SOURCE_OPTIONS: Array<{ value: SourceFilter; label: string }> = [
 const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
   { value: 'all', label: 'כל הסטטוסים' },
   { value: 'success', label: 'הצלחות' },
-  { value: 'failed', label: 'כשלים / חסומים / בתהליך' },
+  { value: 'blocked', label: 'חסומים' },
+  { value: 'failed', label: 'נכשלו' },
+  { value: 'pending', label: 'בתהליך' },
 ];
 
 const SORT_OPTIONS: Array<{ value: SortOrder; label: string }> = [
-  { value: 'newest', label: 'חדש ← ישן (מומלץ)' },
-  { value: 'oldest', label: 'ישן ← חדש' },
+  { value: 'newest', label: 'מהחדש לישן (קודם פעילות אחרונה)' },
+  { value: 'oldest', label: 'מהישן לחדש (קודם אירועים מוקדמים)' },
 ];
 
-const MAX_EVENTS_PER_USER_COLLAPSED = 6;
+const USER_LIST_PAGE_SIZE = 40;
+const TIMELINE_PAGE_SIZE = 50;
+const focusRingBaseClass =
+  'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#6ce8ff] focus-visible:ring-offset-2';
+const warmSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-[#fff9ef]`;
+const whiteSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-white`;
+const darkSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-[#111111]`;
+const stableScrollbarStyle = { scrollbarGutter: 'stable' } as const;
 
 export default function AdminDashboardClient({ rows }: AdminDashboardClientProps) {
   const searchId = useId();
@@ -78,15 +94,19 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
   const statusId = useId();
   const actionId = useId();
   const sortId = useId();
+  const usersListId = useId();
+  const resultsStatusId = useId();
 
   const [search, setSearch] = useState('');
   const [source, setSource] = useState<SourceFilter>('all');
   const [status, setStatus] = useState<StatusFilter>('all');
   const [action, setAction] = useState('all');
+  const [integrityFilter, setIntegrityFilter] = useState<IntegrityFilter>('all');
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
-  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
-  const [expandedUsers, setExpandedUsers] = useState<Record<string, boolean>>({});
-  const [showAllPerUser, setShowAllPerUser] = useState<Record<string, boolean>>({});
+  const [selectedUserUid, setSelectedUserUid] = useState<string | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [visibleUsersLimit, setVisibleUsersLimit] = useState(USER_LIST_PAGE_SIZE);
+  const [visibleEventsLimit, setVisibleEventsLimit] = useState(TIMELINE_PAGE_SIZE);
 
   const deferredSearch = useDeferredValue(search);
   const normalizedSearch = deferredSearch.trim().toLowerCase();
@@ -111,18 +131,16 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
         }
 
         if (status !== 'all') {
-          const normalizedStatus = normalizeStatus(row.status);
-
-          if (status === 'success' && normalizedStatus !== 'success') {
-            return false;
-          }
-
-          if (status === 'failed' && normalizedStatus === 'success') {
+          if (normalizeStatus(row.status) !== status) {
             return false;
           }
         }
 
         if (action !== 'all' && normalizeAction(row.action) !== action) {
+          return false;
+        }
+
+        if (integrityFilter === 'invalid_schema' && evaluateSchemaIntegrity(row).isSchemaValid) {
           return false;
         }
 
@@ -132,8 +150,49 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
 
         return buildSearchHaystack(row).includes(normalizedSearch);
       }),
-    [action, normalizedSearch, rows, source, status],
+    [action, integrityFilter, normalizedSearch, rows, source, status],
   );
+
+  const statusQuickCounts = useMemo(() => {
+    const counts: Record<StatusFilter, number> = {
+      all: 0,
+      success: 0,
+      blocked: 0,
+      failed: 0,
+      pending: 0,
+    };
+
+    for (const row of rows) {
+      if (source !== 'all' && row.source !== source) {
+        continue;
+      }
+
+      if (action !== 'all' && normalizeAction(row.action) !== action) {
+        continue;
+      }
+
+      if (integrityFilter === 'invalid_schema' && evaluateSchemaIntegrity(row).isSchemaValid) {
+        continue;
+      }
+
+      if (normalizedSearch && !buildSearchHaystack(row).includes(normalizedSearch)) {
+        continue;
+      }
+
+      counts.all += 1;
+      counts[normalizeStatus(row.status)] += 1;
+    }
+
+    return counts;
+  }, [action, integrityFilter, normalizedSearch, rows, source]);
+
+  const hasActiveFilters =
+    normalizedSearch.length > 0 ||
+    source !== 'all' ||
+    status !== 'all' ||
+    action !== 'all' ||
+    integrityFilter !== 'all' ||
+    sortOrder !== 'newest';
 
   const groupedUsers = useMemo(
     () => buildUserGroups(filteredRows, sortOrder),
@@ -142,15 +201,36 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
 
   const summary = useMemo(() => {
     const uniqueUsers = new Set<string>();
-    let successCount = 0;
-    let nonSuccessCount = 0;
+    const uniqueBlockedUsers = new Set<string>();
+    const statusCounts: Record<NormalizedStatus, number> = {
+      success: 0,
+      blocked: 0,
+      pending: 0,
+      failed: 0,
+    };
     let productionCount = 0;
     let localCount = 0;
+    let retryCount = 0;
     let refineCount = 0;
     let newMessageCount = 0;
+    let successRowsCount = 0;
+    let validSchemaCount = 0;
+    let invalidSchemaCount = 0;
+    let missingIntentCount = 0;
+    let invalidRepliesCount = 0;
+    let emptyReplyItemsCount = 0;
 
     for (const row of filteredRows) {
-      uniqueUsers.add(normalizeUid(row.uid));
+      const normalizedUid = normalizeUid(row.uid);
+      const normalizedStatus = normalizeStatus(row.status);
+      const actionInfo = describeAction(row.action);
+      const schemaIntegrity = evaluateSchemaIntegrity(row);
+      uniqueUsers.add(normalizedUid);
+      statusCounts[normalizedStatus] += 1;
+
+      if (normalizedStatus === 'blocked') {
+        uniqueBlockedUsers.add(normalizedUid);
+      }
 
       if (row.source === 'production') {
         productionCount += 1;
@@ -158,60 +238,207 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
         localCount += 1;
       }
 
-      if (normalizeStatus(row.status) === 'success') {
-        successCount += 1;
-      } else {
-        nonSuccessCount += 1;
-      }
-
-      if (describeAction(row.action).isRefine) {
+      if (actionInfo.isRefine) {
         refineCount += 1;
+        if (actionInfo.normalized === 'retry') {
+          retryCount += 1;
+        }
       } else {
         newMessageCount += 1;
+      }
+
+      if (normalizedStatus === 'success') {
+        successRowsCount += 1;
+
+        if (schemaIntegrity.isSchemaValid) {
+          validSchemaCount += 1;
+        } else {
+          invalidSchemaCount += 1;
+        }
+
+        if (!schemaIntegrity.hasIntent) {
+          missingIntentCount += 1;
+        }
+
+        if (!schemaIntegrity.hasExactRepliesCount) {
+          invalidRepliesCount += 1;
+        }
+
+        if (schemaIntegrity.hasExactRepliesCount && !schemaIntegrity.hasNonEmptyReplies) {
+          emptyReplyItemsCount += 1;
+        }
       }
     }
 
     return {
       uniqueUsersCount: uniqueUsers.size,
-      successCount,
-      nonSuccessCount,
+      uniqueBlockedUsersCount: uniqueBlockedUsers.size,
+      statusCounts,
       productionCount,
       localCount,
+      retryCount,
+      retryRatio: refineCount > 0 ? retryCount / refineCount : 0,
       refineCount,
       newMessageCount,
+      successRowsCount,
+      validSchemaCount,
+      invalidSchemaCount,
+      missingIntentCount,
+      invalidRepliesCount,
+      emptyReplyItemsCount,
     };
   }, [filteredRows]);
 
-  const latestRow = useMemo(
+  const presetBaseRows = useMemo(
     () =>
-      filteredRows
-        .slice()
-        .sort((left, right) => safeTimestamp(right.createdAt) - safeTimestamp(left.createdAt))[0] ??
-      null,
-    [filteredRows],
+      rows.filter((row) => {
+        if (source !== 'all' && row.source !== source) {
+          return false;
+        }
+
+        if (!normalizedSearch) {
+          return true;
+        }
+
+        return buildSearchHaystack(row).includes(normalizedSearch);
+      }),
+    [normalizedSearch, rows, source],
   );
 
-  function toggleRow(id: string) {
-    setExpandedRows((current) => ({
-      ...current,
-      [id]: !current[id],
-    }));
-  }
+  const presetSummary = useMemo(() => {
+    let blockedCount = 0;
+    let failedCount = 0;
+    let retryCount = 0;
+    let invalidSchemaCount = 0;
 
-  function toggleShowAll(uid: string) {
-    setShowAllPerUser((current) => ({
-      ...current,
-      [uid]: !current[uid],
-    }));
-  }
+    for (const row of presetBaseRows) {
+      const normalizedStatus = normalizeStatus(row.status);
 
-  function isUserExpanded(uid: string, state = expandedUsers) {
-    if (Object.prototype.hasOwnProperty.call(state, uid)) {
-      return state[uid] === true;
+      if (normalizedStatus === 'blocked') {
+        blockedCount += 1;
+      }
+
+      if (normalizedStatus === 'failed') {
+        failedCount += 1;
+      }
+
+      if (normalizeAction(row.action) === 'retry') {
+        retryCount += 1;
+      }
+
+      if (normalizedStatus === 'success' && !evaluateSchemaIntegrity(row).isSchemaValid) {
+        invalidSchemaCount += 1;
+      }
     }
 
-    return false;
-  }
+    return {
+      blockedCount,
+      failedCount,
+      retryCount,
+      invalidSchemaCount,
+      totalCount: presetBaseRows.length,
+    };
+  }, [presetBaseRows]);
+
+  const latestRow = useMemo(() => {
+    let latest: AdminUsageEntry | null = null;
+
+    for (const row of filteredRows) {
+      if (!latest || row.createdAtMs > latest.createdAtMs) {
+        latest = row;
+      }
+    }
+
+    return latest;
+  }, [filteredRows]);
+
+  const liveStatusText = useMemo(() => {
+    const searchStatus = normalizedSearch ? 'חיפוש פעיל' : 'ללא חיפוש';
+    const sortStatus = sortOrder === 'newest' ? 'ממויין מחדש לישן' : 'ממויין מישן לחדש';
+    return `עודכן לוח הבקרה: ${filteredRows.length} אירועים עבור ${groupedUsers.length} משתמשים. ${searchStatus}. ${sortStatus}.`;
+  }, [filteredRows.length, groupedUsers.length, normalizedSearch, sortOrder]);
+
+  const activeSelectedUserUid = useMemo(() => {
+    if (groupedUsers.length === 0) {
+      return null;
+    }
+
+    if (selectedUserUid) {
+      const hasDirectMatch = groupedUsers.some((group) => group.uid === selectedUserUid);
+      if (hasDirectMatch) {
+        return selectedUserUid;
+      }
+    }
+
+    return groupedUsers[0].uid;
+  }, [groupedUsers, selectedUserUid]);
+
+  const selectedGroup = useMemo(() => {
+    if (!activeSelectedUserUid) {
+      return null;
+    }
+
+    return groupedUsers.find((group) => group.uid === activeSelectedUserUid) ?? null;
+  }, [activeSelectedUserUid, groupedUsers]);
+
+  const visibleUserGroups = useMemo(
+    () => groupedUsers.slice(0, visibleUsersLimit),
+    [groupedUsers, visibleUsersLimit],
+  );
+
+  const hiddenUsersCount = Math.max(0, groupedUsers.length - visibleUserGroups.length);
+
+  const visibleTimelineRows = useMemo(() => {
+    if (!selectedGroup) {
+      return [];
+    }
+
+    return selectedGroup.rows.slice(0, visibleEventsLimit);
+  }, [selectedGroup, visibleEventsLimit]);
+
+  const hiddenEventsCount = Math.max(
+    0,
+    (selectedGroup?.rows.length ?? 0) - visibleTimelineRows.length,
+  );
+
+  const selectedEvent = useMemo(() => {
+    if (!selectedGroup || selectedGroup.rows.length === 0) {
+      return null;
+    }
+
+    if (selectedEventId) {
+      const directMatch = selectedGroup.rows.find((row) => row.id === selectedEventId);
+      if (directMatch) {
+        return directMatch;
+      }
+    }
+
+    return selectedGroup.rows[0];
+  }, [selectedEventId, selectedGroup]);
+
+  const selectedUserIndex = useMemo(() => {
+    if (!activeSelectedUserUid) {
+      return -1;
+    }
+
+    return groupedUsers.findIndex((group) => group.uid === activeSelectedUserUid);
+  }, [activeSelectedUserUid, groupedUsers]);
+
+  const selectedEventIndex = useMemo(() => {
+    if (!selectedGroup || !selectedEvent) {
+      return -1;
+    }
+
+    return selectedGroup.rows.findIndex((row) => row.id === selectedEvent.id);
+  }, [selectedEvent, selectedGroup]);
+
+  const canMoveToPreviousUser = selectedUserIndex > 0;
+  const canMoveToNextUser = selectedUserIndex >= 0 && selectedUserIndex < groupedUsers.length - 1;
+  const canMoveToPreviousEvent = selectedEventIndex > 0;
+  const canMoveToNextEvent =
+    selectedEventIndex >= 0 &&
+    Boolean(selectedGroup) &&
+    selectedEventIndex < (selectedGroup?.rows.length ?? 0) - 1;
 
   function resetFilters() {
     setSearch('');
@@ -219,8 +446,158 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
       setSource('all');
       setStatus('all');
       setAction('all');
+      setIntegrityFilter('all');
       setSortOrder('newest');
     });
+    setVisibleUsersLimit(USER_LIST_PAGE_SIZE);
+    setVisibleEventsLimit(TIMELINE_PAGE_SIZE);
+    setSelectedEventId(null);
+  }
+
+  function applySummaryShortcut(shortcut: 'all' | 'blocked' | 'failed' | 'retry' | 'schema_issues') {
+    setSearch('');
+    startTransition(() => {
+      setSource('all');
+      setSortOrder('newest');
+
+      if (shortcut === 'all') {
+        setStatus('all');
+        setAction('all');
+        setIntegrityFilter('all');
+        return;
+      }
+
+      if (shortcut === 'blocked') {
+        setStatus('blocked');
+        setAction('all');
+        setIntegrityFilter('all');
+        return;
+      }
+
+      if (shortcut === 'failed') {
+        setStatus('failed');
+        setAction('all');
+        setIntegrityFilter('all');
+        return;
+      }
+
+      if (shortcut === 'retry') {
+        setStatus('all');
+        setAction('retry');
+        setIntegrityFilter('all');
+        return;
+      }
+
+      setStatus('success');
+      setAction('all');
+      setIntegrityFilter('invalid_schema');
+    });
+  }
+
+  function selectUser(uid: string) {
+    setSelectedUserUid(uid);
+    setSelectedEventId(null);
+    setVisibleEventsLimit(TIMELINE_PAGE_SIZE);
+  }
+
+  function selectEvent(eventId: string) {
+    setSelectedEventId(eventId);
+  }
+
+  function moveUserSelection(direction: 1 | -1) {
+    if (groupedUsers.length === 0) {
+      return;
+    }
+
+    const fallbackIndex = direction === 1 ? -1 : groupedUsers.length;
+    const currentIndex = selectedUserIndex >= 0 ? selectedUserIndex : fallbackIndex;
+    const nextIndex = Math.max(0, Math.min(groupedUsers.length - 1, currentIndex + direction));
+
+    if (nextIndex === currentIndex) {
+      return;
+    }
+
+    const nextUser = groupedUsers[nextIndex];
+    setSelectedUserUid(nextUser.uid);
+    setSelectedEventId(null);
+    setVisibleEventsLimit(TIMELINE_PAGE_SIZE);
+    setVisibleUsersLimit((current) =>
+      nextIndex + 1 > current ? current + USER_LIST_PAGE_SIZE : current,
+    );
+  }
+
+  function moveEventSelection(direction: 1 | -1) {
+    if (!selectedGroup || selectedGroup.rows.length === 0) {
+      return;
+    }
+
+    const fallbackIndex = direction === 1 ? -1 : selectedGroup.rows.length;
+    const currentIndex = selectedEventIndex >= 0 ? selectedEventIndex : fallbackIndex;
+    const nextIndex = Math.max(0, Math.min(selectedGroup.rows.length - 1, currentIndex + direction));
+
+    if (nextIndex === currentIndex) {
+      return;
+    }
+
+    const nextEvent = selectedGroup.rows[nextIndex];
+    setSelectedEventId(nextEvent.id);
+    setVisibleEventsLimit((current) =>
+      nextIndex + 1 > current ? current + TIMELINE_PAGE_SIZE : current,
+    );
+  }
+
+  function jumpToBoundaryEvent(which: 'first' | 'last') {
+    if (!selectedGroup || selectedGroup.rows.length === 0) {
+      return;
+    }
+
+    const targetIndex = which === 'first' ? 0 : selectedGroup.rows.length - 1;
+    const targetEvent = selectedGroup.rows[targetIndex];
+    setSelectedEventId(targetEvent.id);
+    setVisibleEventsLimit((current) =>
+      targetIndex + 1 > current ? Math.max(current + TIMELINE_PAGE_SIZE, targetIndex + 1) : current,
+    );
+  }
+
+  function handleDesktopNavigationKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
+    if (event.altKey || event.ctrlKey || event.metaKey) {
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      moveEventSelection(-1);
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      moveEventSelection(1);
+      return;
+    }
+
+    if (event.key === 'PageUp') {
+      event.preventDefault();
+      moveUserSelection(-1);
+      return;
+    }
+
+    if (event.key === 'PageDown') {
+      event.preventDefault();
+      moveUserSelection(1);
+      return;
+    }
+
+    if (event.key === 'Home') {
+      event.preventDefault();
+      jumpToBoundaryEvent('first');
+      return;
+    }
+
+    if (event.key === 'End') {
+      event.preventDefault();
+      jumpToBoundaryEvent('last');
+    }
   }
 
   return (
@@ -252,13 +629,65 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="סה״כ ברשימה" value={String(filteredRows.length)} toneClass="bg-brand text-white" />
-        <StatCard label="הודעות חדשות" value={String(summary.newMessageCount)} toneClass="bg-[#111111] text-white" />
-        <StatCard label="תיקונים" value={String(summary.refineCount)} toneClass="bg-[#ff8a3d] text-white" />
+        <StatCard label="הצלחות" value={String(summary.statusCounts.success)} toneClass="bg-emerald-600 text-white" />
+        <StatCard label="חסומים" value={String(summary.statusCounts.blocked)} toneClass="bg-amber-500 text-white" />
+        <StatCard label="נכשלו" value={String(summary.statusCounts.failed)} toneClass="bg-rose-600 text-white" />
         <StatCard
           label="משתמשים ייחודיים"
           value={String(summary.uniqueUsersCount)}
           toneClass="bg-accent text-brand-ink"
         />
+        <StatCard
+          label="משתמשים חסומים (ייחודיים)"
+          value={String(summary.uniqueBlockedUsersCount)}
+          toneClass="bg-[#1f2937] text-white"
+        />
+        <StatCard
+          label="יחס Retry מתוך תיקונים"
+          value={`${formatRatioPercent(summary.retryRatio)} (${summary.retryCount}/${summary.refineCount})`}
+          toneClass="bg-sky-600 text-white"
+        />
+        <StatCard
+          label="אותות תקינות סכימה"
+          value={`${summary.invalidSchemaCount} חריגים / ${summary.successRowsCount} הצלחות`}
+          toneClass={summary.invalidSchemaCount > 0 ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'}
+        />
+      </section>
+
+      <section className="rounded-[1.5rem] border border-black/10 bg-white/75 px-4 py-3">
+        <div className="text-xs font-semibold tracking-[0.1em] text-black/50">Preset טריאז׳ מהירים</div>
+        <p className="mt-1 text-xs text-black/60">לחיצה אחת להחלפת תצוגת טיפול בלי להרכיב מסננים ידנית.</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <SummaryShortcutButton
+            label={`הכול (${presetSummary.totalCount})`}
+            active={status === 'all' && action === 'all' && integrityFilter === 'all'}
+            onClick={() => applySummaryShortcut('all')}
+          />
+          <SummaryShortcutButton
+            label={`חסומים בלבד (${presetSummary.blockedCount})`}
+            active={status === 'blocked' && action === 'all' && integrityFilter === 'all'}
+            onClick={() => applySummaryShortcut('blocked')}
+            disabled={presetSummary.blockedCount === 0}
+          />
+          <SummaryShortcutButton
+            label={`נכשלו בלבד (${presetSummary.failedCount})`}
+            active={status === 'failed' && action === 'all' && integrityFilter === 'all'}
+            onClick={() => applySummaryShortcut('failed')}
+            disabled={presetSummary.failedCount === 0}
+          />
+          <SummaryShortcutButton
+            label={`Retry בלבד (${presetSummary.retryCount})`}
+            active={status === 'all' && action === 'retry' && integrityFilter === 'all'}
+            onClick={() => applySummaryShortcut('retry')}
+            disabled={presetSummary.retryCount === 0}
+          />
+          <SummaryShortcutButton
+            label={`חריגות סכימה (${presetSummary.invalidSchemaCount})`}
+            active={integrityFilter === 'invalid_schema'}
+            onClick={() => applySummaryShortcut('schema_issues')}
+            disabled={presetSummary.invalidSchemaCount === 0}
+          />
+        </div>
       </section>
 
       <section className="sticky top-3 z-20 rounded-[2rem] border border-black/10 bg-surface px-4 py-4 shadow-[0_16px_45px_rgba(25,19,15,0.06)] backdrop-blur supports-[backdrop-filter]:bg-surface/90 sm:px-5">
@@ -267,11 +696,11 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
             <input
               id={searchId}
               type="search"
-              dir="rtl"
+              dir="auto"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="חפש לפי UID, הודעה/הודעה אחרונה, רקע, תשובה, שגיאה, intent או sourceReply"
-              className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black/80 outline-none transition focus:border-brand/40 focus:ring-4 focus:ring-brand/10"
+              className={`w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black/80 outline-none transition focus:border-brand/40 ${whiteSurfaceFocusClass}`}
             />
           </Field>
           <Field label="מקור" htmlFor={sourceId}>
@@ -281,7 +710,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
               onChange={(event) =>
                 startTransition(() => setSource(event.target.value as SourceFilter))
               }
-              className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black/80 outline-none transition focus:border-brand/40 focus:ring-4 focus:ring-brand/10"
+              className={`w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black/80 outline-none transition focus:border-brand/40 ${whiteSurfaceFocusClass}`}
             >
               {SOURCE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -297,7 +726,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
               onChange={(event) =>
                 startTransition(() => setStatus(event.target.value as StatusFilter))
               }
-              className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black/80 outline-none transition focus:border-brand/40 focus:ring-4 focus:ring-brand/10"
+              className={`w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black/80 outline-none transition focus:border-brand/40 ${whiteSurfaceFocusClass}`}
             >
               {STATUS_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -311,7 +740,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
               id={actionId}
               value={action}
               onChange={(event) => startTransition(() => setAction(event.target.value))}
-              className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black/80 outline-none transition focus:border-brand/40 focus:ring-4 focus:ring-brand/10"
+              className={`w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black/80 outline-none transition focus:border-brand/40 ${whiteSurfaceFocusClass}`}
             >
               <option value="all">כל הפעולות</option>
               {availableActions.map((availableAction) => (
@@ -321,7 +750,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
               ))}
             </select>
           </Field>
-          <Field label="מיון בתוך משתמש" htmlFor={sortId}>
+          <Field label="מיון ציר זמן + סדר משתמשים" htmlFor={sortId}>
             <div className="flex gap-2">
               <select
                 id={sortId}
@@ -329,7 +758,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
                 onChange={(event) =>
                   startTransition(() => setSortOrder(event.target.value as SortOrder))
                 }
-                className="min-w-0 flex-1 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black/80 outline-none transition focus:border-brand/40 focus:ring-4 focus:ring-brand/10"
+                className={`min-w-0 flex-1 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black/80 outline-none transition focus:border-brand/40 ${whiteSurfaceFocusClass}`}
               >
                 {SORT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -340,12 +769,119 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
               <button
                 type="button"
                 onClick={resetFilters}
-                className="rounded-2xl border border-black/10 bg-black px-4 py-3 text-sm font-medium text-white transition hover:bg-black/85 focus:outline-none focus:ring-4 focus:ring-black/15"
+                className={`rounded-2xl border border-black/10 bg-black px-4 py-3 text-sm font-medium text-white transition hover:bg-black/85 ${darkSurfaceFocusClass}`}
               >
                 איפוס
               </button>
             </div>
+            <p className="text-[11px] text-black/50">
+              אותו מיון חל גם על סדר האירועים בתוך משתמש וגם על סדר רשימת המשתמשים.
+            </p>
           </Field>
+        </div>
+
+        <div className="mt-4">
+          <p className="mb-2 text-xs font-medium text-black/55">סטטוסים מהירים (צ׳יפים)</p>
+          <div className="flex flex-wrap items-center gap-2">
+            {STATUS_OPTIONS.map((option) => {
+              const active = status === option.value;
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => startTransition(() => setStatus(option.value))}
+                  aria-pressed={active}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition ${
+                    active
+                      ? `${getStatusFilterChipTone(option.value)} border-transparent`
+                      : 'border-black/10 bg-white text-black/75 hover:bg-black/[0.03]'
+                  } ${whiteSurfaceFocusClass}`}
+                >
+                  <span>{option.label}</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] leading-4 ${
+                      active ? 'bg-black/10 text-current' : 'bg-black/[0.06] text-black/60'
+                    }`}
+                  >
+                    {statusQuickCounts[option.value]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-black/10 bg-white/75 px-3 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-medium text-black/55">מסננים פעילים</p>
+            {hasActiveFilters ? (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className={`rounded-full border border-black/10 bg-white px-2.5 py-1 text-[11px] font-medium text-black/70 transition hover:bg-black/[0.03] ${whiteSurfaceFocusClass}`}
+              >
+                נקה הכול
+              </button>
+            ) : null}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {normalizedSearch ? (
+              <ActiveFilterChip label={`חיפוש: "${deferredSearch.trim()}"`} onClear={() => setSearch('')} />
+            ) : null}
+            {source !== 'all' ? (
+              <ActiveFilterChip
+                label={`מקור: ${source === 'production' ? 'פרודקשן' : 'מקומי'}`}
+                onClear={() => startTransition(() => setSource('all'))}
+              />
+            ) : null}
+            {status !== 'all' ? (
+              <ActiveFilterChip
+                label={`סטטוס: ${labelForStatusFilter(status)}`}
+                onClear={() => startTransition(() => setStatus('all'))}
+              />
+            ) : null}
+            {action !== 'all' ? (
+              <ActiveFilterChip
+                label={`פעולה: ${describeAction(action).actionLabel}`}
+                onClear={() => startTransition(() => setAction('all'))}
+              />
+            ) : null}
+            {integrityFilter !== 'all' ? (
+              <ActiveFilterChip
+                label="תקינות: חריגות סכימה"
+                onClear={() => startTransition(() => setIntegrityFilter('all'))}
+              />
+            ) : null}
+            {sortOrder !== 'newest' ? (
+              <ActiveFilterChip
+                label={`מיון: ${SORT_OPTIONS.find((option) => option.value === sortOrder)?.label ?? sortOrder}`}
+                onClear={() => startTransition(() => setSortOrder('newest'))}
+              />
+            ) : null}
+            {hasActiveFilters ? null : <span className="text-xs text-black/55">אין מסננים פעילים כרגע.</span>}
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {hiddenUsersCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => setVisibleUsersLimit((current) => current + USER_LIST_PAGE_SIZE)}
+              className={`rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-medium text-black/75 transition hover:bg-black/[0.03] ${whiteSurfaceFocusClass}`}
+            >
+              הצג עוד משתמשים (+{Math.min(USER_LIST_PAGE_SIZE, hiddenUsersCount)})
+            </button>
+          ) : null}
+          {hiddenEventsCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => setVisibleEventsLimit((current) => current + TIMELINE_PAGE_SIZE)}
+              className={`rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-medium text-black/75 transition hover:bg-black/[0.03] ${whiteSurfaceFocusClass}`}
+            >
+              הצג עוד אירועים למשתמש הנבחר (+{Math.min(TIMELINE_PAGE_SIZE, hiddenEventsCount)})
+            </button>
+          ) : null}
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-black/55">
@@ -354,18 +890,81 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
           <InfoPill label={normalizedSearch ? 'חיפוש פעיל' : 'ללא חיפוש'} />
           <InfoPill label={`פרודקשן: ${summary.productionCount}`} />
           <InfoPill label={`מקומי: ${summary.localCount}`} />
-          <InfoPill label={`הצלחות: ${summary.successCount}`} />
-          <InfoPill label={`לא הצליחו: ${summary.nonSuccessCount}`} />
+          <InfoPill label={`הצלחות: ${summary.statusCounts.success}`} />
+          <InfoPill label={`חסומים: ${summary.statusCounts.blocked}`} />
+          <InfoPill label={`נכשלו: ${summary.statusCounts.failed}`} />
+          <InfoPill label={`בתהליך: ${summary.statusCounts.pending}`} />
+          <InfoPill label={`משתמשים חסומים: ${summary.uniqueBlockedUsersCount}`} />
+          <InfoPill label={`Retry ratio: ${formatRatioPercent(summary.retryRatio)}`} />
+          <InfoPill
+            label={
+              summary.invalidSchemaCount > 0
+                ? `תקינות סכימה: ${summary.invalidSchemaCount} חריגים`
+                : 'תקינות סכימה: תקין'
+            }
+          />
+          <InfoPill label={`intent חסר: ${summary.missingIntentCount}`} />
+          <InfoPill label={`אורך replies שגוי: ${summary.invalidRepliesCount}`} />
+          <InfoPill label={`replies ריקים: ${summary.emptyReplyItemsCount}`} />
+          {integrityFilter === 'invalid_schema' ? <InfoPill label="סינון: חריגות סכימה בלבד" /> : null}
         </div>
+        <p id={resultsStatusId} role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+          {liveStatusText}
+        </p>
       </section>
 
-      <section className="overflow-hidden rounded-[2rem] border border-black/10 bg-surface shadow-[0_16px_50px_rgba(25,19,15,0.06)]">
-        <div className="flex items-center justify-between gap-3 border-b border-black/10 px-4 py-4 sm:px-6">
+      <section
+        className="overflow-hidden rounded-[2rem] border border-black/10 bg-surface shadow-[0_16px_50px_rgba(25,19,15,0.06)]"
+        tabIndex={0}
+        onKeyDown={handleDesktopNavigationKeyDown}
+      >
+        <div className="flex flex-col gap-3 border-b border-black/10 px-4 py-4 sm:px-6">
           <div>
             <h2 className="text-lg font-semibold text-brand-ink">משתמשים וציר הודעות</h2>
             <p className="text-sm text-black/60">
-              לכל משתמש ציר זמן נפרד. כל אירוע מציג את הקלט שנשלח ואת הפלט שהתקבל.
+              תצוגת ניהול מחולקת לבחירת משתמש מהירה ואז עבודה ממוקדת על ציר אירועים ופרטי האירוע.
             </p>
+          </div>
+          <div className="hidden items-center justify-between gap-3 xl:flex">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-black/65">
+              <InfoPill
+                label={
+                  selectedUserIndex >= 0
+                    ? `משתמש ${selectedUserIndex + 1} מתוך ${groupedUsers.length}`
+                    : `משתמשים: ${groupedUsers.length}`
+                }
+              />
+              <InfoPill
+                label={
+                  selectedGroup && selectedEventIndex >= 0
+                    ? `אירוע ${selectedEventIndex + 1} מתוך ${selectedGroup.rows.length}`
+                    : 'אין אירוע נבחר'
+                }
+              />
+              <InfoPill label="ניווט מקלדת: ↑ ↓ לאירועים • PgUp/PgDn למשתמשים • Home/End לקצוות" />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <DesktopNavButton
+                label="משתמש קודם"
+                onClick={() => moveUserSelection(-1)}
+                disabled={!canMoveToPreviousUser}
+              />
+              <DesktopNavButton
+                label="משתמש הבא"
+                onClick={() => moveUserSelection(1)}
+                disabled={!canMoveToNextUser}
+              />
+              <DesktopNavButton
+                label="אירוע קודם"
+                onClick={() => moveEventSelection(-1)}
+                disabled={!canMoveToPreviousEvent}
+              />
+              <DesktopNavButton
+                label="אירוע הבא"
+                onClick={() => moveEventSelection(1)}
+                disabled={!canMoveToNextEvent}
+              />
+            </div>
           </div>
         </div>
 
@@ -377,302 +976,312 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
             </div>
           </div>
         ) : (
-          <ul className="grid gap-3 p-3 sm:p-4" aria-label="רשימת משתמשים">
-            {groupedUsers.map((group) => {
-              const isExpandedUser = isUserExpanded(group.uid);
-              const showAll = showAllPerUser[group.uid] === true;
-              const visibleRows = showAll
-                ? group.rows
-                : group.rows.slice(0, MAX_EVENTS_PER_USER_COLLAPSED);
-              const hiddenCount = Math.max(0, group.rows.length - visibleRows.length);
+          <div className="grid gap-4 p-3 sm:p-4 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)] xl:h-[780px] 2xl:h-[840px]">
+            <aside className="overflow-hidden rounded-[1.4rem] border border-black/10 bg-white/85 xl:flex xl:h-full xl:min-h-0 xl:flex-col">
+              <div className="border-b border-black/10 px-3 py-3">
+                <p className="text-xs font-semibold tracking-[0.1em] text-black/50">רשימת משתמשים</p>
+                <p className="mt-1 text-xs text-black/65">
+                  מוצגים {visibleUserGroups.length} מתוך {groupedUsers.length}
+                </p>
+              </div>
+              <ul
+                id={usersListId}
+                className="max-h-[68vh] divide-y divide-black/10 overflow-y-scroll overscroll-contain xl:max-h-none xl:flex-1"
+                aria-label="רשימת משתמשים"
+                aria-describedby={resultsStatusId}
+                style={stableScrollbarStyle}
+              >
+                {visibleUserGroups.map((group) => {
+                  const isSelected = selectedGroup?.uid === group.uid;
+                  const latestMessage = group.latestInitialMessages[0] ?? null;
 
-              return (
-                <li
-                  key={group.uid}
-                  className="overflow-hidden rounded-[1.4rem] border border-black/10 bg-white/80 shadow-[0_10px_28px_rgba(25,19,15,0.05)]"
-                >
-                  <details
-                    className={isExpandedUser ? 'bg-[#fffdf6]' : 'bg-white/80'}
-                    open={isExpandedUser}
-                    onToggle={(event) => {
-                      const isOpen = event.currentTarget.open;
-                      setExpandedUsers((current) => ({
-                        ...current,
-                        [group.uid]: isOpen,
-                      }));
-                    }}
-                  >
-                    <summary className="cursor-pointer list-none px-3 py-2.5 sm:px-4 sm:py-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="min-w-0 space-y-1">
-                          <p className="text-[10px] font-semibold tracking-[0.12em] text-black/45">משתמש</p>
-                          <code className="block max-w-full break-all text-[11px] font-medium text-brand-ink">
-                            {group.uid}
-                          </code>
-                          <div className="flex flex-wrap gap-1.5">
-                            <InfoPill label={`${group.totalCount} אירועים`} />
-                            <InfoPill label={`${group.newMessageCount} חדש`} />
-                            <InfoPill label={`${group.refineCount} תיקון`} />
-                            <InfoPill label={`אחרון: ${formatDateTime(group.lastAt)}`} />
-                          </div>
+                  return (
+                    <li key={group.uid}>
+                      <button
+                        type="button"
+                        onClick={() => selectUser(group.uid)}
+                        aria-pressed={isSelected}
+                        className={`w-full p-3 text-right transition xl:min-h-[118px] xl:p-2.5 ${
+                          isSelected
+                            ? 'bg-black text-white'
+                            : `bg-white text-black hover:bg-black/[0.03] ${whiteSurfaceFocusClass}`
+                        }`}
+                      >
+                        <code
+                          className={`block break-all text-[12px] font-semibold ${
+                            isSelected ? 'text-white' : 'text-brand-ink'
+                          }`}
+                          dir="auto"
+                          style={{ unicodeBidi: 'plaintext' }}
+                        >
+                          {group.uid}
+                        </code>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          <UserMetricPill selected={isSelected} label={`${group.totalCount} אירועים`} />
+                          <UserMetricPill selected={isSelected} label={`${group.newMessageCount} חדש`} />
+                          <UserMetricPill selected={isSelected} label={`${group.refineCount} תיקון`} />
                         </div>
+                        <UserStatusBar selected={isSelected} group={group} />
+                        <p
+                          className={`mt-2 line-clamp-2 text-xs xl:line-clamp-1 ${isSelected ? 'text-white/90' : 'text-black/70'}`}
+                          dir="auto"
+                          style={{ unicodeBidi: 'plaintext' }}
+                        >
+                          {latestMessage
+                            ? toCompactMessagePreview(
+                                latestMessage.message,
+                                latestMessage.hasImage,
+                                latestMessage.noReplyMode,
+                                latestMessage.lastOutgoingMessage,
+                              )
+                            : 'אין הודעות חדשות להצגה'}
+                        </p>
+                        <div
+                          className={`mt-1 text-[11px] ${isSelected ? 'text-white/70' : 'text-black/55'}`}
+                        >
+                          <p className="truncate">
+                            ראשון: {formatDateTime(group.firstAt)} | אחרון: {formatDateTime(group.lastAt)}
+                          </p>
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {hiddenUsersCount > 0 ? (
+                <div className="border-t border-black/10 px-3 py-2 text-xs text-black/60">
+                  עדיין לא מוצגים {hiddenUsersCount} משתמשים.
+                </div>
+              ) : null}
+            </aside>
 
-                        <span className="inline-flex rounded-full border border-black/10 bg-black px-2.5 py-1 text-[10px] font-semibold text-white">
-                          {isExpandedUser ? 'סגור' : 'פתח'}
-                        </span>
+            <div className="grid gap-3 xl:h-full xl:min-h-0 xl:grid-rows-[auto_minmax(0,1fr)]">
+              {selectedGroup ? (
+                <>
+                  <div className="rounded-[1.2rem] border border-black/10 bg-white/85 px-4 py-3">
+                    <p className="text-xs text-black/50">משתמש נבחר</p>
+                    <code
+                      className="mt-1 block break-all text-sm font-semibold text-brand-ink"
+                      dir="auto"
+                      style={{ unicodeBidi: 'plaintext' }}
+                    >
+                      {selectedGroup.uid}
+                    </code>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <InfoPill label={`אירועים: ${selectedGroup.totalCount}`} />
+                      <InfoPill label={`הצלחות: ${selectedGroup.successCount}`} />
+                      <InfoPill label={`חסומים: ${selectedGroup.blockedCount}`} />
+                      <InfoPill label={`נכשלו: ${selectedGroup.failedCount}`} />
+                      <InfoPill label={`בתהליך: ${selectedGroup.pendingCount}`} />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+                    <div className="overflow-hidden rounded-[1.2rem] border border-black/10 bg-white/85 xl:flex xl:h-full xl:min-h-0 xl:flex-col">
+                      <div className="flex items-center justify-between border-b border-black/10 px-3 py-2">
+                        <p className="text-xs font-semibold tracking-[0.1em] text-black/50">ציר אירועים</p>
+                        <p className="text-xs text-black/60">
+                          מוצגים {visibleTimelineRows.length} מתוך {selectedGroup.rows.length}
+                        </p>
                       </div>
+                      <ul
+                        className="max-h-[68vh] divide-y divide-black/10 overflow-y-scroll overscroll-contain xl:max-h-none xl:flex-1"
+                        style={stableScrollbarStyle}
+                      >
+                        {visibleTimelineRows.map((row, index) => {
+                          const actionInfo = describeAction(row.action);
+                          const isSelectedEvent = selectedEvent?.id === row.id;
+                          const outputPreview = actionInfo.isRefine
+                            ? pickPrimaryRefineReply(row.replies) || row.sourceReply || 'ללא פלט'
+                            : row.replies[0] || row.intent || 'ללא פלט';
 
-                      {!isExpandedUser ? (
-                        <div className="mt-1.5 space-y-1">
-                          <div className="text-[10px] font-semibold tracking-[0.1em] text-black/45">
-                            3 הודעות חדשות אחרונות (ללא תיקונים)
-                          </div>
-                          {group.latestInitialMessages.length > 0 ? (
-                            <ol className="grid gap-1">
-                              {group.latestInitialMessages.map((entry, previewIndex) => (
-                                <li
-                                  key={entry.id}
-                                  className="flex items-center gap-1.5 rounded-lg border border-black/10 bg-white/70 px-2 py-1"
+                          return (
+                            <li key={row.id}>
+                              <button
+                                type="button"
+                                onClick={() => selectEvent(row.id)}
+                                aria-pressed={isSelectedEvent}
+                                className={`w-full p-3 text-right transition xl:min-h-[132px] xl:p-2.5 ${
+                                  isSelectedEvent
+                                    ? 'bg-[#111111] text-white'
+                                    : `bg-white text-black hover:bg-black/[0.03] ${whiteSurfaceFocusClass}`
+                                }`}
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span
+                                      className={`rounded-full px-2 py-0.5 ${
+                                        isSelectedEvent ? 'bg-white/15 text-white' : 'bg-black/[0.06] text-black/70'
+                                      }`}
+                                    >
+                                      #{index + 1}
+                                    </span>
+                                    <span className={isSelectedEvent ? 'text-white/80' : 'text-black/60'}>
+                                      {formatDateTime(row.createdAt)}
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {renderStatusPill(row.status)}
+                                    {renderActionPill(actionInfo)}
+                                  </div>
+                                </div>
+
+                                <p
+                                  className={`mt-2 line-clamp-2 text-xs xl:line-clamp-1 ${isSelectedEvent ? 'text-white/90' : 'text-black/75'}`}
+                                  dir="auto"
+                                  style={{ unicodeBidi: 'plaintext' }}
                                 >
-                                  <span className="inline-flex rounded-full border border-black/15 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-black/65">
-                                    {previewIndex + 1}
-                                  </span>
-                                  <span className="shrink-0 text-[10px] text-black/55">
-                                    {formatDateTime(entry.createdAt)}
-                                  </span>
-                                  <span className="truncate text-[11px] text-black/75">
-                                    {toCompactMessagePreview(
-                                      entry.message,
-                                      entry.hasImage,
-                                      entry.noReplyMode,
-                                      entry.lastOutgoingMessage,
-                                    )}
-                                  </span>
-                                </li>
-                              ))}
-                            </ol>
-                          ) : (
-                            <div className="rounded-lg border border-dashed border-black/15 bg-white/60 px-2 py-1 text-[11px] text-black/55">
-                              אין הודעות חדשות להצגה.
-                            </div>
-                          )}
-                        </div>
-                      ) : null}
-                    </summary>
-
-                    <div className="border-t border-black/10 px-3 py-2.5 sm:px-4">
-                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex flex-wrap gap-1.5">
-                          <InfoPill label={`הצלחות: ${group.successCount}`} />
-                          <InfoPill label={`שגיאות/חסימות: ${group.nonSuccessCount}`} />
-                          <InfoPill label={`התחלה: ${formatDateTime(group.firstAt)}`} />
-                        </div>
-
-                        {group.rows.length > MAX_EVENTS_PER_USER_COLLAPSED ? (
-                          <button
-                            type="button"
-                            onClick={() => toggleShowAll(group.uid)}
-                            className="rounded-xl border border-black/10 bg-white px-2.5 py-1 text-[11px] font-medium text-black/75 transition hover:bg-black/[0.03] focus:outline-none focus:ring-2 focus:ring-black/10"
-                          >
-                            {showAll
-                              ? 'פחות'
-                              : `הכול (${group.rows.length})`}
-                          </button>
-                        ) : null}
-                      </div>
-
-                      <ol className="grid gap-2.5" aria-label={`ציר זמן למשתמש ${group.uid}`}>
-                      {visibleRows.map((row, index) => {
-                        const isExpandedRow = expandedRows[row.id] === true;
-                        const actionInfo = describeAction(row.action);
-                        const eventContainerClass = getEventContainerClass(
-                          actionInfo,
-                          row.status,
-                        );
-                        const refinedReply = actionInfo.isRefine
-                          ? pickPrimaryRefineReply(row.replies)
-                          : null;
-
-                        return (
-                          <li
-                            key={row.id}
-                            className={`rounded-[1rem] border p-2.5 ${eventContainerClass}`}
-                          >
-                            <div className="flex flex-wrap items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-black/65">
-                                  <span className="inline-flex rounded-full border border-black/15 bg-white px-1.5 py-0.5 font-semibold text-black/70">
-                                    #{index + 1}
-                                  </span>
-                                  <span>{formatDateTime(row.createdAt)}</span>
-                                </div>
-                                <p className="mt-1 text-xs text-black/65">
-                                  {actionInfo.isRefine
-                                    ? `תיקון על בסיס תשובה קיימת (${actionInfo.actionLabel}).`
-                                    : 'הודעה חדשה שנשלחה למחולל.'}
+                                  נכנס: {toCompactMessagePreview(row.message, row.hasImage, row.noReplyMode, row.lastOutgoingMessage)}
                                 </p>
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-2">
-                                {renderSourcePill(row.source)}
-                                {renderModelSourcePill(row.modelSource)}
-                                {renderEventTypePill(actionInfo)}
-                                {renderActionPill(actionInfo)}
-                                {renderStatusPill(row.status)}
-                              </div>
-                            </div>
-
-                            <div className="mt-2 grid gap-2 lg:grid-cols-2">
-                              <TextPanel title="מה נשלח" tone="input">
-                                <div className="space-y-2">
-                                  <div>
-                                    <div className="text-[10px] font-medium text-black/55">
-                                      {row.noReplyMode ? 'הודעה אחרונה שנשלחה' : 'הודעה נכנסת'}
-                                    </div>
-                                    <p className="whitespace-pre-wrap break-words text-xs leading-5 text-black/80">
-                                      {row.noReplyMode
-                                        ? row.lastOutgoingMessage || 'ללא טקסט'
-                                        : row.message || 'ללא טקסט'}
-                                    </p>
-                                  </div>
-
-                                  {row.conversationBackground ? (
-                                    <div>
-                                      <div className="text-[10px] font-medium text-black/55">רקע שיחה נוסף</div>
-                                      <p className="whitespace-pre-wrap break-words text-xs leading-5 text-black/80">
-                                        {row.conversationBackground}
-                                      </p>
-                                    </div>
+                                <p
+                                  className={`mt-1 line-clamp-2 text-xs xl:line-clamp-1 ${isSelectedEvent ? 'text-white/75' : 'text-black/60'}`}
+                                  dir="auto"
+                                  style={{ unicodeBidi: 'plaintext' }}
+                                >
+                                  יצא: {outputPreview}
+                                </p>
+                                <div className="mt-2 flex flex-wrap gap-1">
+                                  {row.consumption ? (
+                                    <EventMetaChip selected={isSelectedEvent} label={toConsumptionLabel(row.consumption)} />
                                   ) : null}
-
-                                  {row.sourceReply ? (
-                                    <div>
-                                      <div className="text-[10px] font-medium text-black/55">
-                                        תשובה שעליה בוצע תיקון
-                                      </div>
-                                      <p className="whitespace-pre-wrap break-words text-xs leading-5 text-black/80">
-                                        {row.sourceReply}
-                                      </p>
-                                    </div>
+                                  {typeof row.durationMs === 'number' ? (
+                                    <EventMetaChip selected={isSelectedEvent} label={`${row.durationMs}ms`} />
                                   ) : null}
-
-                                  <div className="flex flex-wrap gap-1 text-[11px] text-black/65">
-                                    {renderMetaPill(`הקשר: ${row.context || 'ללא הקשר'}`)}
-                                    {renderMetaPill(`טון: ${row.tone || 'ללא טון'}`)}
-                                    {renderMetaPill(
-                                      `המשך שיחה: ${row.continuePreference || 'לא צוין'}`,
-                                    )}
-                                    {renderMetaPill(
-                                      row.noReplyMode ? 'מצב: לא ענו הרבה זמן' : 'מצב: הודעה נכנסת',
-                                    )}
-                                    {row.noReplyMode && row.noReplyDurationValue && row.noReplyDurationUnit
-                                      ? renderMetaPill(
-                                          `זמן ללא מענה: ${row.noReplyDurationValue} ${toDurationUnitLabel(row.noReplyDurationUnit)}`,
-                                        )
-                                      : null}
-                                    {renderMetaPill(
-                                      row.hasImage ? 'צורפה תמונה' : 'ללא תמונה',
-                                    )}
-                                  </div>
+                                  {row.noReplyMode ? (
+                                    <EventMetaChip selected={isSelectedEvent} label="ללא מענה" />
+                                  ) : null}
                                 </div>
-                              </TextPanel>
-
-                              <TextPanel title="מה חזר" tone="output">
-                                <div className="space-y-2">
-                                  <div>
-                                    <div className="text-[10px] font-medium text-black/55">כוונה (intent)</div>
-                                    <p className="whitespace-pre-wrap break-words text-xs leading-5 text-black/80">
-                                      {row.intent || 'לא התקבל intent'}
-                                    </p>
-                                  </div>
-
-                                  {actionInfo.isRefine ? (
-                                    <div className="grid gap-1.5">
-                                      <div className="rounded-xl border border-black/10 bg-white px-2 py-1.5">
-                                        <div className="text-[10px] font-medium text-black/55">מהודעה</div>
-                                        <p className="whitespace-pre-wrap break-words text-xs leading-5 text-black/78">
-                                          {row.sourceReply || 'לא נמצאה תשובה מקורית לתיקון.'}
-                                        </p>
-                                      </div>
-                                      <div className="rounded-xl border border-black/10 bg-white px-2 py-1.5">
-                                        <div className="text-[10px] font-medium text-black/55">להודעה</div>
-                                        <p className="whitespace-pre-wrap break-words text-xs leading-5 text-black/78">
-                                          {refinedReply || 'לא התקבלה תשובת תיקון.'}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  ) : row.replies.length > 0 ? (
-                                    <ol className="grid gap-1.5">
-                                      {row.replies.map((reply, replyIndex) => (
-                                        <li
-                                          key={`${row.id}-reply-${replyIndex}`}
-                                          className="rounded-xl border border-black/10 bg-white px-2 py-1.5"
-                                        >
-                                          <div className="text-[10px] font-medium text-black/55">
-                                            תשובה {replyIndex + 1}
-                                          </div>
-                                          <p className="whitespace-pre-wrap break-words text-xs leading-5 text-black/78">
-                                            {reply}
-                                          </p>
-                                        </li>
-                                      ))}
-                                    </ol>
-                                  ) : (
-                                    <p className="text-sm text-black/60">לא התקבלו תשובות באירוע הזה.</p>
-                                  )}
-                                </div>
-                              </TextPanel>
-                            </div>
-
-                            {row.error ? (
-                              <div className="mt-2">
-                                <TextPanel title="שגיאה" tone="error">
-                                  <p className="whitespace-pre-wrap break-words text-xs leading-5 text-rose-800">
-                                    {row.error}
-                                  </p>
-                                </TextPanel>
-                              </div>
-                            ) : null}
-
-                            {isExpandedRow ? (
-                              <div className="mt-2 flex flex-wrap gap-1 text-[11px] text-black/60">
-                                {row.consumption ? (
-                                  <InfoPill label={`חיוב: ${toConsumptionLabel(row.consumption)}`} />
-                                ) : null}
-                                {typeof row.durationMs === 'number' ? (
-                                  <InfoPill label={`משך: ${row.durationMs}ms`} />
-                                ) : null}
-                                {row.completedAt ? (
-                                  <InfoPill label={`הסתיים: ${formatDateTime(row.completedAt)}`} />
-                                ) : null}
-                                <InfoPill label={`מזהה פנימי: ${row.id}`} />
-                              </div>
-                            ) : null}
-
-                            <button
-                              type="button"
-                              onClick={() => toggleRow(row.id)}
-                              aria-expanded={isExpandedRow}
-                              className="mt-2 rounded-xl border border-black/10 bg-white px-2.5 py-1 text-[11px] font-medium text-black/75 transition hover:bg-black/[0.03] focus:outline-none focus:ring-2 focus:ring-black/10"
-                            >
-                              {isExpandedRow ? 'הסתר פירוט מתקדם' : 'הצג פירוט מתקדם'}
-                            </button>
-                          </li>
-                        );
-                      })}
-                      </ol>
-
-                      {hiddenCount > 0 ? (
-                        <div className="mt-2 rounded-xl border border-dashed border-black/15 bg-white/70 px-3 py-1.5 text-center text-xs text-black/60">
-                          מוצגים {visibleRows.length} מתוך {group.rows.length} אירועים למשתמש זה.
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      {hiddenEventsCount > 0 ? (
+                        <div className="border-t border-black/10 px-3 py-2 text-xs text-black/60">
+                          לטעינה: עוד {hiddenEventsCount} אירועים.
                         </div>
                       ) : null}
                     </div>
-                  </details>
-                </li>
-              );
-            })}
-          </ul>
+
+                    <div className="overflow-hidden rounded-[1.2rem] border border-black/10 bg-white/85 xl:flex xl:h-full xl:min-h-0 xl:flex-col">
+                      <div className="border-b border-black/10 px-3 py-2">
+                        <p className="text-xs font-semibold tracking-[0.1em] text-black/50">פרטי אירוע נבחר</p>
+                      </div>
+                      {selectedEvent ? (
+                        <div
+                          className="space-y-3 p-3 xl:min-h-0 xl:flex-1 xl:overflow-y-scroll xl:overscroll-contain"
+                          style={stableScrollbarStyle}
+                        >
+                          <div className="flex flex-wrap gap-2">
+                            {renderSourcePill(selectedEvent.source)}
+                            {renderModelSourcePill(selectedEvent.modelSource)}
+                            {renderEventTypePill(describeAction(selectedEvent.action))}
+                            {renderStatusPill(selectedEvent.status)}
+                            <InfoPill label={`מזהה: ${selectedEvent.id}`} />
+                          </div>
+                          <TextPanel
+                            title="מה נשלח"
+                            tone="input"
+                            panelId={`selected-input-${toDomToken(selectedEvent.id)}`}
+                          >
+                            <p
+                              className="whitespace-pre-wrap break-words text-xs leading-5 text-black/80"
+                              dir="auto"
+                              style={{ unicodeBidi: 'plaintext' }}
+                            >
+                              {selectedEvent.noReplyMode
+                                ? selectedEvent.lastOutgoingMessage || 'ללא טקסט'
+                                : selectedEvent.message || 'ללא טקסט'}
+                            </p>
+                            {selectedEvent.conversationBackground ? (
+                              <p
+                                className="mt-2 whitespace-pre-wrap break-words text-xs leading-5 text-black/70"
+                                dir="auto"
+                                style={{ unicodeBidi: 'plaintext' }}
+                              >
+                                רקע: {selectedEvent.conversationBackground}
+                              </p>
+                            ) : null}
+                          </TextPanel>
+                          <TextPanel
+                            title="מה חזר"
+                            tone="output"
+                            panelId={`selected-output-${toDomToken(selectedEvent.id)}`}
+                          >
+                            <p
+                              className="whitespace-pre-wrap break-words text-xs leading-5 text-black/80"
+                              dir="auto"
+                              style={{ unicodeBidi: 'plaintext' }}
+                            >
+                              intent: {selectedEvent.intent || 'לא התקבל'}
+                            </p>
+                            {selectedEvent.replies.length > 0 ? (
+                              <ol className="mt-2 grid gap-1.5">
+                                {selectedEvent.replies.map((reply, replyIndex) => (
+                                  <li
+                                    key={`${selectedEvent.id}-reply-${replyIndex}`}
+                                    className="rounded-lg border border-black/10 bg-white px-2 py-1.5"
+                                  >
+                                    <p
+                                      className="whitespace-pre-wrap break-words text-xs leading-5 text-black/78"
+                                      dir="auto"
+                                      style={{ unicodeBidi: 'plaintext' }}
+                                    >
+                                      {reply}
+                                    </p>
+                                  </li>
+                                ))}
+                              </ol>
+                            ) : null}
+                          </TextPanel>
+                          {selectedEvent.error ? (
+                            <TextPanel
+                              title="שגיאה"
+                              tone="error"
+                              panelId={`selected-error-${toDomToken(selectedEvent.id)}`}
+                            >
+                              <p
+                                className="whitespace-pre-wrap break-words text-xs leading-5 text-rose-800"
+                                dir="auto"
+                                style={{ unicodeBidi: 'plaintext' }}
+                              >
+                                {selectedEvent.error}
+                              </p>
+                            </TextPanel>
+                          ) : null}
+                          <div className="flex flex-wrap gap-1.5">
+                            {selectedEvent.consumption ? (
+                              <InfoPill label={`חיוב: ${toConsumptionLabel(selectedEvent.consumption)}`} />
+                            ) : null}
+                            {typeof selectedEvent.durationMs === 'number' ? (
+                              <InfoPill label={`משך: ${selectedEvent.durationMs}ms`} />
+                            ) : null}
+                            {selectedEvent.completedAt ? (
+                              <InfoPill label={`הסתיים: ${formatDateTime(selectedEvent.completedAt)}`} />
+                            ) : null}
+                            {selectedEvent.noReplyMode && selectedEvent.noReplyDurationValue && selectedEvent.noReplyDurationUnit
+                              ? (
+                                <InfoPill
+                                  label={`זמן ללא מענה: ${selectedEvent.noReplyDurationValue} ${toDurationUnitLabel(selectedEvent.noReplyDurationUnit)}`}
+                                />
+                              ) : null}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="px-4 py-10 text-center text-sm text-black/60 xl:flex xl:min-h-0 xl:flex-1 xl:items-center xl:justify-center">
+                          בחר אירוע מהרשימה כדי לראות את כל הפרטים.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-[1.2rem] border border-dashed border-black/15 bg-white/70 px-4 py-10 text-center text-sm text-black/60">
+                  בחר משתמש מהרשימה כדי לטעון ציר אירועים.
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </section>
     </div>
@@ -731,13 +1340,166 @@ function StatCard({
   );
 }
 
+function SummaryShortcutButton({
+  label,
+  active,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      disabled={disabled}
+      className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition ${whiteSurfaceFocusClass} ${
+        active
+          ? 'border-black bg-black text-white'
+          : 'border-black/10 bg-white text-black/75 hover:bg-black/[0.03]'
+      } ${disabled ? 'cursor-not-allowed opacity-50 hover:bg-white' : ''}`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function DesktopNavButton({
+  label,
+  onClick,
+  disabled,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+        disabled
+          ? 'cursor-not-allowed border-black/10 bg-white text-black/35'
+          : `border-black/10 bg-white text-black/80 hover:bg-black/[0.03] ${whiteSurfaceFocusClass}`
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function ActiveFilterChip({
+  label,
+  onClear,
+}: {
+  label: string;
+  onClear: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClear}
+      className={`inline-flex items-center gap-1 rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] leading-4 text-black/75 transition hover:bg-black/[0.03] ${whiteSurfaceFocusClass}`}
+    >
+      <span>{label}</span>
+      <span
+        aria-hidden
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-black/[0.08] text-[10px] text-black/70"
+      >
+        ×
+      </span>
+      <span className="sr-only">הסר מסנן</span>
+    </button>
+  );
+}
+
+function UserMetricPill({
+  label,
+  selected,
+}: {
+  label: string;
+  selected: boolean;
+}) {
+  return (
+    <span
+      className={`inline-flex rounded-full px-2 py-0.5 text-[10px] ${
+        selected ? 'bg-white/15 text-white' : 'bg-black/[0.06] text-black/65'
+      }`}
+    >
+      {label}
+    </span>
+  );
+}
+
+function UserStatusBar({
+  selected,
+  group,
+}: {
+  selected: boolean;
+  group: UserGroup;
+}) {
+  const total = Math.max(1, group.totalCount);
+  const segments = [
+    { key: 'success', value: group.successCount, className: selected ? 'bg-emerald-300' : 'bg-emerald-500' },
+    { key: 'blocked', value: group.blockedCount, className: selected ? 'bg-amber-300' : 'bg-amber-500' },
+    { key: 'failed', value: group.failedCount, className: selected ? 'bg-rose-300' : 'bg-rose-500' },
+    { key: 'pending', value: group.pendingCount, className: selected ? 'bg-sky-300' : 'bg-sky-500' },
+  ].filter((segment) => segment.value > 0);
+
+  if (segments.length === 0) {
+    return (
+      <div className={`mt-2 h-1.5 rounded-full ${selected ? 'bg-white/20' : 'bg-black/10'}`} />
+    );
+  }
+
+  return (
+    <div
+      className={`mt-2 flex h-1.5 overflow-hidden rounded-full ${selected ? 'bg-white/20' : 'bg-black/10'}`}
+      aria-hidden
+    >
+      {segments.map((segment) => (
+        <span
+          key={segment.key}
+          className={segment.className}
+          style={{ width: `${(segment.value / total) * 100}%` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function EventMetaChip({
+  label,
+  selected,
+}: {
+  label: string;
+  selected: boolean;
+}) {
+  return (
+    <span
+      className={`inline-flex rounded-full px-2 py-0.5 text-[10px] ${
+        selected ? 'bg-white/15 text-white/90' : 'bg-black/[0.06] text-black/65'
+      }`}
+    >
+      {label}
+    </span>
+  );
+}
+
 function TextPanel({
   title,
   tone,
+  panelId,
   children,
 }: {
   title: string;
   tone: 'neutral' | 'input' | 'output' | 'error';
+  panelId?: string;
   children: ReactNode;
 }) {
   const className =
@@ -752,14 +1514,27 @@ function TextPanel({
   return (
     <div className={`rounded-[1rem] px-3 py-2 ${className}`}>
       <div className="mb-1 text-[10px] font-medium text-black/50">{title}</div>
-      <div className="max-h-44 overflow-auto">{children}</div>
+      <div
+        id={panelId}
+        tabIndex={0}
+        dir="auto"
+        aria-label={`תוכן ${title}`}
+        className={`max-h-44 overflow-y-scroll overscroll-contain rounded-md pr-1 ${warmSurfaceFocusClass}`}
+        style={{ unicodeBidi: 'plaintext', scrollbarGutter: 'stable' }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
 
 function InfoPill({ label }: { label: string }) {
   return (
-    <span className="inline-flex rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] leading-4">
+    <span
+      dir="auto"
+      style={{ unicodeBidi: 'plaintext' }}
+      className="inline-flex rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] leading-4"
+    >
       {label}
     </span>
   );
@@ -856,102 +1631,58 @@ function renderStatusPill(status: string) {
   );
 }
 
-function renderMetaPill(label: string) {
-  return (
-    <span className="inline-flex w-fit rounded-full border border-black/10 bg-white px-2 py-0.5 text-[10px] text-black/65">
-      {label}
-    </span>
-  );
+function labelForStatusFilter(value: StatusFilter) {
+  const match = STATUS_OPTIONS.find((option) => option.value === value);
+  return match ? match.label : value;
 }
 
-function getEventContainerClass(actionInfo: ActionInfo, status: string) {
-  const normalizedStatus = normalizeStatus(status);
-  const actionToneClass = actionInfo.isRefine
-    ? 'border-amber-200 bg-amber-50/40'
-    : 'border-cyan-200 bg-cyan-50/40';
-
-  if (normalizedStatus === 'success') {
-    return `${actionToneClass} border-r-4 border-r-emerald-400`;
+function getStatusFilterChipTone(value: StatusFilter) {
+  if (value === 'success') {
+    return 'bg-emerald-100 text-emerald-900';
   }
 
-  if (normalizedStatus === 'blocked') {
-    return `${actionToneClass} border-r-4 border-r-amber-400`;
+  if (value === 'blocked') {
+    return 'bg-amber-100 text-amber-900';
   }
 
-  if (normalizedStatus === 'pending') {
-    return `${actionToneClass} border-r-4 border-r-sky-400`;
+  if (value === 'failed') {
+    return 'bg-rose-100 text-rose-900';
   }
 
-  return `${actionToneClass} border-r-4 border-r-rose-400`;
+  if (value === 'pending') {
+    return 'bg-sky-100 text-sky-900';
+  }
+
+  return 'bg-black text-white';
 }
 
-function normalizeAction(value: string | null) {
-  if (typeof value !== 'string') {
-    return 'generate';
-  }
+function evaluateSchemaIntegrity(row: AdminUsageEntry) {
+  const normalizedStatus = normalizeStatus(row.status);
+  const hasIntent = typeof row.intent === 'string' && row.intent.trim().length > 0;
+  const hasExactRepliesCount = row.replies.length === 3;
+  const hasNonEmptyReplies =
+    hasExactRepliesCount &&
+    row.replies.every((reply) => typeof reply === 'string' && reply.trim().length > 0);
 
-  const normalized = value.trim();
-  return normalized.length > 0 ? normalized : 'generate';
-}
-
-function describeAction(value: string | null): ActionInfo {
-  const normalized = normalizeAction(value);
-
-  if (normalized === 'softer') {
+  if (normalizedStatus !== 'success') {
     return {
-      normalized,
-      actionLabel: 'עדין יותר',
-      eventTypeLabel: 'תיקון',
-      isRefine: true,
-      className: 'bg-amber-100 text-amber-900',
-    };
-  }
-
-  if (normalized === 'sharper') {
-    return {
-      normalized,
-      actionLabel: 'חד יותר',
-      eventTypeLabel: 'תיקון',
-      isRefine: true,
-      className: 'bg-orange-100 text-orange-900',
-    };
-  }
-
-  if (normalized === 'retry') {
-    return {
-      normalized,
-      actionLabel: 'נסח מחדש',
-      eventTypeLabel: 'תיקון',
-      isRefine: true,
-      className: 'bg-sky-100 text-sky-900',
+      hasIntent,
+      hasExactRepliesCount,
+      hasNonEmptyReplies,
+      isSchemaValid: true,
     };
   }
 
   return {
-    normalized,
-    actionLabel: 'הודעה חדשה',
-    eventTypeLabel: 'הודעה חדשה',
-    isRefine: false,
-    className: 'bg-black/[0.05] text-black/75',
+    hasIntent,
+    hasExactRepliesCount,
+    hasNonEmptyReplies,
+    isSchemaValid: hasIntent && hasExactRepliesCount && hasNonEmptyReplies,
   };
 }
 
-function normalizeStatus(status: string) {
-  const normalized = status.trim().toLowerCase();
-
-  if (normalized === 'success' || normalized === 'ok' || normalized === 'completed') {
-    return 'success';
-  }
-
-  if (normalized === 'blocked') {
-    return 'blocked';
-  }
-
-  if (normalized === 'pending' || normalized === 'started' || normalized === 'in_progress') {
-    return 'pending';
-  }
-
-  return 'failed';
+function formatRatioPercent(value: number) {
+  return `${Math.round(value * 100)}%`;
 }
 
 function buildUserGroups(rows: AdminUsageEntry[], sortOrder: SortOrder) {
@@ -984,15 +1715,23 @@ function buildUserGroups(rows: AdminUsageEntry[], sortOrder: SortOrder) {
     );
 
     let successCount = 0;
-    let nonSuccessCount = 0;
+    let blockedCount = 0;
+    let failedCount = 0;
+    let pendingCount = 0;
     let newMessageCount = 0;
     let refineCount = 0;
 
     for (const row of userRows) {
-      if (normalizeStatus(row.status) === 'success') {
+      const normalizedStatus = normalizeStatus(row.status);
+
+      if (normalizedStatus === 'success') {
         successCount += 1;
+      } else if (normalizedStatus === 'blocked') {
+        blockedCount += 1;
+      } else if (normalizedStatus === 'pending') {
+        pendingCount += 1;
       } else {
-        nonSuccessCount += 1;
+        failedCount += 1;
       }
 
       if (describeAction(row.action).isRefine) {
@@ -1028,7 +1767,9 @@ function buildUserGroups(rows: AdminUsageEntry[], sortOrder: SortOrder) {
       latestInitialMessages,
       totalCount: userRows.length,
       successCount,
-      nonSuccessCount,
+      blockedCount,
+      failedCount,
+      pendingCount,
       newMessageCount,
       refineCount,
       firstAt: firstRowByTime.createdAt,
@@ -1045,11 +1786,6 @@ function buildUserGroups(rows: AdminUsageEntry[], sortOrder: SortOrder) {
 
     return left.firstAtMs - right.firstAtMs;
   });
-}
-
-function normalizeUid(uid: string) {
-  const normalized = uid.trim();
-  return normalized.length > 0 ? normalized : 'unknown';
 }
 
 function buildSearchHaystack(row: AdminUsageEntry) {
@@ -1081,79 +1817,12 @@ function buildSearchHaystack(row: AdminUsageEntry) {
     .toLowerCase();
 }
 
-function pickPrimaryRefineReply(replies: string[]) {
-  for (const reply of replies) {
-    if (typeof reply === 'string' && reply.trim().length > 0) {
-      return reply;
-    }
-  }
-
-  return null;
-}
-
-function toConsumptionLabel(consumption: AdminUsageEntry['consumption']) {
-  if (consumption === 'unlimited') {
-    return 'מנוי';
-  }
-
-  if (consumption === 'credits') {
-    return 'קרדיטים';
-  }
-
-  if (consumption === 'initial_free') {
-    return 'חינם התחלתי';
-  }
-
-  if (consumption === 'daily_free') {
-    return 'חינם יומי';
-  }
-
-  return 'לא זמין';
-}
-
-function toDurationUnitLabel(value: string) {
-  if (value === 'minutes') {
-    return 'דקות';
-  }
-
-  if (value === 'hours') {
-    return 'שעות';
-  }
-
-  if (value === 'days') {
-    return 'ימים';
-  }
-
-  return value;
-}
-
-function safeTimestamp(value: string) {
-  const timestamp = new Date(value).getTime();
-  return Number.isFinite(timestamp) ? timestamp : 0;
+function toDomToken(value: string) {
+  const normalized = value.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+  return normalized.length > 0 ? normalized : 'entry';
 }
 
 function formatDateTime(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? 'לא ידוע' : dateFormatter.format(date);
-}
-
-function toCompactMessagePreview(
-  message: string | null,
-  hasImage: boolean,
-  noReplyMode: boolean | null,
-  lastOutgoingMessage: string | null,
-) {
-  if (noReplyMode && typeof lastOutgoingMessage === 'string' && lastOutgoingMessage.trim().length > 0) {
-    return `לא ענו: ${lastOutgoingMessage.replace(/\s+/g, ' ').trim()}`;
-  }
-
-  if (typeof message === 'string' && message.trim().length > 0) {
-    return message.replace(/\s+/g, ' ').trim();
-  }
-
-  if (hasImage) {
-    return 'הודעה עם תמונה (ללא טקסט)';
-  }
-
-  return 'ללא טקסט';
 }

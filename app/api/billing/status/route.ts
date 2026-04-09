@@ -40,7 +40,7 @@ export async function GET(request: Request) {
 
     return Response.json(
       {
-        error: "Unable to load billing status right now.",
+        error: "לא הצלחנו לטעון את מצב החשבון כרגע. נסו שוב בעוד רגע.",
       },
       {
         status: 500,

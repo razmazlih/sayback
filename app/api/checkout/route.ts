@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
   if (isBillingBypassEnabled()) {
     return json(
       {
-        error: "Checkout is temporarily disabled.",
+        error: "התשלום לא זמין כרגע.",
       },
       503,
     );
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
   if (!hasJsonContentType(request)) {
     return json(
       {
-        error: "Content-Type must be application/json.",
+        error: "הבקשה לא תקינה. נסו שוב.",
       },
       415,
     );
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       return json(
         {
-          error: "Request body must be a JSON object.",
+          error: "הבקשה לא תקינה. נסו שוב.",
         },
         400,
       );
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
   } catch {
     return json(
       {
-        error: "Request body must be valid JSON.",
+        error: "הבקשה לא תקינה. נסו שוב.",
       },
       400,
     );
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
   if (!isCheckoutPlan(body.plan)) {
     return json(
       {
-        error: "plan must be one of: credits_50, unlimited_monthly.",
+        error: "בחירת המסלול לא תקינה.",
       },
       400,
     );
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
     const session = await stripe.checkout.sessions.create(sessionParams);
 
     if (!session.client_secret) {
-      throw new Error("Stripe Checkout session did not include a client secret.");
+      throw new Error("לא הצלחנו להכין את התשלום. נסו שוב.");
     }
 
     return json(
@@ -211,7 +211,7 @@ export async function POST(request: NextRequest) {
 
     return json(
       {
-        error: "Unable to start checkout right now.",
+        error: "לא הצלחנו לפתוח את התשלום כרגע. נסו שוב בעוד רגע.",
       },
       500,
     );
@@ -394,7 +394,7 @@ async function enforceRateLimits(request: Request, uid: string) {
     if (!userRateLimit.allowed) {
       return json(
         {
-          error: "Too many checkout attempts. Please wait and try again.",
+          error: "יש עומס רגעי בתשלום. נסו שוב בעוד כמה שניות.",
         },
         429,
         {
@@ -418,7 +418,7 @@ async function enforceRateLimits(request: Request, uid: string) {
     if (!ipRateLimit.allowed) {
       return json(
         {
-          error: "Too many checkout attempts from this network. Please wait and try again.",
+          error: "יש עומס רגעי בתשלום מהרשת הזו. נסו שוב בעוד כמה שניות.",
         },
         429,
         {

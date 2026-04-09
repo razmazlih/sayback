@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
     return noStoreJson(
       {
-        error: "Unable to verify Firebase token.",
+        error: "לא הצלחנו לאמת את ההתחברות. נסו שוב.",
       },
       500,
     );
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
   if (!hasJsonContentType(request)) {
     return noStoreJson(
       {
-        error: "Content-Type must be application/json.",
+        error: "הבקשה לא תקינה. נסו שוב.",
       },
       415,
     );
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       return noStoreJson(
         {
-          error: "Request body must be a JSON object.",
+          error: "הבקשה לא תקינה. נסו שוב.",
         },
         400,
       );
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
   } catch {
     return noStoreJson(
       {
-        error: "Request body must be valid JSON.",
+        error: "הבקשה לא תקינה. נסו שוב.",
       },
       400,
     );

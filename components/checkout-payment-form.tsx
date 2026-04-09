@@ -37,7 +37,7 @@ export function CheckoutPaymentForm({
   if (!PUBLISHABLE_KEY) {
     return (
       <p className="rounded-2xl border-2 border-black bg-[#ffd6ce] px-4 py-3 text-sm font-bold text-black">
-        כרגע לא ניתן לפתוח את התשלום. נסה שוב בעוד רגע.
+        לא הצלחנו לפתוח תשלום כרגע. נסו שוב בעוד רגע.
       </p>
     );
   }
@@ -117,17 +117,17 @@ function CheckoutPaymentFormInner({
     }
 
     if (!normalizedFullName) {
-      setSubmitError('צריך להזין שם מלא לפני התשלום.');
+      setSubmitError('כדי להמשיך צריך להזין שם מלא.');
       return;
     }
 
     if (!hasValidFullName) {
-      setSubmitError('צריך להזין שם מלא תקין.');
+      setSubmitError('נא להזין שם מלא תקין.');
       return;
     }
 
     if (!normalizedEmail) {
-      setSubmitError('צריך להזין כתובת אימייל לפני התשלום.');
+      setSubmitError('כדי להמשיך צריך להזין אימייל.');
       return;
     }
 
@@ -192,7 +192,7 @@ function CheckoutPaymentFormInner({
   if (checkoutState.type === 'loading') {
     return (
       <div className="rounded-[24px] border-2 border-black bg-white px-4 py-6 text-center text-sm font-bold text-neutral-700">
-        טוען את שדות התשלום המאובטחים...
+        רגע, מכינים את התשלום...
       </div>
     );
   }
@@ -230,7 +230,7 @@ function CheckoutPaymentFormInner({
 
       <div className="rounded-[24px] border-2 border-black bg-white p-3">
         <label htmlFor="checkout-email" className="text-xs font-black uppercase tracking-[0.16em] text-neutral-600">
-          כתובת אימייל לקבלת אישור תשלום
+          אימייל לקבלת אישור תשלום
         </label>
         <input
           id="checkout-email"
@@ -250,7 +250,7 @@ function CheckoutPaymentFormInner({
           <p className="mt-2 text-xs font-bold text-[#a03a24]">האימייל לא תקין. בדוק שוב.</p>
         ) : null}
         {isEmailLocked ? (
-          <p className="mt-2 text-xs font-bold text-neutral-600">האימייל נקבע אוטומטית מהחשבון שלך.</p>
+          <p className="mt-2 text-xs font-bold text-neutral-600">האימייל נמשך אוטומטית מהחשבון שלך.</p>
         ) : null}
       </div>
 
@@ -272,7 +272,7 @@ function CheckoutPaymentFormInner({
               ].join(' ')}
             >
               <p className="text-sm font-black text-black">{walletLabel}</p>
-              <p className="mt-0.5 text-xs font-bold text-neutral-700">תשלום מהיר בלחיצה</p>
+              <p className="mt-0.5 text-xs font-bold text-neutral-700">תשלום מהיר</p>
             </button>
 
             <button
@@ -289,7 +289,7 @@ function CheckoutPaymentFormInner({
               ].join(' ')}
             >
               <p className="text-sm font-black text-black">כרטיס אשראי</p>
-              <p className="mt-0.5 text-xs font-bold text-neutral-700">הקלדה ידנית של פרטי הכרטיס</p>
+              <p className="mt-0.5 text-xs font-bold text-neutral-700">תשלום בכרטיס</p>
             </button>
           </div>
         </div>
@@ -330,7 +330,7 @@ function CheckoutPaymentFormInner({
           </div>
           {!hasRequiredDetails ? (
             <div className="rounded-2xl border-2 border-black bg-[#fff6d8] px-3 py-3 text-sm font-bold text-black">
-              כדי לשלם ב-{walletLabel}, צריך להזין קודם שם מלא ואימייל תקין.
+              כדי לשלם עם {walletLabel}, צריך קודם להזין שם מלא ואימייל תקין.
             </div>
           ) : null}
         </div>
@@ -363,14 +363,13 @@ function CheckoutPaymentFormInner({
 
       {paymentPath === 'wallet' && walletAvailability === 'unknown' ? (
         <div className="rounded-2xl border-2 border-black bg-white px-3 py-2 text-xs font-bold text-neutral-700">
-          בודקים זמינות אפל פיי / גוגל פיי במכשיר. אם לא מזוהה ארנק נעבור אוטומטית לכרטיס אשראי.
+          בודקים אם אפשר לשלם בתשלום מהיר במכשיר הזה. אם לא, נעבור אוטומטית לכרטיס אשראי.
         </div>
       ) : null}
 
       {walletAvailability === 'unavailable' ? (
         <div className="rounded-2xl border-2 border-black bg-[#fff6d8] px-3 py-2 text-xs font-bold text-black">
-          אפל פיי / גוגל פיי לא זמינים כרגע. אפשר להמשיך באשראי ידני. כדי ש-wallets יעבדו, צריך
-          דפדפן תומך, HTTPS ודומיין רשום ב-Stripe.
+          תשלום מהיר לא זמין כרגע במכשיר הזה. אפשר להמשיך בכרטיס אשראי.
         </div>
       ) : null}
 
@@ -402,11 +401,11 @@ function mapCheckoutError(message: string) {
   const lower = message.toLowerCase();
 
   if (message.includes('email address is required')) {
-    return 'צריך להזין כתובת אימייל כדי לאשר את התשלום.';
+    return 'כדי להמשיך צריך להזין אימייל.';
   }
 
   if (isSessionManagedEmailError(message)) {
-    return 'האימייל כבר נקבע לתשלום הזה, לכן ממשיכים עם האימייל הקיים בחשבון.';
+    return 'האימייל כבר מוגדר לתשלום הזה.';
   }
 
   if (message.includes('invalidEmail') || lower.includes('invalid email')) {
@@ -422,14 +421,14 @@ function mapCheckoutError(message: string) {
     lower.includes('register your domain') ||
     lower.includes('domain is not registered')
   ) {
-    return 'כדי לשלם עם אפל פיי או גוגל פיי צריך לרשום את הדומיין ב-Stripe (sandbox וגם live).';
+    return 'לא הצלחנו להפעיל תשלום מהיר כרגע. אפשר להמשיך בכרטיס אשראי.';
   }
 
   if (lower.includes('https')) {
-    return 'אפל פיי וגוגל פיי עובדים רק על HTTPS. אפשר להמשיך כרגע באשראי ידני.';
+    return 'תשלום מהיר לא זמין כרגע. אפשר להמשיך בכרטיס אשראי.';
   }
 
-  return 'לא הצלחנו להשלים את התשלום. נסו שוב בעוד רגע.';
+  return 'לא הצלחנו להשלים את התשלום. נסו שוב.';
 }
 
 function isValidEmail(value: string) {

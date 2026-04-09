@@ -24,7 +24,7 @@ import {
   CREDIT_PACK_PRICE_LABEL,
 } from '@/lib/pricing';
 
-type ContextOption = 'קראש' | 'אקס' | 'לקוח' | 'בוס' | 'יד2';
+type ContextOption = 'קראש' | 'אקס' | 'ידיד' | 'לקוח' | 'בוס' | 'יד2';
 type ToneOption = 'עדין' | 'ישיר' | 'זורם' | 'מצחיק' | 'פלרטטני';
 type ContinuePreference = 'כן' | 'לא';
 type ComposeMode = 'incoming' | 'no_reply';
@@ -130,23 +130,23 @@ const BILLING_BYPASS_FALLBACK_ENABLED =
 const MAX_IMAGE_UPLOAD_BYTES = 4 * 1024 * 1024;
 const AUTH_ERROR_MESSAGE = 'לא הצלחנו לחבר מחדש את החשבון. נסה שוב בעוד רגע.';
 const PAYWALL_TITLE = 'ממשיכים בלי להיתקע';
-const PAYWALL_BODY = 'בוחרים מסלול ומקבלים עוד תשובות מיד, בלי לצאת מהאתר.';
+const PAYWALL_BODY = 'בוחרים מסלול וממשיכים לנסח תשובות מעולות בלי לעצור.';
 const DAILY_FREE_EXHAUSTED_HELPER_TEXT =
-  'מחר תקבל/י עוד שימוש חינם, או שאפשר להמשיך עכשיו עם אחד המסלולים.';
+  'נגמר החינם להיום. אפשר לחזור מחר, או להמשיך עכשיו עם אחד המסלולים.';
 const CREDIT_PLAN_COPY = {
   title: '50 שימושים',
   helper: 'עד 150 תשובות',
   price: CREDIT_PACK_PRICE_LABEL,
   badge: 'הכי טוב להתחלה',
-  body: 'חד-פעמי, בלי התחייבות',
+  body: 'תשלום חד-פעמי, בלי התחייבות',
   cta: 'לקנות 50 שימושים',
 } as const;
 const UNLIMITED_PLAN_COPY = {
   title: 'ללא הגבלה חודשי',
-  helper: 'למי שמשתמש הרבה',
+  helper: 'למי שרוצה לענות חופשי',
   price: '24.90₪',
   badge: 'חופשי כל החודש',
-  body: 'כל התשובות, כל הזמן',
+  body: 'כמה תשובות שרוצים לאורך כל החודש',
   cta: 'לפתוח ללא הגבלה',
 } as const;
 const DEEP_LINK_PREFILL_BANNER_TEXT = 'מילאנו לך התחלה. אפשר לערוך לפני שמייצרים.';
@@ -158,19 +158,19 @@ const QUERY_PARAM_MAX_LENGTH = {
   agrees: 8,
 } as const;
 
-const contextOptions: ContextOption[] = ['קראש', 'אקס', 'לקוח', 'בוס', 'יד2'];
+const contextOptions: ContextOption[] = ['קראש', 'אקס', 'ידיד', 'לקוח', 'בוס', 'יד2'];
 const toneOptions: ToneOption[] = ['עדין', 'ישיר', 'זורם', 'מצחיק', 'פלרטטני'];
 const continuePreferenceOptions: ContinuePreference[] = ['כן', 'לא'];
 const composeModeOptions: Array<{ value: ComposeMode; label: string; description: string }> = [
   {
     value: 'incoming',
-    label: 'ענו לי עכשיו',
-    description: 'הצד השני שלח הודעה חדשה ואת/ה רוצה לנסח תשובה.',
+    label: 'קיבלתי הודעה',
+    description: 'קיבלת הודעה חדשה ורוצה תשובה טובה ומהירה.',
   },
   {
     value: 'no_reply',
-    label: 'לא ענו הרבה זמן',
-    description: 'כתבת כבר, ועכשיו צריך הודעת המשך שלא נשמעת לחוצה.',
+    label: 'מחכה לתשובה',
+    description: 'שלחת הודעה, ועכשיו צריך פולו-אפ נעים שמקדם תשובה.',
   },
 ];
 const noReplyDurationUnitOptions: Array<{ value: NoReplyDurationUnit; label: string }> = [
@@ -183,6 +183,23 @@ const mobileSectionNavItems: Array<{ id: MobileNavSectionId; label: string; step
   { id: 'results', label: 'תשובות', stepLabel: 'שלב 2' },
   { id: 'examples', label: 'דוגמאות', stepLabel: 'שלב 3' },
 ];
+const quickStartSteps = [
+  {
+    step: 'שלב 1',
+    title: 'מדביקים את ההודעה',
+    body: 'מדביקים הודעה או מוסיפים צילום מסך, ובוחרים את הסגנון שמתאים לכם.',
+  },
+  {
+    step: 'שלב 2',
+    title: 'לוחצים ופותחים 3 תשובות',
+    body: 'לחיצה אחת, ותוך רגע עולים 3 ניסוחים טבעיים שאפשר לשלוח.',
+  },
+  {
+    step: 'שלב 3',
+    title: 'בוחרים ושולחים',
+    body: 'אפשר להעתיק כמו שזה, או לרכך, לחדד ולבקש ניסוח חדש בלחיצה.',
+  },
+] as const;
 type HomePageClientMode = 'generator' | 'full';
 
 const examples: ExampleScenario[] = [
@@ -258,6 +275,8 @@ const contextAliases: Record<string, ContextOption> = {
   crush: 'קראש',
   אקס: 'אקס',
   ex: 'אקס',
+  ידיד: 'ידיד',
+  friend: 'ידיד',
   לקוח: 'לקוח',
   client: 'לקוח',
   בוס: 'בוס',
@@ -293,6 +312,10 @@ const focusRingBaseClass =
 const lightSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-[#fff9ef]`;
 const whiteSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-white`;
 const darkSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-[#111111]`;
+const interactiveBadgeClass =
+  'inline-flex min-h-[28px] items-center rounded-full border-2 border-black bg-[#111111] px-2.5 py-1 text-[0.62rem] font-black uppercase tracking-[0.12em] text-[#f7ff4f]';
+const readOnlyBadgeClass =
+  'inline-flex min-h-[28px] items-center rounded-full border-2 border-black bg-[#fff6d8] px-2.5 py-1 text-[0.62rem] font-black uppercase tracking-[0.12em] text-black';
 const focusableSelector =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), details summary, [tabindex]:not([tabindex="-1"])';
 
@@ -302,7 +325,7 @@ const CheckoutPaymentForm = dynamic(
     ssr: false,
     loading: () => (
       <div className="rounded-[24px] border-2 border-black bg-white px-4 py-6 text-center text-sm font-bold text-neutral-700">
-        טוען את טופס התשלום המאובטח...
+        רגע, מכינים את התשלום...
       </div>
     ),
   },
@@ -316,7 +339,7 @@ function mapApiErrorMessage(message: string) {
   const normalized = message.trim();
 
   if (!normalized) {
-    return 'משהו השתבש. נסה שוב בעוד רגע.';
+    return 'משהו נתקע לרגע. נסה שוב.';
   }
 
   if (/[\u0590-\u05FF]/.test(normalized)) {
@@ -334,11 +357,11 @@ function mapApiErrorMessage(message: string) {
   }
 
   if (lower.includes('too many requests') || lower.includes('too many ')) {
-    return 'יש עומס רגעי. נסה שוב בעוד כמה שניות.';
+    return 'יש עומס קטן עכשיו. נסה שוב בעוד כמה שניות.';
   }
 
   if (lower.includes('content-type must be application/json') || lower.includes('request body')) {
-    return 'הבקשה שנשלחה לא תקינה. רענן את הדף ונסה שוב.';
+    return 'לא קיבלנו את הבקשה בצורה תקינה. רענן את הדף ונסה שוב.';
   }
 
   if (lower.includes('text input is too long')) {
@@ -346,7 +369,7 @@ function mapApiErrorMessage(message: string) {
   }
 
   if (lower.includes('no billing access')) {
-    return 'המכסה הסתיימה. אפשר לבחור חבילה כדי להמשיך.';
+    return 'נגמרו השימושים כרגע. אפשר לבחור מסלול ולהמשיך.';
   }
 
   if (lower.includes('unable to start checkout') || lower.includes('unable to load checkout session')) {
@@ -354,14 +377,14 @@ function mapApiErrorMessage(message: string) {
   }
 
   if (lower.includes('checkout is temporarily disabled')) {
-    return 'שימושים ללא הגבלה פעילים כרגע.';
+    return 'כרגע הכל פתוח לשימוש ללא הגבלה.';
   }
 
   if (lower.includes('unexpected server error') || lower.includes('unable to load billing status')) {
-    return 'יש תקלה זמנית בשרת. נסה שוב בעוד רגע.';
+    return 'יש תקלה זמנית בצד שלנו. נסה שוב בעוד רגע.';
   }
 
-  return 'משהו השתבש. נסה שוב בעוד רגע.';
+  return 'משהו נתקע לרגע. נסה שוב.';
 }
 
 function getFocusableElements(container: HTMLElement | null) {
@@ -406,6 +429,27 @@ function fileToBase64(file: File) {
 
 function isCompactViewport() {
   return window.matchMedia('(max-width: 1023px)').matches;
+}
+
+function isTypingFieldElement(element: Element | null) {
+  return (
+    element instanceof HTMLInputElement ||
+    element instanceof HTMLTextAreaElement ||
+    (element instanceof HTMLElement && element.isContentEditable)
+  );
+}
+
+function getVisualViewportBottomInset() {
+  const visualViewport = window.visualViewport;
+  if (!visualViewport) {
+    return 0;
+  }
+
+  const layoutViewportHeight = Math.max(window.innerHeight, document.documentElement.clientHeight);
+  const viewportHeightDelta = Math.max(0, Math.ceil(layoutViewportHeight - visualViewport.height));
+  const shouldCompensateForKeyboard = isTypingFieldElement(document.activeElement) && viewportHeightDelta > 120;
+
+  return shouldCompensateForKeyboard ? viewportHeightDelta : 0;
 }
 
 function getPreferredScrollBehavior(): ScrollBehavior {
@@ -578,21 +622,24 @@ function ExampleCard({
     <button
       type="button"
       onClick={() => onUse(scenario)}
-      className={`group flex min-h-44 w-full flex-col justify-between rounded-[28px] border-2 border-black bg-[#fff6d8] p-5 text-right shadow-[0_10px_0_0_#111111] transition duration-200 hover:-translate-y-1 hover:bg-[#f7ff4f] touch-manipulation ${darkSurfaceFocusClass}`}
+      className={`group flex min-h-44 w-full cursor-pointer flex-col justify-between rounded-[28px] border-2 border-black bg-[#fff6d8] p-5 text-right shadow-[0_10px_0_0_#111111] transition duration-200 hover:-translate-y-1 hover:bg-[#f7ff4f] touch-manipulation ${darkSurfaceFocusClass}`}
     >
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3 text-xs font-black text-neutral-700">
           <span className="rounded-full border border-black bg-white px-3 py-1">
             {scenario.context}
           </span>
-          <span>{scenario.tone}</span>
+          <div className="flex items-center gap-2">
+            <span>{scenario.tone}</span>
+            <span className={interactiveBadgeClass}>לחיץ</span>
+          </div>
         </div>
         <h3 className="text-lg font-black text-black">{scenario.title}</h3>
         <p className="text-sm leading-6 text-neutral-800">
           &quot;{scenario.message}&quot;
         </p>
       </div>
-      <span className="mt-4 text-sm font-black text-black">להכניס לטופס</span>
+      <span className="mt-4 text-sm font-black text-black">לחיצה אחת, והדוגמה נכנסת לטופס</span>
     </button>
   );
 }
@@ -640,7 +687,7 @@ function ReplyCard({
           <summary
             className={`flex min-h-[42px] cursor-pointer list-none items-center justify-between gap-2 px-3.5 py-2 text-right text-sm font-black text-black marker:content-none ${whiteSurfaceFocusClass}`}
           >
-            <span>עוד כיוונונים</span>
+            <span>לשפר את הניסוח</span>
             <span className="text-xs transition-transform duration-200 group-open:rotate-180">⌄</span>
           </summary>
 
@@ -651,7 +698,7 @@ function ReplyCard({
               disabled={isBusy}
               className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-[#d7f9ff] px-3.5 py-2 leading-5 text-black transition hover:bg-[#b8f2ff] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
             >
-              תעשה את זה יותר עדין
+              עדין יותר
             </button>
             <button
               type="button"
@@ -659,7 +706,7 @@ function ReplyCard({
               disabled={isBusy}
               className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-[#ffd6ce] px-3.5 py-2 leading-5 text-black transition hover:bg-[#ffc5b8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
             >
-              תעשה את זה יותר חד
+              חד יותר
             </button>
             <button
               type="button"
@@ -667,7 +714,7 @@ function ReplyCard({
               disabled={isBusy}
               className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-white px-3.5 py-2 leading-5 text-black transition hover:bg-[#f5f5f5] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
             >
-              נסח מחדש
+              ניסוח חדש
             </button>
           </div>
         </details>
@@ -714,7 +761,7 @@ function BillingSnapshotPanel({
   if (paidCredits > 0) {
     rows.push({
       label: 'יתרת שימושים',
-      value: `נשארו ${paidCredits} ${formatUsageWord(paidCredits)} בתשלום.`,
+      value: `נשארו לך ${paidCredits} ${formatUsageWord(paidCredits)}.`,
       bgClass: 'bg-[#fff6d8]',
     });
   }
@@ -722,7 +769,7 @@ function BillingSnapshotPanel({
   if (freeRemaining > 0) {
     rows.push({
       label: 'חינם להתחלה',
-      value: `נשארו ${freeRemaining} מתוך ${freeLimit} שימושים ראשונים.`,
+      value: `נשארו לך ${freeRemaining} מתוך ${freeLimit} שימושי היכרות.`,
       bgClass: 'bg-white',
     });
   }
@@ -732,8 +779,8 @@ function BillingSnapshotPanel({
       label: 'חינם יומי',
       value:
         dailyFreeRemaining > 0
-          ? `נשאר ${dailyFreeRemaining} ${formatUsageWord(dailyFreeRemaining)} חינם להיום.`
-          : 'השימוש החינמי היומי נוצל להיום.',
+          ? `נשאר לך ${dailyFreeRemaining} ${formatUsageWord(dailyFreeRemaining)} חינם להיום.`
+          : 'החינם היומי נגמר להיום.',
       bgClass: 'bg-white',
     });
   }
@@ -741,14 +788,14 @@ function BillingSnapshotPanel({
   if (rows.length === 0) {
     rows.push({
       label: 'סטטוס שימוש',
-      value: 'כרגע אין שימושים זמינים בחשבון.',
+      value: 'כרגע אין שימושים זמינים.',
       bgClass: 'bg-white',
     });
   }
 
   return (
     <div className={`w-full min-w-0 rounded-[22px] border-2 border-black bg-[#fff6d8] p-3 ${className}`.trim()}>
-      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8b2d10]">מצב חשבון עכשיו</p>
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8b2d10]">מה נשאר לך בחשבון</p>
       <div className="mt-2 grid gap-2">
         {rows.map((row) => (
           <div
@@ -799,12 +846,12 @@ function SubscriptionManagementPanel({
   const statusLine = subscription
     ? subscription.cancelAtPeriodEnd
       ? periodEndLabel
-        ? `החיוב הבא כבר בוטל. המנוי נשאר פעיל עד ${periodEndLabel}.`
-        : 'החיוב הבא כבר בוטל. המנוי נשאר פעיל עד סוף התקופה הנוכחית.'
+        ? `החיוב הבא בוטל. המנוי ממשיך לעבוד עד ${periodEndLabel}.`
+        : 'החיוב הבא בוטל. המנוי נשאר פעיל עד סוף התקופה הנוכחית.'
       : periodEndLabel
-        ? `המנוי פעיל ומתחדש אוטומטית. החיוב הבא צפוי ב-${periodEndLabel}.`
+        ? `המנוי פעיל ומתחדש לבד. החיוב הבא צפוי ב-${periodEndLabel}.`
         : 'המנוי פעיל ומתחדש אוטומטית בכל חודש.'
-    : 'טוענים את מצב המנוי שלך...';
+    : 'טוענים את פרטי המנוי...';
   const canSubmitAction = isSessionReady && !isLoading && Boolean(subscription);
 
   return (
@@ -812,7 +859,7 @@ function SubscriptionManagementPanel({
       <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8b2d10]">ניהול מנוי חודשי</p>
       <p className="mt-1 text-sm font-bold text-black">{statusLine}</p>
       <p className="mt-2 text-xs font-bold text-neutral-700">
-        ביטול עוצר רק את החיוב הבא. הגישה נשארת פעילה עד סוף התקופה הנוכחית.
+        אפשר לעצור רק את החיוב הבא, ועדיין להמשיך להשתמש עד סוף התקופה.
       </p>
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -823,7 +870,7 @@ function SubscriptionManagementPanel({
             disabled={!canSubmitAction}
             className={`min-h-[42px] rounded-2xl border-2 border-black bg-[#ffd6ce] px-3.5 py-2 text-sm font-black text-black transition hover:bg-[#ffc5b8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
           >
-            {isLoading ? 'מעדכנים...' : 'לבטל את החיוב הבא'}
+            {isLoading ? 'מעדכנים...' : 'לעצור את החיוב הבא'}
           </button>
         ) : null}
 
@@ -834,7 +881,7 @@ function SubscriptionManagementPanel({
             disabled={!canSubmitAction}
             className={`min-h-[42px] rounded-2xl border-2 border-black bg-[#d7f9ff] px-3.5 py-2 text-sm font-black text-black transition hover:bg-[#b8f2ff] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
           >
-            {isLoading ? 'מעדכנים...' : 'להחזיר חידוש אוטומטי'}
+            {isLoading ? 'מעדכנים...' : 'להפעיל חידוש אוטומטי'}
           </button>
         ) : null}
       </div>
@@ -1085,7 +1132,7 @@ function PaywallModal({
             </p>
             {checkoutSession ? (
               <p className="mt-1 text-xs font-bold text-neutral-600">
-                אפשר לשלם עם אפל פיי, גוגל פיי או כרטיס אשראי.
+                בוחרים את דרך התשלום שנוחה לכם וממשיכים מיד.
               </p>
             ) : null}
           </div>
@@ -1229,7 +1276,7 @@ function PaywallModal({
               </div>
 
               <div className="rounded-[20px] border-2 border-black bg-white px-4 py-3 text-sm font-bold text-neutral-800">
-                <p>תשלום מהיר ובטוח בתוך האתר.</p>
+                <p>התשלום קצר, ברור ובטוח.</p>
               </div>
             </>
           )}
@@ -1335,7 +1382,8 @@ export default function Home({
   const hasRequiredSelections = Boolean(context) && Boolean(tone);
   const shouldShowMobileStickyGenerate =
     isSessionReady && hasPrimaryInputContent && hasRequiredSelections && !isGenerating;
-  const generateButtonLabel = 'לקבל 3 תשובות';
+  const generateButtonLabel = 'קבלו מה לענות עכשיו';
+  const heroGenerateCtaLabel = 'קבלו מה לענות עכשיו';
   const billingStatusLine = billingBypassEnabled
     ? 'שימושים ללא הגבלה פעילים כרגע.'
     : hasUnlimitedAccess
@@ -1347,7 +1395,7 @@ export default function Home({
           : 'המכסה החינמית הסתיימה. אפשר לבחור חבילה ולהמשיך.';
   const accountStatusLine = isSessionReady
     ? billingStatusLine
-    : 'מחברים את החשבון ומעדכנים את היתרה...';
+    : 'רגע, מחברים את החשבון...';
   const accessState = hasUnlimitedAccess
     ? 'unlimited'
     : hasCreditBalance
@@ -1868,7 +1916,7 @@ export default function Home({
     setCheckoutPlan(null);
     setCheckoutSession(null);
     setCheckoutError(null);
-    setPaymentNotice('התשלום התקבל. מעדכנים את היתרה שלך...');
+    setPaymentNotice('התשלום נקלט. מעדכנים את החשבון שלך...');
     trackEvent('checkout_success', { plan });
 
     const didSync = await waitForBillingSync(plan, baselineCredits);
@@ -1876,9 +1924,9 @@ export default function Home({
     setPaymentNotice(
       didSync
         ? plan === 'credits_50'
-          ? 'התשלום התקבל והחבילה נוספה לחשבון שלך.'
-          : 'התשלום התקבל ומסלול ללא הגבלה פעיל.'
-        : 'התשלום נקלט. העדכון יופיע כאן תוך כמה שניות.',
+          ? 'מעולה, החבילה נוספה לחשבון שלך.'
+          : 'מעולה, מסלול ללא הגבלה הופעל בחשבון שלך.'
+        : 'התשלום נקלט. העדכון יופיע כאן בתוך כמה שניות.',
     );
 
     scrollToComposeAfterPayment();
@@ -1920,11 +1968,11 @@ export default function Home({
       }
 
       if (data.session.status === 'open') {
-        setPaymentNotice('התשלום עדיין לא הושלם. אפשר לנסות שוב מתוך האתר.');
+        setPaymentNotice('התשלום עוד לא הושלם. אפשר לנסות שוב כאן באתר.');
         return;
       }
 
-      setPaymentNotice('לא הושלם תשלום חדש. אפשר לנסות שוב בכל רגע.');
+      setPaymentNotice('לא בוצע תשלום חדש. אפשר לנסות שוב בכל רגע.');
     } catch (error) {
       setPaymentNotice(
         mapApiErrorMessage(
@@ -1964,7 +2012,7 @@ export default function Home({
 
     if (checkoutStatus === 'success' && isCheckoutPlan(planFromCheckout)) {
       setShowPaywall(false);
-      setPaymentNotice('התשלום התקבל. מאמתים ומעדכנים את היתרה שלך...');
+      setPaymentNotice('התשלום נקלט. מאמתים ומעדכנים את החשבון שלך...');
       trackEvent('checkout_success', { plan: planFromCheckout });
     } else if (checkoutStatus === 'cancelled') {
       setPaymentNotice('התשלום בוטל, אפשר לנסות שוב בכל רגע.');
@@ -2030,6 +2078,7 @@ export default function Home({
     }
 
     let frameId: number | null = null;
+    let lastAppliedTransform = '';
 
     const syncMobileNavHeight = () => {
       const navDisplay = window.getComputedStyle(navElement).display;
@@ -2039,6 +2088,25 @@ export default function Home({
       setMobileNavHeight((currentHeight) =>
         currentHeight === nextHeight ? currentHeight : nextHeight,
       );
+
+      if (!isCompactViewport() || navDisplay === 'none') {
+        if (lastAppliedTransform) {
+          navElement.style.transform = '';
+          lastAppliedTransform = '';
+        }
+        return;
+      }
+
+      const viewportBottomInset = getVisualViewportBottomInset();
+      const nextTransform =
+        viewportBottomInset > 0
+          ? `translate3d(0, -${viewportBottomInset}px, 0)`
+          : 'translate3d(0, 0, 0)';
+
+      if (lastAppliedTransform !== nextTransform) {
+        navElement.style.transform = nextTransform;
+        lastAppliedTransform = nextTransform;
+      }
     };
 
     const scheduleSync = () => {
@@ -2052,12 +2120,34 @@ export default function Home({
       });
     };
 
+    navElement.style.willChange = 'transform';
     syncMobileNavHeight();
     window.addEventListener('resize', scheduleSync);
+    window.addEventListener('orientationchange', scheduleSync);
+    document.addEventListener('focusin', scheduleSync);
+    document.addEventListener('focusout', scheduleSync);
+
+    const visualViewport = window.visualViewport;
+
+    if (visualViewport) {
+      visualViewport.addEventListener('resize', scheduleSync);
+      visualViewport.addEventListener('scroll', scheduleSync);
+    }
 
     if (typeof ResizeObserver === 'undefined') {
       return () => {
         window.removeEventListener('resize', scheduleSync);
+        window.removeEventListener('orientationchange', scheduleSync);
+        document.removeEventListener('focusin', scheduleSync);
+        document.removeEventListener('focusout', scheduleSync);
+
+        if (visualViewport) {
+          visualViewport.removeEventListener('resize', scheduleSync);
+          visualViewport.removeEventListener('scroll', scheduleSync);
+        }
+
+        navElement.style.willChange = '';
+        navElement.style.transform = '';
 
         if (frameId !== null) {
           window.cancelAnimationFrame(frameId);
@@ -2071,6 +2161,17 @@ export default function Home({
     return () => {
       resizeObserver.disconnect();
       window.removeEventListener('resize', scheduleSync);
+      window.removeEventListener('orientationchange', scheduleSync);
+      document.removeEventListener('focusin', scheduleSync);
+      document.removeEventListener('focusout', scheduleSync);
+
+      if (visualViewport) {
+        visualViewport.removeEventListener('resize', scheduleSync);
+        visualViewport.removeEventListener('scroll', scheduleSync);
+      }
+
+      navElement.style.willChange = '';
+      navElement.style.transform = '';
 
       if (frameId !== null) {
         window.cancelAnimationFrame(frameId);
@@ -2536,7 +2637,7 @@ export default function Home({
 
     if (isNoReplyMode) {
       if (!trimmedLastOutgoingMessage) {
-        setRequestError('במצב "לא ענו הרבה זמן" צריך למלא מה כתבת בהודעה האחרונה.');
+        setRequestError('כדי להמשיך צריך למלא מה שלחת בהודעה האחרונה.');
 
         if (isCompactViewport()) {
           scrollToMobileSection('compose', { source: 'system' });
@@ -2553,7 +2654,7 @@ export default function Home({
         parsedNoReplyDuration > MAX_NO_REPLY_DURATION_VALUE
       ) {
         setRequestError(
-          `צריך להזין משך זמן תקין בין 1 ל-${MAX_NO_REPLY_DURATION_VALUE} (${noReplyDurationUnitOptions
+          `צריך לבחור זמן תקין בין 1 ל-${MAX_NO_REPLY_DURATION_VALUE} (${noReplyDurationUnitOptions
             .map((option) => option.label)
             .join('/')}).`,
         );
@@ -2567,7 +2668,7 @@ export default function Home({
         return;
       }
     } else if (!trimmedMessage && !imageBase64) {
-      setRequestError('צריך להדביק הודעה או להעלות צילום מסך כדי לייצר תשובה.');
+      setRequestError('כדי לקבל תשובות, הדביקו הודעה או העלו צילום מסך.');
 
       if (isCompactViewport()) {
         scrollToMobileSection('compose', { source: 'system' });
@@ -2641,7 +2742,7 @@ export default function Home({
         parsedNoReplyDuration < 1 ||
         parsedNoReplyDuration > MAX_NO_REPLY_DURATION_VALUE)
     ) {
-      setRequestError('כדי לשפר תשובה במצב "לא ענו הרבה זמן" צריך הודעה אחרונה ומשך זמן תקין.');
+      setRequestError('כדי לשפר תשובה כאן, צריך הודעה אחרונה וזמן המתנה תקין.');
       scrollToComposeSection();
       return;
     }
@@ -2804,18 +2905,18 @@ export default function Home({
                   SayBack
                 </p>
                 <h1 className="text-[2rem] font-black leading-[1.08] tracking-tight text-black sm:text-5xl">
-                  מהודעה מלחיצה לתשובה מעולה בתוך רגע
+                  מהודעה מלחיצה לתשובה בטוחה בתוך רגע
                 </h1>
                 <p className="max-w-2xl text-[0.98rem] font-bold leading-7 text-neutral-900 sm:text-lg">
-                  מדביקים את ההודעה שקיבלתם, בוחרים וייב, ומקבלים מיד 3 תשובות קצרות, טבעיות
-                  ובול לסיטואציה. רוצים השראה עמוקה יותר? מחכה לכם עמוד עם מדריך ודוגמאות אמיתיות.
+                  מדביקים את ההודעה שקיבלתם, בוחרים וייב, ותוך רגע קופצות 3 תשובות קצרות,
+                  טבעיות ובול לסיטואציה. רוצים עוד רעיונות? מחכה לכם עמוד עם דוגמאות אמיתיות.
                 </p>
                 <div className="flex flex-wrap items-center gap-2.5">
                   <Link
                     href="/home"
                     className={`inline-flex min-h-[44px] items-center justify-center rounded-full border-2 border-black bg-white px-4 py-2 text-sm font-black text-black transition hover:-translate-y-0.5 ${lightSurfaceFocusClass}`}
                   >
-                    למדריך המלא ודוגמאות
+                    לעוד דוגמאות ורעיונות
                   </Link>
                 </div>
               </div>
@@ -2840,10 +2941,10 @@ export default function Home({
                   </div>
                   <div className="space-y-2.5 sm:space-y-3">
                     <h1 className="text-[2.1rem] font-black leading-[1.06] tracking-tight text-black sm:text-6xl">
-                      לא יודעים מה לענות? מקבלים 3 תשובות שנשמעות כמוכם
+                      תקועים על ניסוח? תוך רגע עולות 3 תשובות שנשמעות כמוכם
                     </h1>
                     <p className="max-w-2xl text-[0.98rem] font-bold leading-7 text-neutral-900 sm:text-lg">
-                      מדביקים הודעה או מעלים צילום מסך, בוחרים סיטואציה וסגנון, ומקבלים תוך רגע 3 תשובות קצרות, טבעיות ומוכנות להעתקה.
+                      מדביקים הודעה או מעלים צילום מסך, בוחרים סיטואציה וסגנון, ותוך רגע נפתחות 3 תשובות קצרות, טבעיות ומוכנות להעתקה.
                     </p>
                   </div>
                 </div>
@@ -2854,8 +2955,12 @@ export default function Home({
               aria-label="למה זה עובד מהר"
               className="rounded-[26px] border-2 border-black bg-[#fff9ef] p-3 shadow-[0_8px_0_0_#111111] sm:rounded-[30px] sm:p-4"
             >
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#8b2d10]">מה חשוב לדעת</p>
+                <span className={readOnlyBadgeClass}>לקריאה</span>
+              </div>
               <ul className="grid gap-2 sm:grid-cols-3">
-                {['3 חינם להתחלה', 'לא שומרים את ההודעות שלך', 'מוכן לוואטסאפ תוך רגע'].map((item) => (
+                {['3 שימושים חינם להתחלה', 'לא שומרים את ההודעות שלך', 'מוכן לשליחה תוך רגע'].map((item) => (
                   <li
                     key={item}
                     className="rounded-2xl border-2 border-black bg-white px-3.5 py-2.5 text-center text-sm font-black text-black"
@@ -2875,11 +2980,42 @@ export default function Home({
                 }}
                 className={`inline-flex min-h-[56px] w-full items-center justify-center rounded-[22px] border-2 border-black bg-gradient-to-b from-[#ff7a56] to-[#ff623d] px-5 py-3 text-base font-black text-white shadow-[0_8px_0_0_#111111] transition hover:-translate-y-0.5 hover:shadow-[0_10px_0_0_#111111] active:translate-y-0 active:shadow-[0_5px_0_0_#111111] ${darkSurfaceFocusClass}`}
               >
-                לקבל 3 תשובות עכשיו
+                {heroGenerateCtaLabel}
               </button>
             </section>
           </>
         )}
+
+        <section
+          aria-label="איך מתחילים בדקה"
+          className="w-full min-w-0 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]"
+        >
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8b2d10]">ברוכים הבאים</p>
+              <h2 className="mt-2 text-2xl font-black text-black sm:text-3xl">מה עושים כאן עכשיו?</h2>
+            </div>
+            <p className="max-w-xl text-sm font-bold leading-6 text-neutral-700">
+              שלושה צעדים קצרים, ויש לך תשובה מוכנה לשליחה.
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            {quickStartSteps.map((step) => (
+              <article
+                key={step.step}
+                className="rounded-[22px] border-2 border-black bg-white p-3.5 shadow-[0_6px_0_0_#111111]"
+              >
+                <p className="text-[0.68rem] font-black uppercase tracking-[0.16em] text-[#8b2d10]">
+                  {step.step}
+                </p>
+                <h3 className="mt-2 text-base font-black text-black">{step.title}</h3>
+                <p className="mt-1.5 text-sm font-bold leading-6 text-neutral-700">{step.body}</p>
+              </article>
+            ))}
+          </div>
+
+        </section>
 
         <section className="grid w-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-5">
           <div
@@ -2893,7 +3029,7 @@ export default function Home({
               </p>
               <h2 className="text-2xl font-black text-black sm:text-3xl">מדביקים הודעה. מקבלים ניסוח מוכן.</h2>
               <p className="text-sm font-bold leading-6 text-neutral-700">
-                כאן מתחילים: מדביקים את ההודעה כמו שהיא, בוחרים איך לענות, ומקבלים 3 תשובות קצרות שאפשר לשלוח מיד.
+                כאן מתחילים: מדביקים את ההודעה כמו שהיא, בוחרים איך לענות, ותוך שניות נפתחות 3 תשובות קצרות שאפשר לשלוח מיד.
               </p>
             </div>
 
@@ -2933,7 +3069,7 @@ export default function Home({
               <div className="rounded-[22px] border-2 border-black bg-[#fff6d8] p-3">
                 <p className="text-sm font-black text-black">איך ממשיכים מכאן?</p>
                 <p className="mt-1 text-xs font-bold leading-5 text-neutral-700">
-                  בחר/י מצב כתיבה כדי להציג רק את השדות שרלוונטיים עכשיו.
+                  בחרו מצב כתיבה כדי לראות רק את מה שצריך עכשיו.
                 </p>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   {composeModeOptions.map((option) => {
@@ -3005,7 +3141,7 @@ export default function Home({
                       כמה זמן לא ענו?
                     </label>
                     <p className="mt-1 text-xs font-bold text-neutral-700">
-                      הזן/י מספר ובחרי יחידה: דקות / שעות / ימים.
+                      בוחרים מספר ויחידת זמן: דקות, שעות או ימים.
                     </p>
                     <div className="mt-2 grid grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] gap-2">
                       <input
@@ -3058,7 +3194,7 @@ export default function Home({
                       onClick={() => fileInputRef.current?.click()}
                       className={`min-h-[44px] rounded-full border-2 border-black bg-[#fff6d8] px-4 py-2 text-sm font-black text-black ${lightSurfaceFocusClass}`}
                     >
-                      להעלות צילום מסך
+                      לצרף צילום מסך
                     </button>
                   </div>
 
@@ -3072,7 +3208,7 @@ export default function Home({
                     onPaste={handleMessagePaste}
                     placeholder='למשל: "היי, מתאים לך שנדבר בערב?"'
                     maxLength={MAX_INCOMING_MESSAGE_LENGTH}
-                    className={`min-h-36 w-full rounded-[24px] border-2 border-black bg-white px-4 py-4 text-base leading-7 font-medium text-black outline-none transition placeholder:text-neutral-400 focus:-translate-y-0.5 focus:bg-[#fffdf6] sm:min-h-40 sm:rounded-[26px] ${lightSurfaceFocusClass}`}
+                    className={`min-h-36 w-full resize-none rounded-[26px] rounded-bl-[14px] border-2 border-black bg-white px-4 py-4 text-base leading-7 font-medium text-black outline-none transition placeholder:text-neutral-500 focus:bg-[#fffdf6] sm:min-h-40 sm:rounded-[28px] sm:rounded-bl-[16px] ${lightSurfaceFocusClass}`}
                   />
                   <p className="text-xs font-bold text-neutral-700">
                     עד {MAX_INCOMING_MESSAGE_LENGTH} תווים להודעה ({messageLength}/
@@ -3140,8 +3276,8 @@ export default function Home({
 
             <div className="grid gap-2.5 sm:gap-3">
               <ChipGroup
-                title="מה הסיטואציה?"
-                description="נבין את הדינמיקה כדי לנסח תשובה שמתאימה לך."
+                title="מה המצב?"
+                description="נבין את הסיטואציה כדי לנסח תשובה שמתאימה לך."
                 options={contextOptions}
                 value={context}
                 onChange={(nextValue) => {
@@ -3153,7 +3289,7 @@ export default function Home({
               />
 
               <ChipGroup
-                title="איך בא לך לענות?"
+                title="איך תרצו לענות?"
                 description="בחרו את הווייב שתרצו לשדר בתשובה."
                 options={toneOptions}
                 value={tone}
@@ -3194,7 +3330,7 @@ export default function Home({
                 className={`inline-flex min-h-[56px] items-center justify-center gap-2 rounded-[26px] border-2 border-black bg-gradient-to-b from-[#ff7a56] to-[#ff623d] px-6 py-3 text-base font-black text-white shadow-[0_8px_0_0_#111111] transition duration-150 hover:-translate-y-0.5 hover:shadow-[0_10px_0_0_#111111] active:translate-y-0 active:shadow-[0_5px_0_0_#111111] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto ${lightSurfaceFocusClass}`}
               >
                 <span className="rounded-full border-2 border-black bg-[#f7ff4f] px-2 py-0.5 text-[0.64rem] font-black uppercase tracking-[0.12em] text-black">
-                  שלב 1
+                  פעולה
                 </span>
                 {generateButtonLabel}
               </button>
@@ -3211,7 +3347,7 @@ export default function Home({
                 className={`inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-[26px] border-2 border-black bg-gradient-to-b from-[#ff7a56] to-[#ff623d] px-5 py-3 text-base font-black text-white shadow-[0_8px_0_0_#111111] transition duration-150 active:translate-y-0 active:shadow-[0_5px_0_0_#111111] disabled:cursor-not-allowed disabled:opacity-60 ${lightSurfaceFocusClass}`}
               >
                 <span className="rounded-full border-2 border-black bg-[#f7ff4f] px-2 py-0.5 text-[0.64rem] font-black uppercase tracking-[0.12em] text-black">
-                  שלב 1
+                  פעולה
                 </span>
                 {generateButtonLabel}
               </button>
@@ -3241,14 +3377,14 @@ export default function Home({
                 <p className="inline-flex min-h-[32px] items-center rounded-full border-2 border-black bg-[#d7f9ff] px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-black lg:hidden">
                   {mobileSectionNavItems[1].stepLabel}
                 </p>
-                <h2 className="text-2xl font-black text-black sm:text-3xl">מה כנראה באמת קורה פה</h2>
+                <h2 className="text-2xl font-black text-black sm:text-3xl">הנה מה שאפשר לשלוח</h2>
                 <p className="mt-1.5 text-sm font-bold leading-6 text-neutral-700">
                   הסבר קצר ואז תשובות שמוכנות להעתקה.
                 </p>
               </div>
               <div className="flex flex-col items-start gap-2 sm:items-end">
                 <span className="rounded-full border-2 border-black bg-[#d7f9ff] px-3 py-2 text-xs font-black text-black">
-                  מוכן לוואטסאפ
+                  מוכן לשליחה
                 </span>
                 <div className="flex items-center gap-2 sm:hidden">
                   <button
@@ -3279,7 +3415,12 @@ export default function Home({
               {result ? (
                 <div className="w-full min-w-0 space-y-3">
                 <div className="w-full min-w-0 rounded-[26px] border-2 border-black bg-[#fff6d8] p-4 shadow-[0_8px_0_0_#111111]">
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-600">הכוונה שלהם כנראה</p>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-600">
+                      מה הם כנראה מנסים להגיד
+                    </p>
+                    <span className={readOnlyBadgeClass}>לקריאה</span>
+                  </div>
                   <p className="mt-2 text-base font-bold leading-7 text-black">{result.intent}</p>
                 </div>
 
@@ -3300,9 +3441,9 @@ export default function Home({
                 </div>
               ) : (
                 <div className="flex w-full min-w-0 min-h-72 flex-col justify-center rounded-[28px] border-2 border-dashed border-black bg-[#f8f4ed] p-5 sm:min-h-80">
-                  <h3 className="text-2xl font-black text-black">עוד רגע זה מוכן</h3>
+                  <h3 className="text-2xl font-black text-black">כאן יופיעו התשובות שלך</h3>
                   <p className="mt-3 max-w-md text-sm font-bold leading-6 text-neutral-700">
-                    בחרו מצב כתיבה, מלאו את השדה הראשי וקבלו 3 תשובות מוכנות להעתקה.
+                    בחרו מצב כתיבה, מלאו את השדה הראשי ותוך רגע יופיעו 3 תשובות מוכנות להעתקה.
                   </p>
                 </div>
               )}
@@ -3353,7 +3494,7 @@ export default function Home({
               <h2 className="mt-2 text-2xl font-black text-black sm:text-3xl">פותחים עוד תשובות</h2>
             </div>
             <p className="max-w-xl text-sm font-bold leading-6 text-neutral-700">
-              התשלום נטען בתוך האתר שלך, בעברית, עם סטרייפ מאובטח. במכשיר תומך יופיעו גם אפל פיי וגוגל פיי.
+              התשלום נעשה כאן באתר בצורה בטוחה, קצרה וברורה.
             </p>
           </div>
 
@@ -3454,8 +3595,9 @@ export default function Home({
                 <Link
                   key={item.slug}
                   href={`/answers/${item.slug}`}
-                  className={`block rounded-[22px] border-2 border-black bg-white p-4 shadow-[0_6px_0_0_#111111] transition hover:-translate-y-0.5 ${lightSurfaceFocusClass}`}
+                  className={`block cursor-pointer rounded-[22px] border-2 border-black bg-white p-4 shadow-[0_6px_0_0_#111111] transition hover:-translate-y-0.5 ${lightSurfaceFocusClass}`}
                 >
+                  <span className={interactiveBadgeClass}>לחיץ</span>
                   <p className="text-sm font-black leading-6 text-black">{item.query}</p>
                   <p className="mt-2 text-sm font-bold leading-6 text-neutral-700">{item.teaser}</p>
                   <span className="mt-3 inline-block text-xs font-black text-[#9a2f10]">לעמוד המלא</span>
@@ -3485,7 +3627,7 @@ export default function Home({
             <p>
               {billingBypassEnabled
                 ? 'כרגע SayBack פתוח לשימוש ללא הגבלה.'
-                : 'תשלום מאובטח עם סטרייפ. לא שומרים אצלנו נתוני אשראי.'}
+                : 'התשלום מאובטח, ואנחנו לא שומרים אצלנו פרטי אשראי.'}
             </p>
             <div className="flex items-center gap-3">
               <Link href="/privacy" className={`${lightSurfaceFocusClass} rounded-full px-2 py-1 underline`}>
@@ -3512,7 +3654,7 @@ export default function Home({
                   onClick={handleMainSubmit}
                   className={`inline-flex min-h-[48px] w-full items-center justify-center rounded-[16px] border-2 border-black bg-gradient-to-b from-[#ff7a56] to-[#ff623d] px-4 py-2.5 text-sm font-black text-white ${darkSurfaceFocusClass}`}
                 >
-                  לקבל 3 תשובות
+                  {generateButtonLabel}
                 </button>
               </div>
             ) : null}

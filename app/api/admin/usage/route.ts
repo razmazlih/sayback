@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   if (!isLocalAdminRequest(request)) {
     return Response.json(
       {
-        error: "Not found.",
+        error: "לא נמצא.",
       },
       {
         status: 404,
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
 
     return Response.json(
       {
-        error: "Unable to load usage logs right now.",
+        error: "לא הצלחנו לטעון את יומן הפעילות כרגע.",
       },
       {
         status: 500,

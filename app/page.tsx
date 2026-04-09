@@ -9,9 +9,9 @@ import {
 import { createMarketingMetadata, SITE_LANGUAGE, SITE_NAME, toSafeJsonLd } from "@/lib/seo";
 import { resolveSiteUrl } from "@/lib/site-url";
 
-const HOME_TITLE = "SayBack | תשובות מהירות להודעות";
+const HOME_TITLE = "SayBack | מה לענות עכשיו";
 const HOME_DESCRIPTION =
-  "SayBack עוזר לך לענות מהר ובסטייל להודעות בוואטסאפ, אינסטגרם, דייטינג ולקוחות. מעלים הודעה ובוחרים טון כדי לקבל 3 תשובות טבעיות בעברית.";
+  "SayBack עוזר לך לדעת מה לענות בהודעות. מדביקים הודעה, בוחרים סגנון, ומקבלים 3 תשובות קצרות וטבעיות בעברית.";
 const UNLIMITED_MONTHLY_PRICE_ILS = "24.90";
 const BILLING_BYPASS_ENABLED =
   process.env.BILLING_BYPASS?.trim().toLowerCase() === "true";
@@ -30,7 +30,7 @@ export const metadata: Metadata = createMarketingMetadata({
     "תשובות להודעות",
     "מחולל תשובות",
     "תשובות לוואטסאפ",
-    "AI בעברית",
+    "מה לענות",
   ],
 });
 
@@ -57,9 +57,9 @@ const softwareApplicationJsonLd = {
   url: siteOrigin,
   description: HOME_DESCRIPTION,
   featureList: [
-    "3 תשובות עברית טבעית לכל הודעה",
-    "התאמה לסיטואציה ולטון",
-    "אפשרות לרכך, לחדד או לנסח מחדש",
+    "3 תשובות קצרות לכל הודעה",
+    "התאמה לסיטואציה ולסגנון שלך",
+    "אפשר לרכך, לחדד או לבקש ניסוח חדש",
   ],
   ...(BILLING_BYPASS_ENABLED
     ? {}

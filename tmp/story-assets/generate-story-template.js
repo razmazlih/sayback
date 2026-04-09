@@ -64,7 +64,7 @@ const html = `<!doctype html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SayBack Story Generator</title>
+  <title>SayBack Story Studio</title>
   <style>
     :root {
       --bg-main: #fff7e6;

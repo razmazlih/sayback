@@ -5,7 +5,7 @@ import {
   MAX_NO_REPLY_DURATION_VALUE,
 } from "@/lib/message-limits";
 
-const CONTEXT_OPTIONS = ["קראש", "אקס", "לקוח", "בוס", "יד2"] as const;
+const CONTEXT_OPTIONS = ["קראש", "אקס", "ידיד", "לקוח", "בוס", "יד2"] as const;
 const TONE_OPTIONS = ["עדין", "ישיר", "זורם", "מצחיק", "פלרטטני"] as const;
 const CONTINUE_PREFERENCE_OPTIONS = ["כן", "לא"] as const;
 const REPLY_ACTION_OPTIONS = ["softer", "sharper", "retry"] as const;
@@ -220,27 +220,27 @@ export async function generateRepliesWithModelSource(
   if (noReplyMode) {
     if (imageUrl) {
       throw new AIRequestError(
-        'In no-reply mode you should send text context only (no screenshot).',
+        'במצב "מחכה לתשובה" אפשר לשלוח טקסט בלבד, בלי צילום מסך.',
         400,
       );
     }
 
     if (!lastOutgoingMessage) {
       throw new AIRequestError(
-        'לא קיבלתי את ההודעה האחרונה ששלחת במצב "לא ענו הרבה זמן".',
+        'לא קיבלתי את ההודעה האחרונה ששלחת במצב "מחכה לתשובה".',
         400,
       );
     }
 
     if (!noReplyDurationUnit || !noReplyDurationValue) {
       throw new AIRequestError(
-        'במצב "לא ענו הרבה זמן" חייבים לציין כמה זמן לא ענו (מספר + יחידה).',
+        'במצב "מחכה לתשובה" חייבים לציין כמה זמן מחכים לתגובה (מספר + יחידה).',
         400,
       );
     }
   } else if (!message && !imageUrl) {
     throw new AIRequestError(
-      "Provide either a message or a screenshot.",
+      "צריך לשלוח הודעה או צילום מסך.",
       400,
     );
   }
@@ -291,7 +291,7 @@ export async function generateRepliesWithModelSource(
 
   if (!apiKey) {
     throw new AIRequestError(
-      "OPENAI_API_KEY is not configured on the server.",
+      "כרגע אי אפשר ליצור תשובות. נסו שוב בעוד רגע.",
       500,
     );
   }
@@ -321,7 +321,7 @@ export async function generateRepliesWithModelSource(
       throw error;
     }
 
-    throw new AIRequestError("OpenAI request failed.", 502);
+    throw new AIRequestError("לא הצלחנו ליצור תשובות כרגע. נסו שוב.", 502);
   }
 }
 
@@ -402,7 +402,7 @@ async function generateRepliesViaOpenAI({
     const upstreamMessage = payload.error?.message?.trim();
     const status = mapOpenAIErrorStatus(response.status);
     throw new AIRequestError(
-      upstreamMessage || "OpenAI request failed.",
+      upstreamMessage || "לא הצלחנו ליצור תשובות כרגע. נסו שוב.",
       status,
     );
   }
@@ -410,7 +410,7 @@ async function generateRepliesViaOpenAI({
   const outputText = extractOutputText(payload);
 
   if (!outputText) {
-    throw new AIRequestError("OpenAI returned an empty response.", 502);
+    throw new AIRequestError("לא התקבלה תשובה. נסו שוב.", 502);
   }
 
   let parsed: unknown;
@@ -418,7 +418,7 @@ async function generateRepliesViaOpenAI({
   try {
     parsed = JSON.parse(outputText);
   } catch {
-    throw new AIRequestError("OpenAI returned invalid JSON.", 502);
+    throw new AIRequestError("לא הצלחנו לקרוא את התשובה. נסו שוב.", 502);
   }
 
   return validateResponseShape(parsed);
@@ -799,7 +799,7 @@ function normalizeOptionalText(
   }
 
   if (normalized.length > maxLength) {
-    throw new AIRequestError(`Text input is too long. Max ${maxLength} characters.`, 400);
+    throw new AIRequestError(`הטקסט ארוך מדי. אפשר עד ${maxLength} תווים.`, 400);
   }
 
   return normalized;
@@ -814,7 +814,7 @@ function normalizeContext(value?: string): ContextOption | undefined {
     return value as ContextOption;
   }
 
-  throw new AIRequestError("Invalid context value.", 400);
+  throw new AIRequestError("הסיטואציה שנבחרה לא תקינה.", 400);
 }
 
 function normalizeTone(value?: string): ToneOption | undefined {
@@ -826,7 +826,7 @@ function normalizeTone(value?: string): ToneOption | undefined {
     return value as ToneOption;
   }
 
-  throw new AIRequestError("Invalid tone value.", 400);
+  throw new AIRequestError("הסגנון שנבחר לא תקין.", 400);
 }
 
 function normalizeContinuePreference(
@@ -837,14 +837,14 @@ function normalizeContinuePreference(
   }
 
   if (typeof value !== "string") {
-    throw new AIRequestError("Invalid continue preference value.", 400);
+    throw new AIRequestError("בחירת ההסכמה לא תקינה.", 400);
   }
 
   if ((CONTINUE_PREFERENCE_OPTIONS as readonly string[]).includes(value)) {
     return value as ContinuePreferenceOption;
   }
 
-  throw new AIRequestError("Invalid continue preference value.", 400);
+  throw new AIRequestError("בחירת ההסכמה לא תקינה.", 400);
 }
 
 function normalizeNoReplyMode(value?: boolean): boolean {
@@ -853,7 +853,7 @@ function normalizeNoReplyMode(value?: boolean): boolean {
   }
 
   if (typeof value !== "boolean") {
-    throw new AIRequestError("Invalid no-reply mode value.", 400);
+    throw new AIRequestError("מצב הכתיבה לא תקין.", 400);
   }
 
   return value;
@@ -871,7 +871,7 @@ function normalizeNoReplyDurationValue(value?: number): number | undefined {
     value > MAX_NO_REPLY_DURATION_VALUE
   ) {
     throw new AIRequestError(
-      `Invalid no-reply duration value. Use an integer between 1 and ${MAX_NO_REPLY_DURATION_VALUE}.`,
+      `משך הזמן לא תקין. הזינו מספר שלם בין 1 ל-${MAX_NO_REPLY_DURATION_VALUE}.`,
       400,
     );
   }
@@ -888,7 +888,7 @@ function normalizeNoReplyDurationUnit(value?: string): NoReplyDurationUnit | und
     return value as NoReplyDurationUnit;
   }
 
-  throw new AIRequestError("Invalid no-reply duration unit value.", 400);
+  throw new AIRequestError("יחידת הזמן לא תקינה.", 400);
 }
 
 function normalizeAction(value?: string): ReplyActionOption | undefined {
@@ -900,7 +900,7 @@ function normalizeAction(value?: string): ReplyActionOption | undefined {
     return value as ReplyActionOption;
   }
 
-  throw new AIRequestError("Invalid action value.", 400);
+  throw new AIRequestError("פעולת השיפור לא תקינה.", 400);
 }
 
 function buildRefineInstruction({
@@ -953,7 +953,7 @@ function normalizeImage(value?: string): string | undefined {
   }
 
   if (normalized.length > MAX_IMAGE_LENGTH) {
-    throw new AIRequestError("Image payload is too large.", 413);
+    throw new AIRequestError("התמונה גדולה מדי.", 413);
   }
 
   if (normalized.startsWith("data:image/")) {
@@ -961,7 +961,7 @@ function normalizeImage(value?: string): string | undefined {
   }
 
   if (!/^[A-Za-z0-9+/=\s]+$/.test(normalized)) {
-    throw new AIRequestError("Image payload must be base64 or a data URL.", 400);
+    throw new AIRequestError("פורמט התמונה לא תקין.", 400);
   }
 
   return `data:image/png;base64,${normalized.replace(/\s+/g, "")}`;
@@ -1009,23 +1009,23 @@ function extractOutputText(payload: OpenAIResponsePayload): string | undefined {
 
 function validateResponseShape(value: unknown): GenerateRepliesResult {
   if (!value || typeof value !== "object") {
-    throw new AIRequestError("OpenAI returned an invalid response shape.", 502);
+    throw new AIRequestError("לא הצלחנו לבנות תשובות תקינות. נסו שוב.", 502);
   }
 
   const intent = Reflect.get(value, "intent");
   const replies = Reflect.get(value, "replies");
 
   if (typeof intent !== "string" || !intent.trim()) {
-    throw new AIRequestError("OpenAI returned an invalid intent.", 502);
+    throw new AIRequestError("לא הצלחנו לבנות תשובות תקינות. נסו שוב.", 502);
   }
 
   if (!Array.isArray(replies) || replies.length !== 3) {
-    throw new AIRequestError("OpenAI returned an invalid replies array.", 502);
+    throw new AIRequestError("לא הצלחנו לבנות 3 תשובות תקינות. נסו שוב.", 502);
   }
 
   const normalizedReplies = replies.map((reply) => {
     if (typeof reply !== "string" || !reply.trim()) {
-      throw new AIRequestError("OpenAI returned an invalid reply option.", 502);
+      throw new AIRequestError("אחת מהתשובות לא תקינה. נסו שוב.", 502);
     }
 
     return reply.trim();

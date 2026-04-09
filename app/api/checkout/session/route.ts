@@ -38,7 +38,7 @@ export async function GET(request: Request) {
   if (isBillingBypassEnabled()) {
     return json(
       {
-        error: "Checkout is temporarily disabled.",
+        error: "התשלום לא זמין כרגע.",
       },
       503,
     );
@@ -74,7 +74,7 @@ export async function GET(request: Request) {
   if (!sessionId) {
     return json(
       {
-        error: "session_id is required.",
+        error: "פרטי התשלום לא זוהו. נסו שוב.",
       },
       400,
     );
@@ -83,7 +83,7 @@ export async function GET(request: Request) {
   if (!CHECKOUT_SESSION_ID_PATTERN.test(sessionId)) {
     return json(
       {
-        error: "session_id format is invalid.",
+        error: "פרטי התשלום לא תקינים. נסו שוב.",
       },
       400,
     );
@@ -102,7 +102,7 @@ export async function GET(request: Request) {
     if (!sessionUserId || sessionUserId !== authenticatedUser.uid) {
       return json(
         {
-          error: "Checkout session does not belong to the authenticated user.",
+          error: "הגישה לפרטי התשלום נחסמה.",
         },
         403,
       );
@@ -167,7 +167,7 @@ export async function GET(request: Request) {
 
     return json(
       {
-        error: "Unable to load checkout session right now.",
+        error: "לא הצלחנו לטעון את מצב התשלום כרגע. נסו שוב בעוד רגע.",
       },
       500,
     );
@@ -267,7 +267,7 @@ async function enforceRateLimits(request: Request, uid: string) {
     if (!userRateLimit.allowed) {
       return json(
         {
-          error: "Too many checkout status checks. Please wait and try again.",
+          error: "בוצעו יותר מדי בדיקות תשלום. נסו שוב בעוד כמה שניות.",
         },
         429,
         {
@@ -291,7 +291,7 @@ async function enforceRateLimits(request: Request, uid: string) {
     if (!ipRateLimit.allowed) {
       return json(
         {
-          error: "Too many checkout status checks from this network. Please wait and try again.",
+          error: "בוצעו יותר מדי בדיקות תשלום מהרשת הזו. נסו שוב בעוד כמה שניות.",
         },
         429,
         {

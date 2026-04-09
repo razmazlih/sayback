@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   if (!signature) {
     return Response.json(
       {
-        error: "Missing Stripe signature.",
+        error: "חסרה חתימת אבטחה.",
       },
       {
         status: 400,
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return Response.json(
       {
-        error: error instanceof Error ? error.message : "Invalid Stripe webhook signature.",
+        error: error instanceof Error ? error.message : "חתימת האבטחה לא תקינה.",
       },
       {
         status: 400,
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
 
     return Response.json(
       {
-        error: "Unable to process Stripe webhook right now.",
+        error: "לא הצלחנו לעבד את הודעת התשלום כרגע.",
       },
       {
         status: 500,
@@ -223,7 +223,7 @@ export async function POST(request: Request) {
 
     return Response.json(
       {
-        error: "Unable to process Stripe webhook right now.",
+        error: "לא הצלחנו לעבד את הודעת התשלום כרגע.",
       },
       {
         status: 500,
