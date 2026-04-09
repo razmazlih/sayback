@@ -3303,8 +3303,8 @@ export default function Home({
 
               {!isNoReplyMode ? (
                 <ChipGroup
-                  title="מסכים/ה עם מה שנאמר?"
-                  description="רק אם רלוונטי לשיחה: להמשיך את הכיוון או לעצור."
+                  title="להמשיך באותו כיוון?"
+                  description="אופציונלי: עוזר לנו לדייק אם לזרום עם המסר או לעצור."
                   options={continuePreferenceOptions}
                   value={continuePreference}
                   onChange={(nextValue) => {
@@ -3314,7 +3314,7 @@ export default function Home({
                   helperText={
                     continuePreference
                       ? 'מעולה, שמרנו את הבחירה שלך. אפשר לשנות בכל רגע.'
-                      : 'לא חייבים לבחור כאן כדי להמשיך.'
+                      : 'אופציונלי לגמרי, אפשר להמשיך גם בלי לבחור.'
                   }
                   optional
                   allowEmpty
