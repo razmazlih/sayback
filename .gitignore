@@ -42,3 +42,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# instagram campaign (local artifacts only)
+marketing/instagram/outputs/prism-campaign-v1/
+marketing/instagram/scripts/export-instagram-campaign.cjs
+marketing/instagram/scripts/qa-instagram-campaign.cjs
+marketing/instagram/templates/sayback-instagram-prism-campaign-v1.html
