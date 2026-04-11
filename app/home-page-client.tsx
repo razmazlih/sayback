@@ -24,8 +24,30 @@ import {
   CREDIT_PACK_PRICE_LABEL,
 } from '@/lib/pricing';
 
-type ContextOption = 'קראש' | 'אקס' | 'ידיד' | 'לקוח' | 'בוס' | 'יד2';
-type ToneOption = 'עדין' | 'ישיר' | 'זורם' | 'מצחיק' | 'פלרטטני';
+type ContextOption =
+  | 'קראש'
+  | 'אקס'
+  | 'ידיד'
+  | 'לקוח'
+  | 'בוס'
+  | 'יד2'
+  | 'בן/בת זוג'
+  | 'דייט'
+  | 'קולגה'
+  | 'משפחה'
+  | 'שותף/ה לדירה'
+  | 'שכנים';
+type ToneOption =
+  | 'עדין'
+  | 'ישיר'
+  | 'זורם'
+  | 'מצחיק'
+  | 'פלרטטני'
+  | 'אסרטיבי'
+  | 'רגוע'
+  | 'רשמי'
+  | 'קליל'
+  | 'ענייני';
 type ContinuePreference = 'כן' | 'לא';
 type ComposeMode = 'incoming' | 'no_reply';
 type NoReplyDurationUnit = 'minutes' | 'hours' | 'days';
@@ -158,8 +180,32 @@ const QUERY_PARAM_MAX_LENGTH = {
   agrees: 8,
 } as const;
 
-const contextOptions: ContextOption[] = ['קראש', 'אקס', 'ידיד', 'לקוח', 'בוס', 'יד2'];
-const toneOptions: ToneOption[] = ['עדין', 'ישיר', 'זורם', 'מצחיק', 'פלרטטני'];
+const contextOptions: ContextOption[] = [
+  'קראש',
+  'אקס',
+  'ידיד',
+  'לקוח',
+  'בוס',
+  'יד2',
+  'בן/בת זוג',
+  'דייט',
+  'קולגה',
+  'משפחה',
+  'שותף/ה לדירה',
+  'שכנים',
+];
+const toneOptions: ToneOption[] = [
+  'עדין',
+  'ישיר',
+  'זורם',
+  'מצחיק',
+  'פלרטטני',
+  'אסרטיבי',
+  'רגוע',
+  'רשמי',
+  'קליל',
+  'ענייני',
+];
 const continuePreferenceOptions: ContinuePreference[] = ['כן', 'לא'];
 const composeModeOptions: Array<{ value: ComposeMode; label: string; description: string }> = [
   {
@@ -283,6 +329,19 @@ const contextAliases: Record<string, ContextOption> = {
   boss: 'בוס',
   יד2: 'יד2',
   yad2: 'יד2',
+  'בן/בת זוג': 'בן/בת זוג',
+  partner: 'בן/בת זוג',
+  דייט: 'דייט',
+  date: 'דייט',
+  קולגה: 'קולגה',
+  colleague: 'קולגה',
+  משפחה: 'משפחה',
+  family: 'משפחה',
+  'שותף/ה לדירה': 'שותף/ה לדירה',
+  roommate: 'שותף/ה לדירה',
+  שכנים: 'שכנים',
+  neighbors: 'שכנים',
+  neighbours: 'שכנים',
 };
 const toneAliases: Record<string, ToneOption> = {
   עדין: 'עדין',
@@ -295,6 +354,17 @@ const toneAliases: Record<string, ToneOption> = {
   funny: 'מצחיק',
   פלרטטני: 'פלרטטני',
   flirty: 'פלרטטני',
+  אסרטיבי: 'אסרטיבי',
+  assertive: 'אסרטיבי',
+  רגוע: 'רגוע',
+  calm: 'רגוע',
+  רשמי: 'רשמי',
+  formal: 'רשמי',
+  קליל: 'קליל',
+  casual: 'קליל',
+  ענייני: 'ענייני',
+  business: 'ענייני',
+  matteroffact: 'ענייני',
 };
 const continuePreferenceAliases: Record<string, ContinuePreference> = {
   כן: 'כן',
@@ -439,17 +509,22 @@ function isTypingFieldElement(element: Element | null) {
   );
 }
 
-function getVisualViewportBottomInset() {
+function getVisualViewportBottomInset(baselineViewportHeight = 0) {
   const visualViewport = window.visualViewport;
   if (!visualViewport) {
     return 0;
   }
 
-  const layoutViewportHeight = Math.max(window.innerHeight, document.documentElement.clientHeight);
-  const viewportHeightDelta = Math.max(0, Math.ceil(layoutViewportHeight - visualViewport.height));
-  const shouldCompensateForKeyboard = isTypingFieldElement(document.activeElement) && viewportHeightDelta > 120;
+  const currentViewportHeight = visualViewport.height;
+  const effectiveBaselineHeight = Math.max(baselineViewportHeight, currentViewportHeight);
+  const layoutDelta = Math.max(0, Math.ceil(window.innerHeight - currentViewportHeight));
+  const baselineDelta = Math.max(0, Math.ceil(effectiveBaselineHeight - currentViewportHeight));
+  const obscuredBottomInset = Math.max(layoutDelta, baselineDelta);
+  const maxReasonableKeyboardInset = Math.floor(effectiveBaselineHeight * 0.72);
+  const keyboardInset = Math.min(obscuredBottomInset, maxReasonableKeyboardInset);
+  const shouldCompensateForKeyboard = keyboardInset > 56;
 
-  return shouldCompensateForKeyboard ? viewportHeightDelta : 0;
+  return shouldCompensateForKeyboard ? keyboardInset : 0;
 }
 
 function getPreferredScrollBehavior(): ScrollBehavior {
@@ -539,6 +614,8 @@ function ChipGroup<T extends string>({
   helperText,
   optional = false,
   allowEmpty = false,
+  primaryVisibleCount,
+  moreOptionsLabel = 'עוד אפשרויות',
 }: {
   title: string;
   description?: string;
@@ -548,8 +625,136 @@ function ChipGroup<T extends string>({
   helperText?: string;
   optional?: boolean;
   allowEmpty?: boolean;
+  primaryVisibleCount?: number;
+  moreOptionsLabel?: string;
 }) {
   const hasSelection = value !== null;
+  const normalizedPrimaryVisibleCount = Math.min(
+    Math.max(primaryVisibleCount ?? options.length, 1),
+    options.length,
+  );
+  const primaryOptions = options.slice(0, normalizedPrimaryVisibleCount);
+  const extraOptions = options.slice(normalizedPrimaryVisibleCount);
+  const hasMoreOptions = extraOptions.length > 0;
+  const selectedFromMoreOptions = Boolean(value && extraOptions.includes(value));
+  const moreOptionsDialogTitleId = useId();
+  const moreOptionsDialogDescriptionId = useId();
+  const [isMoreOptionsDialogOpen, setIsMoreOptionsDialogOpen] = useState(false);
+  const [isMoreOptionsDialogClosing, setIsMoreOptionsDialogClosing] = useState(false);
+  const [moreOptionsSearchTerm, setMoreOptionsSearchTerm] = useState('');
+  const closeMoreOptionsDialogTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const openMoreOptionsDialog = () => {
+    if (closeMoreOptionsDialogTimerRef.current !== null) {
+      clearTimeout(closeMoreOptionsDialogTimerRef.current);
+      closeMoreOptionsDialogTimerRef.current = null;
+    }
+
+    setMoreOptionsSearchTerm('');
+    setIsMoreOptionsDialogClosing(false);
+    setIsMoreOptionsDialogOpen(true);
+  };
+
+  const closeMoreOptionsDialog = useCallback(() => {
+    if (!isMoreOptionsDialogOpen || isMoreOptionsDialogClosing) {
+      return;
+    }
+
+    setIsMoreOptionsDialogClosing(true);
+
+    if (closeMoreOptionsDialogTimerRef.current !== null) {
+      clearTimeout(closeMoreOptionsDialogTimerRef.current);
+    }
+
+    closeMoreOptionsDialogTimerRef.current = setTimeout(() => {
+      setIsMoreOptionsDialogOpen(false);
+      setIsMoreOptionsDialogClosing(false);
+      closeMoreOptionsDialogTimerRef.current = null;
+    }, 190);
+  }, [isMoreOptionsDialogClosing, isMoreOptionsDialogOpen]);
+
+  const filteredMoreOptions = useMemo(() => {
+    const normalizedSearchTerm = moreOptionsSearchTerm.trim().toLowerCase();
+
+    if (!normalizedSearchTerm) {
+      return options;
+    }
+
+    return options.filter((option) => option.toLowerCase().includes(normalizedSearchTerm));
+  }, [options, moreOptionsSearchTerm]);
+
+  useEffect(() => {
+    if (!isMoreOptionsDialogOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const previousTouchAction = document.body.style.touchAction;
+
+    document.body.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.touchAction = previousTouchAction;
+    };
+  }, [isMoreOptionsDialogOpen]);
+
+  useEffect(() => {
+    if (!isMoreOptionsDialogOpen) {
+      return;
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeMoreOptionsDialog();
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => {
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [closeMoreOptionsDialog, isMoreOptionsDialogOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (closeMoreOptionsDialogTimerRef.current !== null) {
+        clearTimeout(closeMoreOptionsDialogTimerRef.current);
+      }
+    };
+  }, []);
+
+  const renderOption = (option: T, mode: 'inline' | 'dialog' = 'inline') => {
+    const isSelected = option === value;
+    const shouldCloseDialogOnSelect = mode === 'dialog';
+
+    return (
+      <button
+        key={option}
+        type="button"
+        aria-pressed={isSelected}
+        onClick={() => {
+          onChange(allowEmpty && isSelected ? null : option);
+
+          if (shouldCloseDialogOnSelect) {
+            closeMoreOptionsDialog();
+          }
+        }}
+        className={[
+          `w-full rounded-full border-2 px-3.5 py-2 font-bold transition duration-150 touch-manipulation ${whiteSurfaceFocusClass}`,
+          mode === 'dialog'
+            ? 'min-h-[44px] text-sm sm:w-auto'
+            : 'min-h-[40px] text-sm sm:min-h-[42px] sm:w-auto',
+          isSelected
+            ? 'border-black bg-[#111111] text-[#f7ff4f] shadow-[0_6px_0_0_#ff623d]'
+            : 'border-black bg-[#fffdf8] text-black hover:-translate-y-0.5 hover:bg-[#fff8da]',
+        ].join(' ')}
+      >
+        {option}
+      </button>
+    );
+  };
 
   return (
     <section className="w-full min-w-0 rounded-[22px] border-2 border-black bg-white p-3 shadow-[0_4px_0_0_#111111] sm:p-3.5">
@@ -581,31 +786,128 @@ function ChipGroup<T extends string>({
         <p className="mt-1 hidden text-xs font-bold leading-5 text-neutral-700 md:block">{description}</p>
       ) : null}
 
-      <div className="mt-2 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-        {options.map((option) => {
-          const isSelected = option === value;
+      <div className="mt-2 space-y-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          {primaryOptions.map((option) => renderOption(option, 'inline'))}
+        </div>
 
-          return (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={isSelected}
-              onClick={() => onChange(allowEmpty && isSelected ? null : option)}
-              className={[
-                `min-h-[40px] w-full rounded-full border-2 px-3.5 py-2 text-sm font-bold transition duration-150 touch-manipulation sm:min-h-[42px] sm:w-auto ${whiteSurfaceFocusClass}`,
-                isSelected
-                  ? 'border-black bg-[#111111] text-[#f7ff4f] shadow-[0_6px_0_0_#ff623d]'
-                  : 'border-black bg-[#fffdf8] text-black hover:-translate-y-0.5 hover:bg-[#fff8da]',
-              ].join(' ')}
-            >
-              {option}
-            </button>
-          );
-        })}
+        {hasMoreOptions ? (
+          <div className="overflow-hidden rounded-[18px] border-2 border-black bg-gradient-to-l from-[#d7f9ff] via-[#fff6d8] to-[#fff2bf] p-2 shadow-[0_3px_0_0_#111111]">
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
+              <button
+                type="button"
+                onClick={openMoreOptionsDialog}
+                className={`inline-flex min-h-[36px] items-center gap-2 rounded-full border-2 border-black bg-[#111111] px-3.5 py-1.5 text-xs font-black text-[#f7ff4f] shadow-[0_4px_0_0_#ff623d] transition hover:-translate-y-0.5 ${whiteSurfaceFocusClass}`}
+              >
+                <span>{moreOptionsLabel}</span>
+                <span className="rounded-full border border-black bg-white px-1.5 py-0.5 text-[0.62rem] text-black">
+                  +{extraOptions.length}
+                </span>
+              </button>
+
+              {selectedFromMoreOptions && value ? (
+                <span className="rounded-full border-2 border-black bg-white px-2.5 py-1 text-xs font-black text-black">
+                  נבחר מתוך עוד: {value}
+                </span>
+              ) : (
+                <span className="text-xs font-black text-neutral-800">
+                  עוד {extraOptions.length} אפשרויות זמינות בלחיצה
+                </span>
+              )}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {helperText ? (
         <p className="mt-1 hidden text-xs font-bold leading-5 text-neutral-600 md:block">{helperText}</p>
+      ) : null}
+
+      {hasMoreOptions && isMoreOptionsDialogOpen ? (
+        <div
+          className={[
+            'fixed inset-0 z-[120] flex items-end justify-center sm:items-center',
+            isMoreOptionsDialogClosing
+              ? 'pointer-events-none motion-safe:animate-[sb-fade-out_190ms_ease-in_forwards]'
+              : 'motion-safe:animate-[sb-fade-in_200ms_ease-out]',
+          ].join(' ')}
+        >
+          <button
+            type="button"
+            aria-label="סגירה"
+            onClick={closeMoreOptionsDialog}
+            className="absolute inset-0 bg-black/60 backdrop-blur-[1px]"
+          />
+
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={moreOptionsDialogTitleId}
+            aria-describedby={moreOptionsDialogDescriptionId}
+            className={[
+              'relative z-[121] flex max-h-[88vh] w-full flex-col overflow-hidden rounded-t-[28px] border-2 border-black bg-white shadow-[0_-8px_0_0_#111111] sm:max-h-[84vh] sm:max-w-2xl sm:rounded-[28px] sm:shadow-[0_10px_0_0_#111111]',
+              isMoreOptionsDialogClosing
+                ? 'motion-safe:animate-[sb-paywall-out_190ms_ease-in_forwards]'
+                : 'motion-safe:animate-[sb-paywall-in_240ms_ease-out]',
+            ].join(' ')}
+          >
+            <div className="flex items-start justify-between gap-3 border-b-2 border-black bg-[#fff6d8] px-4 py-3">
+              <div className="space-y-1">
+                <p id={moreOptionsDialogTitleId} className="text-base font-black text-black sm:text-lg">
+                  {title}: בחירה מורחבת
+                </p>
+                <p id={moreOptionsDialogDescriptionId} className="text-xs font-bold text-neutral-700 sm:text-sm">
+                  בחרו בנוחות את האופציה שמתאימה בדיוק. לחיצה על אופציה סוגרת ושומרת בחירה.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeMoreOptionsDialog}
+                className={`inline-flex min-h-[38px] items-center justify-center rounded-full border-2 border-black bg-white px-3 text-xs font-black text-black transition hover:bg-[#fff8da] ${whiteSurfaceFocusClass}`}
+              >
+                סגור
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              <div className="space-y-3">
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-black text-neutral-800">חיפוש מהיר</span>
+                  <input
+                    type="text"
+                    value={moreOptionsSearchTerm}
+                    onChange={(event) => setMoreOptionsSearchTerm(event.target.value)}
+                    placeholder="הקלידו כדי לסנן אפשרויות..."
+                    className={`min-h-[44px] w-full rounded-full border-2 border-black bg-[#fffdf8] px-4 py-2 text-sm font-bold text-black outline-none transition placeholder:text-neutral-500 focus:bg-white ${whiteSurfaceFocusClass}`}
+                  />
+                </label>
+
+                {allowEmpty && hasSelection ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange(null);
+                      closeMoreOptionsDialog();
+                    }}
+                    className={`inline-flex min-h-[40px] items-center justify-center rounded-full border-2 border-black bg-[#f8f4ed] px-3.5 py-2 text-xs font-black text-neutral-800 transition hover:bg-[#efe8dd] ${whiteSurfaceFocusClass}`}
+                  >
+                    לנקות בחירה
+                  </button>
+                ) : null}
+
+                {filteredMoreOptions.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap">
+                    {filteredMoreOptions.map((option) => renderOption(option, 'dialog'))}
+                  </div>
+                ) : (
+                  <p className="rounded-2xl border-2 border-black bg-[#fff6d8] px-4 py-3 text-sm font-bold text-neutral-800">
+                    לא נמצאו תוצאות לחיפוש הזה.
+                  </p>
+                )}
+              </div>
+            </div>
+          </section>
+        </div>
       ) : null}
     </section>
   );
@@ -683,7 +985,7 @@ function ReplyCard({
           {copied ? 'הועתק' : 'העתק'}
         </button>
 
-        <details className="group min-w-0 flex-1 rounded-[20px] border-2 border-dashed border-black bg-[#fff6d8] open:bg-[#fff2bf] sm:min-w-[11rem]">
+        <details className="group min-w-0 flex-1 rounded-[20px] border-2 border-dashed border-black bg-[#fff6d8] transition-colors duration-200 open:bg-[#fff2bf] sm:min-w-[11rem]">
           <summary
             className={`flex min-h-[42px] cursor-pointer list-none items-center justify-between gap-2 px-3.5 py-2 text-right text-sm font-black text-black marker:content-none ${whiteSurfaceFocusClass}`}
           >
@@ -691,31 +993,35 @@ function ReplyCard({
             <span className="text-xs transition-transform duration-200 group-open:rotate-180">⌄</span>
           </summary>
 
-          <div className="flex flex-wrap gap-1.5 px-2.5 pb-2.5">
-            <button
-              type="button"
-              onClick={() => onAdjust(index, 'softer')}
-              disabled={isBusy}
-              className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-[#d7f9ff] px-3.5 py-2 leading-5 text-black transition hover:bg-[#b8f2ff] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
-            >
-              עדין יותר
-            </button>
-            <button
-              type="button"
-              onClick={() => onAdjust(index, 'sharper')}
-              disabled={isBusy}
-              className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-[#ffd6ce] px-3.5 py-2 leading-5 text-black transition hover:bg-[#ffc5b8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
-            >
-              חד יותר
-            </button>
-            <button
-              type="button"
-              onClick={() => onAdjust(index, 'retry')}
-              disabled={isBusy}
-              className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-white px-3.5 py-2 leading-5 text-black transition hover:bg-[#f5f5f5] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
-            >
-              ניסוח חדש
-            </button>
+          <div className="sb-accordion-content">
+            <div className="sb-accordion-content-inner">
+              <div className="flex flex-wrap gap-1.5 px-2.5 pb-2.5 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => onAdjust(index, 'softer')}
+                  disabled={isBusy}
+                  className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-[#d7f9ff] px-3.5 py-2 leading-5 text-black transition hover:bg-[#b8f2ff] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                >
+                  עדין יותר
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAdjust(index, 'sharper')}
+                  disabled={isBusy}
+                  className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-[#ffd6ce] px-3.5 py-2 leading-5 text-black transition hover:bg-[#ffc5b8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                >
+                  חד יותר
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAdjust(index, 'retry')}
+                  disabled={isBusy}
+                  className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-white px-3.5 py-2 leading-5 text-black transition hover:bg-[#f5f5f5] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                >
+                  ניסוח חדש
+                </button>
+              </div>
+            </div>
           </div>
         </details>
       </div>
@@ -1103,7 +1409,7 @@ function PaywallModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 motion-safe:animate-[sb-fade-in_220ms_ease-out] sm:items-center sm:p-4"
       onClick={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
@@ -1117,7 +1423,7 @@ function PaywallModal({
         aria-modal="true"
         aria-labelledby="paywall-title"
         aria-describedby="paywall-description"
-        className="max-h-[88svh] w-full max-w-md overflow-y-auto rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_10px_0_0_#111111] sm:rounded-[32px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]"
+        className="max-h-[88svh] w-full max-w-md overflow-y-auto rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_10px_0_0_#111111] motion-safe:animate-[sb-paywall-in_260ms_ease-out] sm:rounded-[32px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -1309,6 +1615,8 @@ export default function Home({
   const hasTrackedBillingStatusViewRef = useRef(false);
   const mobileNavSuppressUntilRef = useRef(0);
   const lastMobileNavClickAtRef = useRef(0);
+  const mobileKeyboardCloseTimeoutRef = useRef<number | null>(null);
+  const isMobileKeyboardOpenRef = useRef(false);
   const [composeMode, setComposeMode] = useState<ComposeMode>('incoming');
   const [message, setMessage] = useState('');
   const [lastOutgoingMessage, setLastOutgoingMessage] = useState('');
@@ -1357,8 +1665,11 @@ export default function Home({
   );
   const [activeMobileSection, setActiveMobileSection] = useState<MobileNavSectionId>('compose');
   const [mobileNavHeight, setMobileNavHeight] = useState(0);
+  const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
+  const [isMobileKeyboardOpen, setIsMobileKeyboardOpen] = useState(false);
   const authRecoveryPromiseRef = useRef<Promise<void> | null>(null);
   const authTokenPromiseRef = useRef<Promise<string> | null>(null);
+  const visualViewportBaselineHeightRef = useRef(0);
   const isGeneratorPrimaryMode = mode === 'generator';
   const mobileNavItems = isGeneratorPrimaryMode
     ? mobileSectionNavItems.filter((item) => item.id !== 'examples')
@@ -2066,47 +2377,119 @@ export default function Home({
   }, [showPaywall]);
 
   useEffect(() => {
+    const clearKeyboardCloseTimeout = () => {
+      if (mobileKeyboardCloseTimeoutRef.current !== null) {
+        window.clearTimeout(mobileKeyboardCloseTimeoutRef.current);
+        mobileKeyboardCloseTimeoutRef.current = null;
+      }
+    };
+
+    const setKeyboardOpenState = (nextIsOpen: boolean) => {
+      if (isMobileKeyboardOpenRef.current === nextIsOpen) {
+        return;
+      }
+
+      isMobileKeyboardOpenRef.current = nextIsOpen;
+      setIsMobileKeyboardOpen(nextIsOpen);
+    };
+
     if (showPaywall) {
+      clearKeyboardCloseTimeout();
+      setKeyboardOpenState(false);
       setMobileNavHeight(0);
+      setMobileKeyboardInset(0);
+      visualViewportBaselineHeightRef.current = 0;
       return undefined;
     }
 
     const navElement = mobileNavRef.current;
     if (!navElement) {
+      clearKeyboardCloseTimeout();
+      setKeyboardOpenState(false);
       setMobileNavHeight(0);
+      setMobileKeyboardInset(0);
+      visualViewportBaselineHeightRef.current = 0;
       return undefined;
     }
 
     let frameId: number | null = null;
-    let lastAppliedTransform = '';
 
     const syncMobileNavHeight = () => {
       const navDisplay = window.getComputedStyle(navElement).display;
+      const isCompact = isCompactViewport();
+      const visualViewport = window.visualViewport;
+
+      if (!isCompact) {
+        clearKeyboardCloseTimeout();
+        setKeyboardOpenState(false);
+        visualViewportBaselineHeightRef.current = 0;
+        setMobileKeyboardInset(0);
+
+        const nextHeight =
+          navDisplay === 'none'
+            ? 0
+            : Math.ceil(navElement.getBoundingClientRect().height);
+
+        setMobileNavHeight((currentHeight) =>
+          currentHeight === nextHeight ? currentHeight : nextHeight,
+        );
+        return;
+      }
+
+      if (visualViewport) {
+        if (visualViewportBaselineHeightRef.current === 0) {
+          visualViewportBaselineHeightRef.current = visualViewport.height;
+        }
+
+        // Keep baseline stable while keyboard is closed. This avoids jitter while dragging.
+        if (!isMobileKeyboardOpenRef.current) {
+          visualViewportBaselineHeightRef.current = Math.max(
+            visualViewportBaselineHeightRef.current,
+            visualViewport.height,
+          );
+        }
+      }
+
+      const isTypingFocus = isTypingFieldElement(document.activeElement);
+
+      const keyboardInset = getVisualViewportBottomInset(visualViewportBaselineHeightRef.current);
+      const isKeyboardOpenByViewport = keyboardInset > 0;
+      const shouldLockKeyboardOpen = isTypingFocus || isKeyboardOpenByViewport;
+
+      setMobileKeyboardInset((currentInset) => {
+        if (keyboardInset > 0) {
+          return currentInset === keyboardInset ? currentInset : keyboardInset;
+        }
+
+        // Keep last non-zero inset while keyboard lock is still active.
+        if (shouldLockKeyboardOpen) {
+          return currentInset;
+        }
+
+        return currentInset === 0 ? currentInset : 0;
+      });
+
+      if (shouldLockKeyboardOpen) {
+        clearKeyboardCloseTimeout();
+        setKeyboardOpenState(true);
+      } else if (isMobileKeyboardOpenRef.current && mobileKeyboardCloseTimeoutRef.current === null) {
+        // Delay close to avoid false negatives from iOS viewport jitter while dragging.
+        mobileKeyboardCloseTimeoutRef.current = window.setTimeout(() => {
+          mobileKeyboardCloseTimeoutRef.current = null;
+          setKeyboardOpenState(false);
+          setMobileKeyboardInset((currentInset) => (currentInset === 0 ? currentInset : 0));
+        }, 900);
+      }
+
+      const shouldHideMobileNav = shouldLockKeyboardOpen || isMobileKeyboardOpenRef.current;
       const nextHeight =
-        navDisplay === 'none' ? 0 : Math.ceil(navElement.getBoundingClientRect().height);
+        navDisplay === 'none' || shouldHideMobileNav
+          ? 0
+          : Math.ceil(navElement.getBoundingClientRect().height);
 
       setMobileNavHeight((currentHeight) =>
         currentHeight === nextHeight ? currentHeight : nextHeight,
       );
-
-      if (!isCompactViewport() || navDisplay === 'none') {
-        if (lastAppliedTransform) {
-          navElement.style.transform = '';
-          lastAppliedTransform = '';
-        }
-        return;
-      }
-
-      const viewportBottomInset = getVisualViewportBottomInset();
-      const nextTransform =
-        viewportBottomInset > 0
-          ? `translate3d(0, -${viewportBottomInset}px, 0)`
-          : 'translate3d(0, 0, 0)';
-
-      if (lastAppliedTransform !== nextTransform) {
-        navElement.style.transform = nextTransform;
-        lastAppliedTransform = nextTransform;
-      }
     };
 
     const scheduleSync = () => {
@@ -2120,11 +2503,25 @@ export default function Home({
       });
     };
 
-    navElement.style.willChange = 'transform';
+    const handleOrientationChange = () => {
+      visualViewportBaselineHeightRef.current = 0;
+      scheduleSync();
+    };
+
+    const handleFocusIn = (event: FocusEvent) => {
+      if (isCompactViewport() && isTypingFieldElement(event.target as Element | null)) {
+        clearKeyboardCloseTimeout();
+        setKeyboardOpenState(true);
+      }
+
+      scheduleSync();
+    };
+
     syncMobileNavHeight();
+    window.addEventListener('scroll', scheduleSync, { passive: true });
     window.addEventListener('resize', scheduleSync);
-    window.addEventListener('orientationchange', scheduleSync);
-    document.addEventListener('focusin', scheduleSync);
+    window.addEventListener('orientationchange', handleOrientationChange);
+    document.addEventListener('focusin', handleFocusIn);
     document.addEventListener('focusout', scheduleSync);
 
     const visualViewport = window.visualViewport;
@@ -2136,9 +2533,10 @@ export default function Home({
 
     if (typeof ResizeObserver === 'undefined') {
       return () => {
+        window.removeEventListener('scroll', scheduleSync);
         window.removeEventListener('resize', scheduleSync);
-        window.removeEventListener('orientationchange', scheduleSync);
-        document.removeEventListener('focusin', scheduleSync);
+        window.removeEventListener('orientationchange', handleOrientationChange);
+        document.removeEventListener('focusin', handleFocusIn);
         document.removeEventListener('focusout', scheduleSync);
 
         if (visualViewport) {
@@ -2146,8 +2544,7 @@ export default function Home({
           visualViewport.removeEventListener('scroll', scheduleSync);
         }
 
-        navElement.style.willChange = '';
-        navElement.style.transform = '';
+        clearKeyboardCloseTimeout();
 
         if (frameId !== null) {
           window.cancelAnimationFrame(frameId);
@@ -2160,9 +2557,10 @@ export default function Home({
 
     return () => {
       resizeObserver.disconnect();
+      window.removeEventListener('scroll', scheduleSync);
       window.removeEventListener('resize', scheduleSync);
-      window.removeEventListener('orientationchange', scheduleSync);
-      document.removeEventListener('focusin', scheduleSync);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      document.removeEventListener('focusin', handleFocusIn);
       document.removeEventListener('focusout', scheduleSync);
 
       if (visualViewport) {
@@ -2170,14 +2568,22 @@ export default function Home({
         visualViewport.removeEventListener('scroll', scheduleSync);
       }
 
-      navElement.style.willChange = '';
-      navElement.style.transform = '';
+      clearKeyboardCloseTimeout();
 
       if (frameId !== null) {
         window.cancelAnimationFrame(frameId);
       }
     };
   }, [showPaywall]);
+
+  const handleDismissKeyboard = useCallback(() => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
+    messageInputRef.current?.blur();
+    lastOutgoingInputRef.current?.blur();
+  }, []);
 
   useEffect(() => {
     if (!isCompactViewport()) {
@@ -3104,7 +3510,7 @@ export default function Home({
               </div>
 
               {isNoReplyMode ? (
-                <div className="space-y-4 rounded-[24px] border-2 border-black bg-[#f8f4ed] p-4">
+                <div className="space-y-4 rounded-[24px] border-2 border-black bg-[#f8f4ed] p-4 motion-safe:animate-[sb-paywall-in_220ms_ease-out]">
                   <div>
                     <label htmlFor="last-outgoing-message" className="text-sm font-black text-neutral-900">
                       מה כתבתי בהודעה האחרונה?
@@ -3179,7 +3585,7 @@ export default function Home({
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4 rounded-[24px] border-2 border-black bg-[#f8f4ed] p-4">
+                <div className="space-y-4 rounded-[24px] border-2 border-black bg-[#f8f4ed] p-4 motion-safe:animate-[sb-paywall-in_220ms_ease-out]">
                   <div className="flex flex-col items-start justify-between gap-3 min-[430px]:flex-row min-[430px]:items-center">
                     <div>
                       <label htmlFor="incoming-message" className="text-sm font-black text-neutral-900">
@@ -3243,33 +3649,37 @@ export default function Home({
                 </div>
               )}
 
-              <details className="group rounded-[22px] border-2 border-dashed border-black bg-[#fff6d8] open:bg-[#fff2bf]">
+              <details className="group rounded-[22px] border-2 border-dashed border-black bg-[#fff6d8] transition-colors duration-200 open:bg-[#fff2bf]">
                 <summary
                   className={`flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-black text-black marker:content-none ${lightSurfaceFocusClass}`}
                 >
                   <span>רקע שיחה נוסף (אופציונלי)</span>
                   <span className="text-xs transition-transform duration-200 group-open:rotate-180">⌄</span>
                 </summary>
-                <div className="space-y-2 px-3 pb-3">
-                  <p className="text-xs font-bold text-neutral-700">
-                    פרטים קצרים שיעזרו לדייק את הניסוח (למשל: מה היה לפני כן בשיחה).
-                  </p>
-                  <textarea
-                    id="conversation-background"
-                    value={conversationBackground}
-                    onChange={(event) =>
-                      setConversationBackground(
-                        event.target.value.slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH),
-                      )
-                    }
-                    placeholder='למשל: "דיברנו כמה ימים ואז השיחה נעצרה"'
-                    maxLength={MAX_CONVERSATION_BACKGROUND_LENGTH}
-                    className={`min-h-24 w-full rounded-[18px] border-2 border-black bg-white px-3 py-3 text-sm font-medium leading-6 text-black outline-none transition placeholder:text-neutral-400 focus:bg-[#fffdf6] ${lightSurfaceFocusClass}`}
-                  />
-                  <p className="text-xs font-bold text-neutral-700">
-                    עד {MAX_CONVERSATION_BACKGROUND_LENGTH} תווים ({conversationBackgroundLength}/
-                    {MAX_CONVERSATION_BACKGROUND_LENGTH}).
-                  </p>
+                <div className="sb-accordion-content">
+                  <div className="sb-accordion-content-inner">
+                    <div className="space-y-2 px-3 pb-3 pt-0.5">
+                      <p className="text-xs font-bold text-neutral-700">
+                        פרטים קצרים שיעזרו לדייק את הניסוח (למשל: מה היה לפני כן בשיחה).
+                      </p>
+                      <textarea
+                        id="conversation-background"
+                        value={conversationBackground}
+                        onChange={(event) =>
+                          setConversationBackground(
+                            event.target.value.slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH),
+                          )
+                        }
+                        placeholder='למשל: "דיברנו כמה ימים ואז השיחה נעצרה"'
+                        maxLength={MAX_CONVERSATION_BACKGROUND_LENGTH}
+                        className={`min-h-24 w-full rounded-[18px] border-2 border-black bg-white px-3 py-3 text-sm font-medium leading-6 text-black outline-none transition placeholder:text-neutral-400 focus:bg-[#fffdf6] ${lightSurfaceFocusClass}`}
+                      />
+                      <p className="text-xs font-bold text-neutral-700">
+                        עד {MAX_CONVERSATION_BACKGROUND_LENGTH} תווים ({conversationBackgroundLength}/
+                        {MAX_CONVERSATION_BACKGROUND_LENGTH}).
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </details>
             </div>
@@ -3279,6 +3689,8 @@ export default function Home({
                 title="מה המצב?"
                 description="נבין את הסיטואציה כדי לנסח תשובה שמתאימה לך."
                 options={contextOptions}
+                primaryVisibleCount={6}
+                moreOptionsLabel="עוד סיטואציות"
                 value={context}
                 onChange={(nextValue) => {
                   if (nextValue) {
@@ -3292,6 +3704,8 @@ export default function Home({
                 title="איך תרצו לענות?"
                 description="בחרו את הווייב שתרצו לשדר בתשובה."
                 options={toneOptions}
+                primaryVisibleCount={5}
+                moreOptionsLabel="עוד וייבים"
                 value={tone}
                 onChange={(nextValue) => {
                   if (nextValue) {
@@ -3645,6 +4059,7 @@ export default function Home({
         <div
           ref={mobileNavRef}
           className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-black bg-[#fff9ef]/95 backdrop-blur sm:hidden"
+          style={isMobileKeyboardOpen ? { display: 'none' } : undefined}
         >
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-2.5 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
             {shouldShowMobileStickyGenerate ? (
@@ -3699,6 +4114,21 @@ export default function Home({
               </div>
             ) : null}
           </div>
+        </div>
+      ) : null}
+
+      {!showPaywall && isMobileKeyboardOpen ? (
+        <div
+          className="fixed inset-x-0 z-50 flex justify-center px-3 sm:hidden"
+          style={{ bottom: `calc(${mobileKeyboardInset}px + env(safe-area-inset-bottom) + 0.5rem)` }}
+        >
+          <button
+            type="button"
+            onClick={handleDismissKeyboard}
+            className={`min-h-[44px] rounded-full border-2 border-black bg-[#111111] px-4 py-2 text-sm font-black text-[#f7ff4f] shadow-[0_4px_0_0_#111111] ${darkSurfaceFocusClass}`}
+          >
+            סגור מקלדת
+          </button>
         </div>
       ) : null}
 

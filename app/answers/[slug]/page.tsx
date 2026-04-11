@@ -136,12 +136,17 @@ export default async function SeoAnswerDetailPage({
             {page.faq.map((item) => (
               <details
                 key={item.question}
-                className="rounded-[18px] border-2 border-black bg-[#fff9ef] px-4 py-3"
+                className="group rounded-[18px] border-2 border-black bg-[#fff9ef] px-4 py-3 transition-colors duration-200 open:bg-[#fff2bf]"
               >
-                <summary className="cursor-pointer text-sm font-black leading-6 text-black">
-                  {item.question}
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-black leading-6 text-black marker:content-none">
+                  <span>{item.question}</span>
+                  <span className="text-xs transition-transform duration-200 group-open:rotate-180">⌄</span>
                 </summary>
-                <p className="mt-2 text-sm font-bold leading-6 text-neutral-700">{item.answer}</p>
+                <div className="sb-accordion-content">
+                  <div className="sb-accordion-content-inner">
+                    <p className="mt-2 text-sm font-bold leading-6 text-neutral-700">{item.answer}</p>
+                  </div>
+                </div>
               </details>
             ))}
           </div>
