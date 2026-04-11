@@ -248,6 +248,105 @@ const quickStartSteps = [
 ] as const;
 type HomePageClientMode = 'generator' | 'full';
 
+type ScrollLockSnapshot = {
+  scrollY: number;
+  htmlOverflow: string;
+  htmlOverscrollBehavior: string;
+  bodyOverflow: string;
+  bodyPosition: string;
+  bodyTop: string;
+  bodyLeft: string;
+  bodyRight: string;
+  bodyWidth: string;
+  bodyTouchAction: string;
+  bodyOverscrollBehavior: string;
+};
+
+let activeDocumentScrollLocks = 0;
+let documentScrollLockSnapshot: ScrollLockSnapshot | null = null;
+
+function acquireDocumentScrollLock() {
+  if (typeof window === 'undefined') {
+    return () => {};
+  }
+
+  const htmlElement = document.documentElement;
+  const bodyElement = document.body;
+
+  if (activeDocumentScrollLocks === 0) {
+    const scrollY = window.scrollY;
+
+    documentScrollLockSnapshot = {
+      scrollY,
+      htmlOverflow: htmlElement.style.overflow,
+      htmlOverscrollBehavior: htmlElement.style.overscrollBehavior,
+      bodyOverflow: bodyElement.style.overflow,
+      bodyPosition: bodyElement.style.position,
+      bodyTop: bodyElement.style.top,
+      bodyLeft: bodyElement.style.left,
+      bodyRight: bodyElement.style.right,
+      bodyWidth: bodyElement.style.width,
+      bodyTouchAction: bodyElement.style.touchAction,
+      bodyOverscrollBehavior: bodyElement.style.overscrollBehavior,
+    };
+
+    htmlElement.style.overflow = 'hidden';
+    htmlElement.style.overscrollBehavior = 'none';
+    bodyElement.style.overflow = 'hidden';
+    bodyElement.style.position = 'fixed';
+    bodyElement.style.top = `-${scrollY}px`;
+    bodyElement.style.left = '0';
+    bodyElement.style.right = '0';
+    bodyElement.style.width = '100%';
+    bodyElement.style.touchAction = 'none';
+    bodyElement.style.overscrollBehavior = 'none';
+  }
+
+  activeDocumentScrollLocks += 1;
+
+  return () => {
+    if (activeDocumentScrollLocks === 0) {
+      return;
+    }
+
+    activeDocumentScrollLocks -= 1;
+
+    if (activeDocumentScrollLocks !== 0) {
+      return;
+    }
+
+    if (!documentScrollLockSnapshot) {
+      return;
+    }
+
+    const snapshot = documentScrollLockSnapshot;
+    documentScrollLockSnapshot = null;
+
+    htmlElement.style.overflow = snapshot.htmlOverflow;
+    htmlElement.style.overscrollBehavior = snapshot.htmlOverscrollBehavior;
+    bodyElement.style.overflow = snapshot.bodyOverflow;
+    bodyElement.style.position = snapshot.bodyPosition;
+    bodyElement.style.top = snapshot.bodyTop;
+    bodyElement.style.left = snapshot.bodyLeft;
+    bodyElement.style.right = snapshot.bodyRight;
+    bodyElement.style.width = snapshot.bodyWidth;
+    bodyElement.style.touchAction = snapshot.bodyTouchAction;
+    bodyElement.style.overscrollBehavior = snapshot.bodyOverscrollBehavior;
+
+    window.scrollTo({ top: snapshot.scrollY, left: 0, behavior: 'auto' });
+  };
+}
+
+function useDocumentScrollLock(isLocked: boolean) {
+  useEffect(() => {
+    if (!isLocked) {
+      return undefined;
+    }
+
+    return acquireDocumentScrollLock();
+  }, [isLocked]);
+}
+
 const examples: ExampleScenario[] = [
   {
     id: 'crush-comeback',
@@ -501,32 +600,6 @@ function isCompactViewport() {
   return window.matchMedia('(max-width: 1023px)').matches;
 }
 
-function isTypingFieldElement(element: Element | null) {
-  return (
-    element instanceof HTMLInputElement ||
-    element instanceof HTMLTextAreaElement ||
-    (element instanceof HTMLElement && element.isContentEditable)
-  );
-}
-
-function getVisualViewportBottomInset(baselineViewportHeight = 0) {
-  const visualViewport = window.visualViewport;
-  if (!visualViewport) {
-    return 0;
-  }
-
-  const currentViewportHeight = visualViewport.height;
-  const effectiveBaselineHeight = Math.max(baselineViewportHeight, currentViewportHeight);
-  const layoutDelta = Math.max(0, Math.ceil(window.innerHeight - currentViewportHeight));
-  const baselineDelta = Math.max(0, Math.ceil(effectiveBaselineHeight - currentViewportHeight));
-  const obscuredBottomInset = Math.max(layoutDelta, baselineDelta);
-  const maxReasonableKeyboardInset = Math.floor(effectiveBaselineHeight * 0.72);
-  const keyboardInset = Math.min(obscuredBottomInset, maxReasonableKeyboardInset);
-  const shouldCompensateForKeyboard = keyboardInset > 56;
-
-  return shouldCompensateForKeyboard ? keyboardInset : 0;
-}
-
 function getPreferredScrollBehavior(): ScrollBehavior {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
 }
@@ -683,22 +756,7 @@ function ChipGroup<T extends string>({
     return options.filter((option) => option.toLowerCase().includes(normalizedSearchTerm));
   }, [options, moreOptionsSearchTerm]);
 
-  useEffect(() => {
-    if (!isMoreOptionsDialogOpen) {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    const previousTouchAction = document.body.style.touchAction;
-
-    document.body.style.overflow = 'hidden';
-    document.body.style.touchAction = 'none';
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.body.style.touchAction = previousTouchAction;
-    };
-  }, [isMoreOptionsDialogOpen]);
+  useDocumentScrollLock(isMoreOptionsDialogOpen);
 
   useEffect(() => {
     if (!isMoreOptionsDialogOpen) {
@@ -1606,17 +1664,12 @@ export default function Home({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const lastOutgoingInputRef = useRef<HTMLTextAreaElement | null>(null);
-  const mobileNavRef = useRef<HTMLDivElement | null>(null);
   const composeSectionRef = useRef<HTMLDivElement | null>(null);
   const resultsSectionRef = useRef<HTMLDivElement | null>(null);
   const examplesSectionRef = useRef<HTMLElement | null>(null);
   const plansSectionRef = useRef<HTMLElement | null>(null);
   const hasTrackedQuotaBadgeViewRef = useRef(false);
   const hasTrackedBillingStatusViewRef = useRef(false);
-  const mobileNavSuppressUntilRef = useRef(0);
-  const lastMobileNavClickAtRef = useRef(0);
-  const mobileKeyboardCloseTimeoutRef = useRef<number | null>(null);
-  const isMobileKeyboardOpenRef = useRef(false);
   const [composeMode, setComposeMode] = useState<ComposeMode>('incoming');
   const [message, setMessage] = useState('');
   const [lastOutgoingMessage, setLastOutgoingMessage] = useState('');
@@ -1663,17 +1716,9 @@ export default function Home({
   const [billingBypassEnabled, setBillingBypassEnabled] = useState(
     BILLING_BYPASS_FALLBACK_ENABLED,
   );
-  const [activeMobileSection, setActiveMobileSection] = useState<MobileNavSectionId>('compose');
-  const [mobileNavHeight, setMobileNavHeight] = useState(0);
-  const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
-  const [isMobileKeyboardOpen, setIsMobileKeyboardOpen] = useState(false);
   const authRecoveryPromiseRef = useRef<Promise<void> | null>(null);
   const authTokenPromiseRef = useRef<Promise<string> | null>(null);
-  const visualViewportBaselineHeightRef = useRef(0);
   const isGeneratorPrimaryMode = mode === 'generator';
-  const mobileNavItems = isGeneratorPrimaryMode
-    ? mobileSectionNavItems.filter((item) => item.id !== 'examples')
-    : mobileSectionNavItems;
 
   const hasUnlimitedAccess = billingBypassEnabled || paidPlan === 'unlimited_monthly';
   const hasCreditBalance = paidCredits > 0;
@@ -1684,15 +1729,9 @@ export default function Home({
   );
   const isGenerating = isLoading || busyReplyIndex !== null;
   const isNoReplyMode = composeMode === 'no_reply';
-  const hasMessageContent = message.trim().length > 0;
   const messageLength = message.length;
-  const hasLastOutgoingContent = lastOutgoingMessage.trim().length > 0;
   const lastOutgoingMessageLength = lastOutgoingMessage.length;
   const conversationBackgroundLength = conversationBackground.length;
-  const hasPrimaryInputContent = isNoReplyMode ? hasLastOutgoingContent : hasMessageContent;
-  const hasRequiredSelections = Boolean(context) && Boolean(tone);
-  const shouldShowMobileStickyGenerate =
-    isSessionReady && hasPrimaryInputContent && hasRequiredSelections && !isGenerating;
   const generateButtonLabel = 'קבלו מה לענות עכשיו';
   const heroGenerateCtaLabel = 'קבלו מה לענות עכשיו';
   const billingStatusLine = billingBypassEnabled
@@ -1781,22 +1820,7 @@ export default function Home({
         return;
       }
 
-      const source = options?.source ?? 'system';
-      const now = Date.now();
-      let behavior = options?.behavior ?? getPreferredScrollBehavior();
-
-      if (source === 'navigation') {
-        if (now - lastMobileNavClickAtRef.current < 280) {
-          behavior = 'auto';
-        }
-
-        lastMobileNavClickAtRef.current = now;
-        mobileNavSuppressUntilRef.current = now + 450;
-      }
-
-      if (section !== 'plans') {
-        setActiveMobileSection(section);
-      }
+      const behavior = options?.behavior ?? getPreferredScrollBehavior();
       sectionElement.scrollIntoView({
         behavior,
         block: 'start',
@@ -2359,299 +2383,7 @@ export default function Home({
     });
   }, [accessState, dailyFreeRemaining, freeUsed, showPaywall, totalFreeRemaining]);
 
-  useEffect(() => {
-    if (!showPaywall) {
-      return undefined;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    const previousTouchAction = document.body.style.touchAction;
-
-    document.body.style.overflow = 'hidden';
-    document.body.style.touchAction = 'none';
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.body.style.touchAction = previousTouchAction;
-    };
-  }, [showPaywall]);
-
-  useEffect(() => {
-    const clearKeyboardCloseTimeout = () => {
-      if (mobileKeyboardCloseTimeoutRef.current !== null) {
-        window.clearTimeout(mobileKeyboardCloseTimeoutRef.current);
-        mobileKeyboardCloseTimeoutRef.current = null;
-      }
-    };
-
-    const setKeyboardOpenState = (nextIsOpen: boolean) => {
-      if (isMobileKeyboardOpenRef.current === nextIsOpen) {
-        return;
-      }
-
-      isMobileKeyboardOpenRef.current = nextIsOpen;
-      setIsMobileKeyboardOpen(nextIsOpen);
-    };
-
-    if (showPaywall) {
-      clearKeyboardCloseTimeout();
-      setKeyboardOpenState(false);
-      setMobileNavHeight(0);
-      setMobileKeyboardInset(0);
-      visualViewportBaselineHeightRef.current = 0;
-      return undefined;
-    }
-
-    const navElement = mobileNavRef.current;
-    if (!navElement) {
-      clearKeyboardCloseTimeout();
-      setKeyboardOpenState(false);
-      setMobileNavHeight(0);
-      setMobileKeyboardInset(0);
-      visualViewportBaselineHeightRef.current = 0;
-      return undefined;
-    }
-
-    let frameId: number | null = null;
-
-    const syncMobileNavHeight = () => {
-      const navDisplay = window.getComputedStyle(navElement).display;
-      const isCompact = isCompactViewport();
-      const visualViewport = window.visualViewport;
-
-      if (!isCompact) {
-        clearKeyboardCloseTimeout();
-        setKeyboardOpenState(false);
-        visualViewportBaselineHeightRef.current = 0;
-        setMobileKeyboardInset(0);
-
-        const nextHeight =
-          navDisplay === 'none'
-            ? 0
-            : Math.ceil(navElement.getBoundingClientRect().height);
-
-        setMobileNavHeight((currentHeight) =>
-          currentHeight === nextHeight ? currentHeight : nextHeight,
-        );
-        return;
-      }
-
-      if (visualViewport) {
-        if (visualViewportBaselineHeightRef.current === 0) {
-          visualViewportBaselineHeightRef.current = visualViewport.height;
-        }
-
-        // Keep baseline stable while keyboard is closed. This avoids jitter while dragging.
-        if (!isMobileKeyboardOpenRef.current) {
-          visualViewportBaselineHeightRef.current = Math.max(
-            visualViewportBaselineHeightRef.current,
-            visualViewport.height,
-          );
-        }
-      }
-
-      const isTypingFocus = isTypingFieldElement(document.activeElement);
-
-      const keyboardInset = getVisualViewportBottomInset(visualViewportBaselineHeightRef.current);
-      const isKeyboardOpenByViewport = keyboardInset > 0;
-      const shouldLockKeyboardOpen = isTypingFocus || isKeyboardOpenByViewport;
-
-      setMobileKeyboardInset((currentInset) => {
-        if (keyboardInset > 0) {
-          return currentInset === keyboardInset ? currentInset : keyboardInset;
-        }
-
-        // Keep last non-zero inset while keyboard lock is still active.
-        if (shouldLockKeyboardOpen) {
-          return currentInset;
-        }
-
-        return currentInset === 0 ? currentInset : 0;
-      });
-
-      if (shouldLockKeyboardOpen) {
-        clearKeyboardCloseTimeout();
-        setKeyboardOpenState(true);
-      } else if (isMobileKeyboardOpenRef.current && mobileKeyboardCloseTimeoutRef.current === null) {
-        // Delay close to avoid false negatives from iOS viewport jitter while dragging.
-        mobileKeyboardCloseTimeoutRef.current = window.setTimeout(() => {
-          mobileKeyboardCloseTimeoutRef.current = null;
-          setKeyboardOpenState(false);
-          setMobileKeyboardInset((currentInset) => (currentInset === 0 ? currentInset : 0));
-        }, 900);
-      }
-
-      const shouldHideMobileNav = shouldLockKeyboardOpen || isMobileKeyboardOpenRef.current;
-      const nextHeight =
-        navDisplay === 'none' || shouldHideMobileNav
-          ? 0
-          : Math.ceil(navElement.getBoundingClientRect().height);
-
-      setMobileNavHeight((currentHeight) =>
-        currentHeight === nextHeight ? currentHeight : nextHeight,
-      );
-    };
-
-    const scheduleSync = () => {
-      if (frameId !== null) {
-        return;
-      }
-
-      frameId = window.requestAnimationFrame(() => {
-        frameId = null;
-        syncMobileNavHeight();
-      });
-    };
-
-    const handleOrientationChange = () => {
-      visualViewportBaselineHeightRef.current = 0;
-      scheduleSync();
-    };
-
-    const handleFocusIn = (event: FocusEvent) => {
-      if (isCompactViewport() && isTypingFieldElement(event.target as Element | null)) {
-        clearKeyboardCloseTimeout();
-        setKeyboardOpenState(true);
-      }
-
-      scheduleSync();
-    };
-
-    syncMobileNavHeight();
-    window.addEventListener('scroll', scheduleSync, { passive: true });
-    window.addEventListener('resize', scheduleSync);
-    window.addEventListener('orientationchange', handleOrientationChange);
-    document.addEventListener('focusin', handleFocusIn);
-    document.addEventListener('focusout', scheduleSync);
-
-    const visualViewport = window.visualViewport;
-
-    if (visualViewport) {
-      visualViewport.addEventListener('resize', scheduleSync);
-      visualViewport.addEventListener('scroll', scheduleSync);
-    }
-
-    if (typeof ResizeObserver === 'undefined') {
-      return () => {
-        window.removeEventListener('scroll', scheduleSync);
-        window.removeEventListener('resize', scheduleSync);
-        window.removeEventListener('orientationchange', handleOrientationChange);
-        document.removeEventListener('focusin', handleFocusIn);
-        document.removeEventListener('focusout', scheduleSync);
-
-        if (visualViewport) {
-          visualViewport.removeEventListener('resize', scheduleSync);
-          visualViewport.removeEventListener('scroll', scheduleSync);
-        }
-
-        clearKeyboardCloseTimeout();
-
-        if (frameId !== null) {
-          window.cancelAnimationFrame(frameId);
-        }
-      };
-    }
-
-    const resizeObserver = new ResizeObserver(scheduleSync);
-    resizeObserver.observe(navElement);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener('scroll', scheduleSync);
-      window.removeEventListener('resize', scheduleSync);
-      window.removeEventListener('orientationchange', handleOrientationChange);
-      document.removeEventListener('focusin', handleFocusIn);
-      document.removeEventListener('focusout', scheduleSync);
-
-      if (visualViewport) {
-        visualViewport.removeEventListener('resize', scheduleSync);
-        visualViewport.removeEventListener('scroll', scheduleSync);
-      }
-
-      clearKeyboardCloseTimeout();
-
-      if (frameId !== null) {
-        window.cancelAnimationFrame(frameId);
-      }
-    };
-  }, [showPaywall]);
-
-  const handleDismissKeyboard = useCallback(() => {
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
-
-    messageInputRef.current?.blur();
-    lastOutgoingInputRef.current?.blur();
-  }, []);
-
-  useEffect(() => {
-    if (!isCompactViewport()) {
-      return undefined;
-    }
-
-    const sections: Array<{ id: MobileNavSectionId; element: HTMLElement | null }> = [
-      { id: 'compose', element: composeSectionRef.current },
-      { id: 'results', element: resultsSectionRef.current },
-      { id: 'examples', element: examplesSectionRef.current },
-    ];
-
-    const availableSections = sections.filter(
-      (section): section is { id: MobileNavSectionId; element: HTMLElement } =>
-        section.element instanceof HTMLElement,
-    );
-
-    if (availableSections.length === 0) {
-      return undefined;
-    }
-
-    let frameId: number | null = null;
-
-    const syncActiveSectionFromScroll = () => {
-      frameId = null;
-
-      if (Date.now() < mobileNavSuppressUntilRef.current) {
-        return;
-      }
-
-      const probeY = window.innerHeight * 0.38;
-      let nearestSection: MobileNavSectionId = availableSections[0].id;
-      let nearestDistance = Number.POSITIVE_INFINITY;
-
-      availableSections.forEach((section) => {
-        const distance = Math.abs(section.element.getBoundingClientRect().top - probeY);
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-          nearestSection = section.id;
-        }
-      });
-
-      setActiveMobileSection((currentSection) =>
-        currentSection === nearestSection ? currentSection : nearestSection,
-      );
-    };
-
-    const handleScroll = () => {
-      if (frameId !== null) {
-        return;
-      }
-
-      frameId = window.requestAnimationFrame(syncActiveSectionFromScroll);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('resize', handleScroll);
-    handleScroll();
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleScroll);
-
-      if (frameId !== null) {
-        window.cancelAnimationFrame(frameId);
-      }
-    };
-  }, []);
+  useDocumentScrollLock(showPaywall);
 
   function closePaywall() {
     setShowPaywall(false);
@@ -3291,7 +3023,6 @@ export default function Home({
     <main
       dir="rtl"
       className="min-h-screen overflow-x-clip bg-[#111111] px-3 pb-0 pt-3 text-right text-black sm:px-6 sm:py-6 sm:pb-6"
-      style={mobileNavHeight > 0 ? { paddingBottom: `${mobileNavHeight}px` } : undefined}
     >
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-5">
         {isGeneratorPrimaryMode ? (
@@ -4054,83 +3785,6 @@ export default function Home({
           </div>
         </footer>
       </div>
-
-      {!showPaywall ? (
-        <div
-          ref={mobileNavRef}
-          className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-black bg-[#fff9ef]/95 backdrop-blur sm:hidden"
-          style={isMobileKeyboardOpen ? { display: 'none' } : undefined}
-        >
-          <div className="mx-auto flex w-full max-w-6xl flex-col gap-2.5 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-            {shouldShowMobileStickyGenerate ? (
-              <div className="rounded-[20px] border-2 border-black bg-[#111111] p-2.5 shadow-[0_6px_0_0_#111111]">
-                <button
-                  type="button"
-                  onClick={handleMainSubmit}
-                  className={`inline-flex min-h-[48px] w-full items-center justify-center rounded-[16px] border-2 border-black bg-gradient-to-b from-[#ff7a56] to-[#ff623d] px-4 py-2.5 text-sm font-black text-white ${darkSurfaceFocusClass}`}
-                >
-                  {generateButtonLabel}
-                </button>
-              </div>
-            ) : null}
-
-            <nav
-              aria-label="ניווט מהיר במובייל"
-              className="grid gap-2"
-              style={{ gridTemplateColumns: `repeat(${mobileNavItems.length}, minmax(0, 1fr))` }}
-            >
-              {mobileNavItems.map((item) => {
-                const isActive = activeMobileSection === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() =>
-                      scrollToMobileSection(item.id, { source: 'navigation' })
-                    }
-                    aria-pressed={isActive}
-                    className={[
-                      `min-h-[40px] rounded-[14px] border-2 px-2 py-1.5 text-center text-[0.68rem] font-black leading-4 transition touch-manipulation ${lightSurfaceFocusClass}`,
-                      isActive
-                        ? 'border-black bg-[#111111] text-[#f7ff4f]'
-                        : 'border-black bg-white text-black',
-                    ].join(' ')}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-            </nav>
-
-            {result ? (
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => scrollToMobileSection('results', { source: 'navigation' })}
-                  className={`min-h-[44px] rounded-full border-2 border-black bg-[#d7f9ff] px-3 py-1.5 text-[0.72rem] font-black text-black ${lightSurfaceFocusClass}`}
-                >
-                  לתוצאות
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      {!showPaywall && isMobileKeyboardOpen ? (
-        <div
-          className="fixed inset-x-0 z-50 flex justify-center px-3 sm:hidden"
-          style={{ bottom: `calc(${mobileKeyboardInset}px + env(safe-area-inset-bottom) + 0.5rem)` }}
-        >
-          <button
-            type="button"
-            onClick={handleDismissKeyboard}
-            className={`min-h-[44px] rounded-full border-2 border-black bg-[#111111] px-4 py-2 text-sm font-black text-[#f7ff4f] shadow-[0_4px_0_0_#111111] ${darkSurfaceFocusClass}`}
-          >
-            סגור מקלדת
-          </button>
-        </div>
-      ) : null}
 
       {!billingBypassEnabled ? (
         <PaywallModal
