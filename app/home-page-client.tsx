@@ -171,6 +171,16 @@ const UNLIMITED_PLAN_COPY = {
   body: 'כמה תשובות שרוצים לאורך כל החודש',
   cta: 'לפתוח ללא הגבלה',
 } as const;
+const MONTHLY_LOCK_COPY = {
+  context: {
+    title: 'הסיטואציות המורחבות שמורות למסלול החודשי',
+    body: 'אפשר לעבור עליהן כאן, ולפתוח בחירה בפועל עם מנוי ללא הגבלה חודשי.',
+  },
+  tone: {
+    title: 'הווייבים המורחבים נפתחים במסלול החודשי',
+    body: 'כל הווייבים מוצגים כדי להתרשם. כדי להשתמש בוייבים המתקדמים צריך מנוי חודשי.',
+  },
+} as const;
 const DEEP_LINK_PREFILL_BANNER_TEXT = 'מילאנו לך התחלה. אפשר לערוך לפני שמייצרים.';
 const QUERY_PARAM_MAX_LENGTH = {
   example: 64,
@@ -206,6 +216,10 @@ const toneOptions: ToneOption[] = [
   'קליל',
   'ענייני',
 ];
+const CONTEXT_PRIMARY_VISIBLE_COUNT = 6;
+const TONE_PRIMARY_VISIBLE_COUNT = 5;
+const monthlyOnlyContextOptions = contextOptions.slice(CONTEXT_PRIMARY_VISIBLE_COUNT);
+const monthlyOnlyToneOptions = toneOptions.slice(TONE_PRIMARY_VISIBLE_COUNT);
 const continuePreferenceOptions: ContinuePreference[] = ['כן', 'לא'];
 const composeModeOptions: Array<{ value: ComposeMode; label: string; description: string }> = [
   {
@@ -689,6 +703,14 @@ function ChipGroup<T extends string>({
   allowEmpty = false,
   primaryVisibleCount,
   moreOptionsLabel = 'עוד אפשרויות',
+  lockedOptions = [],
+  lockedOptionsPreviewLabel = 'פרימיום',
+  lockedOptionsHint,
+  lockedOptionsNoticeTitle,
+  lockedOptionsNoticeBody,
+  lockedOptionsNoticeCta = 'לפתוח ללא הגבלה חודשי',
+  showMoreOptionsSearch = true,
+  onLockedOptionsNoticeCtaClick,
 }: {
   title: string;
   description?: string;
@@ -700,6 +722,14 @@ function ChipGroup<T extends string>({
   allowEmpty?: boolean;
   primaryVisibleCount?: number;
   moreOptionsLabel?: string;
+  lockedOptions?: readonly T[];
+  lockedOptionsPreviewLabel?: string;
+  lockedOptionsHint?: string;
+  lockedOptionsNoticeTitle?: string;
+  lockedOptionsNoticeBody?: string;
+  lockedOptionsNoticeCta?: string;
+  showMoreOptionsSearch?: boolean;
+  onLockedOptionsNoticeCtaClick?: () => void;
 }) {
   const hasSelection = value !== null;
   const normalizedPrimaryVisibleCount = Math.min(
@@ -710,11 +740,18 @@ function ChipGroup<T extends string>({
   const extraOptions = options.slice(normalizedPrimaryVisibleCount);
   const hasMoreOptions = extraOptions.length > 0;
   const selectedFromMoreOptions = Boolean(value && extraOptions.includes(value));
+  const hasLockedOptions = lockedOptions.length > 0;
+  const lockedOptionsSet = useMemo(() => new Set(lockedOptions), [lockedOptions]);
+  const lockedExtraOptionsCount = useMemo(
+    () => extraOptions.filter((option) => lockedOptionsSet.has(option)).length,
+    [extraOptions, lockedOptionsSet],
+  );
   const moreOptionsDialogTitleId = useId();
   const moreOptionsDialogDescriptionId = useId();
   const [isMoreOptionsDialogOpen, setIsMoreOptionsDialogOpen] = useState(false);
   const [isMoreOptionsDialogClosing, setIsMoreOptionsDialogClosing] = useState(false);
   const [moreOptionsSearchTerm, setMoreOptionsSearchTerm] = useState('');
+  const [showLockedOptionsNotice, setShowLockedOptionsNotice] = useState(false);
   const closeMoreOptionsDialogTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const openMoreOptionsDialog = () => {
@@ -723,6 +760,7 @@ function ChipGroup<T extends string>({
       closeMoreOptionsDialogTimerRef.current = null;
     }
 
+    setShowLockedOptionsNotice(false);
     setMoreOptionsSearchTerm('');
     setIsMoreOptionsDialogClosing(false);
     setIsMoreOptionsDialogOpen(true);
@@ -746,7 +784,21 @@ function ChipGroup<T extends string>({
     }, 190);
   }, [isMoreOptionsDialogClosing, isMoreOptionsDialogOpen]);
 
+  const closeMoreOptionsDialogImmediately = useCallback(() => {
+    if (closeMoreOptionsDialogTimerRef.current !== null) {
+      clearTimeout(closeMoreOptionsDialogTimerRef.current);
+      closeMoreOptionsDialogTimerRef.current = null;
+    }
+
+    setIsMoreOptionsDialogClosing(false);
+    setIsMoreOptionsDialogOpen(false);
+  }, []);
+
   const filteredMoreOptions = useMemo(() => {
+    if (!showMoreOptionsSearch) {
+      return options;
+    }
+
     const normalizedSearchTerm = moreOptionsSearchTerm.trim().toLowerCase();
 
     if (!normalizedSearchTerm) {
@@ -754,7 +806,7 @@ function ChipGroup<T extends string>({
     }
 
     return options.filter((option) => option.toLowerCase().includes(normalizedSearchTerm));
-  }, [options, moreOptionsSearchTerm]);
+  }, [options, moreOptionsSearchTerm, showMoreOptionsSearch]);
 
   useDocumentScrollLock(isMoreOptionsDialogOpen);
 
@@ -785,6 +837,7 @@ function ChipGroup<T extends string>({
 
   const renderOption = (option: T, mode: 'inline' | 'dialog' = 'inline') => {
     const isSelected = option === value;
+    const isLockedOption = lockedOptionsSet.has(option);
     const shouldCloseDialogOnSelect = mode === 'dialog';
 
     return (
@@ -792,7 +845,13 @@ function ChipGroup<T extends string>({
         key={option}
         type="button"
         aria-pressed={isSelected}
+        aria-disabled={isLockedOption}
         onClick={() => {
+          if (isLockedOption) {
+            setShowLockedOptionsNotice(true);
+            return;
+          }
+
           onChange(allowEmpty && isSelected ? null : option);
 
           if (shouldCloseDialogOnSelect) {
@@ -804,12 +863,21 @@ function ChipGroup<T extends string>({
           mode === 'dialog'
             ? 'min-h-[44px] text-sm sm:w-auto'
             : 'min-h-[40px] text-sm sm:min-h-[42px] sm:w-auto',
-          isSelected
+          isLockedOption
+            ? 'border-[#1d1608] bg-gradient-to-l from-[#241a08] via-[#3b2b0e] to-[#5d4416] text-[#f7e2ab] shadow-[0_5px_0_0_#0c0904] hover:-translate-y-0.5 hover:brightness-110'
+            : isSelected
             ? 'border-black bg-[#111111] text-[#f7ff4f] shadow-[0_6px_0_0_#ff623d]'
             : 'border-black bg-[#fffdf8] text-black hover:-translate-y-0.5 hover:bg-[#fff8da]',
         ].join(' ')}
       >
-        {option}
+        <span className="flex items-center justify-between gap-2">
+          <span>{option}</span>
+          {isLockedOption ? (
+            <span className="rounded-full border border-[#f7cf76] bg-[#1d1608] px-2 py-0.5 text-[0.6rem] font-black uppercase tracking-[0.08em] text-[#ffe7b2]">
+              {lockedOptionsPreviewLabel}
+            </span>
+          ) : null}
+        </span>
       </button>
     );
   };
@@ -867,6 +935,10 @@ function ChipGroup<T extends string>({
                 <span className="rounded-full border-2 border-black bg-white px-2.5 py-1 text-xs font-black text-black">
                   נבחר מתוך עוד: {value}
                 </span>
+              ) : hasLockedOptions && lockedExtraOptionsCount > 0 ? (
+                <span className="rounded-full border border-[#d8ad52] bg-[#1c1507] px-2.5 py-1 text-xs font-black text-[#f7db96]">
+                  עוד {lockedExtraOptionsCount} אפשרויות פרימיום למנוי חודשי
+                </span>
               ) : (
                 <span className="text-xs font-black text-neutral-800">
                   עוד {extraOptions.length} אפשרויות זמינות בלחיצה
@@ -879,6 +951,10 @@ function ChipGroup<T extends string>({
 
       {helperText ? (
         <p className="mt-1 hidden text-xs font-bold leading-5 text-neutral-600 md:block">{helperText}</p>
+      ) : null}
+
+      {hasLockedOptions && lockedOptionsHint ? (
+        <p className="mt-1 hidden text-xs font-bold leading-5 text-neutral-700 md:block">{lockedOptionsHint}</p>
       ) : null}
 
       {hasMoreOptions && isMoreOptionsDialogOpen ? (
@@ -915,7 +991,9 @@ function ChipGroup<T extends string>({
                   {title}: בחירה מורחבת
                 </p>
                 <p id={moreOptionsDialogDescriptionId} className="text-xs font-bold text-neutral-700 sm:text-sm">
-                  בחרו בנוחות את האופציה שמתאימה בדיוק. לחיצה על אופציה סוגרת ושומרת בחירה.
+                  {hasLockedOptions
+                    ? 'אפשר לעבור על כל האפשרויות. בחירה באפשרויות פרימיום נפתחת במסלול ללא הגבלה.'
+                    : 'בחרו בנוחות את האופציה שמתאימה בדיוק. לחיצה על אופציה סוגרת ושומרת בחירה.'}
                 </p>
               </div>
               <button
@@ -929,16 +1007,18 @@ function ChipGroup<T extends string>({
 
             <div className="flex-1 overflow-y-auto px-4 py-4">
               <div className="space-y-3">
-                <label className="block">
-                  <span className="mb-1.5 block text-xs font-black text-neutral-800">חיפוש מהיר</span>
-                  <input
-                    type="text"
-                    value={moreOptionsSearchTerm}
-                    onChange={(event) => setMoreOptionsSearchTerm(event.target.value)}
-                    placeholder="הקלידו כדי לסנן אפשרויות..."
-                    className={`min-h-[44px] w-full rounded-full border-2 border-black bg-[#fffdf8] px-4 py-2 text-sm font-bold text-black outline-none transition placeholder:text-neutral-500 focus:bg-white ${whiteSurfaceFocusClass}`}
-                  />
-                </label>
+                {showMoreOptionsSearch ? (
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-black text-neutral-800">חיפוש מהיר</span>
+                    <input
+                      type="text"
+                      value={moreOptionsSearchTerm}
+                      onChange={(event) => setMoreOptionsSearchTerm(event.target.value)}
+                      placeholder="הקלידו כדי לסנן אפשרויות..."
+                      className={`min-h-[44px] w-full rounded-full border-2 border-black bg-[#fffdf8] px-4 py-2 text-sm font-bold text-black outline-none transition placeholder:text-neutral-500 focus:bg-white ${whiteSurfaceFocusClass}`}
+                    />
+                  </label>
+                ) : null}
 
                 {allowEmpty && hasSelection ? (
                   <button
@@ -962,6 +1042,31 @@ function ChipGroup<T extends string>({
                     לא נמצאו תוצאות לחיפוש הזה.
                   </p>
                 )}
+
+                {hasLockedOptions && showLockedOptionsNotice ? (
+                  <div className="rounded-[22px] border-2 border-[#d8ad52] bg-[radial-gradient(circle_at_top,_#5a4617_0%,_#1f1709_56%,_#0b0905_100%)] p-3.5 text-[#fdf3d4] shadow-[0_14px_28px_-14px_rgba(0,0,0,0.9)] motion-safe:animate-[sb-paywall-in_220ms_ease-out]">
+                    <p className="text-[0.64rem] font-black uppercase tracking-[0.18em] text-[#f8d67f]">
+                      פרימיום חודשי
+                    </p>
+                    <p className="mt-1 text-sm font-black text-[#fff1cc]">
+                      {lockedOptionsNoticeTitle ?? 'האופציות המורחבות פתוחות במסלול החודשי'}
+                    </p>
+                    <p className="mt-1 text-xs font-bold leading-5 text-[#fceaca]/85">
+                      {lockedOptionsNoticeBody ??
+                        'פותחים מנוי חודשי ונהנים מגישה מלאה לכל האפשרויות המתקדמות.'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeMoreOptionsDialogImmediately();
+                        onLockedOptionsNoticeCtaClick?.();
+                      }}
+                      className={`mt-3 inline-flex min-h-[40px] items-center justify-center rounded-full border-2 border-[#2a1e09] bg-gradient-to-b from-[#f9e4a8] to-[#e9bf5f] px-3.5 py-2 text-xs font-black text-[#2b1d04] shadow-[0_4px_0_0_#2a1d07] transition hover:-translate-y-0.5 hover:brightness-105 ${whiteSurfaceFocusClass}`}
+                    >
+                      {lockedOptionsNoticeCta}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
           </section>
@@ -1760,6 +1865,20 @@ export default function Home({
     freeRemaining === 0 &&
     dailyFreeRemaining === 0 &&
     dailyFreeLimit > 0;
+
+  useEffect(() => {
+    if (isBillingLoading || hasUnlimitedAccess) {
+      return;
+    }
+
+    if (monthlyOnlyContextOptions.includes(context)) {
+      setContext(contextOptions[0]);
+    }
+
+    if (monthlyOnlyToneOptions.includes(tone)) {
+      setTone(toneOptions[0]);
+    }
+  }, [context, hasUnlimitedAccess, isBillingLoading, tone]);
 
   useEffect(() => {
     trackEvent('page_view_home');
@@ -3420,8 +3539,16 @@ export default function Home({
                 title="מה המצב?"
                 description="נבין את הסיטואציה כדי לנסח תשובה שמתאימה לך."
                 options={contextOptions}
-                primaryVisibleCount={6}
+                primaryVisibleCount={CONTEXT_PRIMARY_VISIBLE_COUNT}
                 moreOptionsLabel="עוד סיטואציות"
+                lockedOptions={hasUnlimitedAccess ? [] : monthlyOnlyContextOptions}
+                lockedOptionsPreviewLabel="חודשי"
+                lockedOptionsHint="הסיטואציות המורחבות פתוחות במסלול ללא הגבלה חודשי."
+                lockedOptionsNoticeTitle={MONTHLY_LOCK_COPY.context.title}
+                lockedOptionsNoticeBody={MONTHLY_LOCK_COPY.context.body}
+                lockedOptionsNoticeCta="לפתוח ללא הגבלה חודשי"
+                showMoreOptionsSearch={false}
+                onLockedOptionsNoticeCtaClick={openPaywall}
                 value={context}
                 onChange={(nextValue) => {
                   if (nextValue) {
@@ -3435,8 +3562,16 @@ export default function Home({
                 title="איך תרצו לענות?"
                 description="בחרו את הווייב שתרצו לשדר בתשובה."
                 options={toneOptions}
-                primaryVisibleCount={5}
+                primaryVisibleCount={TONE_PRIMARY_VISIBLE_COUNT}
                 moreOptionsLabel="עוד וייבים"
+                lockedOptions={hasUnlimitedAccess ? [] : monthlyOnlyToneOptions}
+                lockedOptionsPreviewLabel="חודשי"
+                lockedOptionsHint="הווייבים המורחבים פתוחים במסלול ללא הגבלה חודשי."
+                lockedOptionsNoticeTitle={MONTHLY_LOCK_COPY.tone.title}
+                lockedOptionsNoticeBody={MONTHLY_LOCK_COPY.tone.body}
+                lockedOptionsNoticeCta="לפתוח ללא הגבלה חודשי"
+                showMoreOptionsSearch={false}
+                onLockedOptionsNoticeCtaClick={openPaywall}
                 value={tone}
                 onChange={(nextValue) => {
                   if (nextValue) {
