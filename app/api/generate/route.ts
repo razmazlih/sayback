@@ -214,6 +214,13 @@ export async function POST(request: Request) {
     }
 
     consumption = access.consumption;
+    if (!access.snapshot.hasUnlimited) {
+      body.conversationBackground = undefined;
+      if (persistedUsageLogBase) {
+        persistedUsageLogBase.conversationBackground = null;
+      }
+    }
+
     const generated = await generateRepliesWithModelSource(body);
     const result = generated.result;
     const billing = await getBillingSnapshot(authenticatedUserUid);

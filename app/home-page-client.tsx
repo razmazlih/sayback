@@ -180,6 +180,12 @@ const MONTHLY_LOCK_COPY = {
     title: 'הווייבים המורחבים נפתחים במסלול החודשי',
     body: 'כל הווייבים מוצגים כדי להתרשם. כדי להשתמש בוייבים המתקדמים צריך מנוי חודשי.',
   },
+  conversationBackground: {
+    badge: 'גישה בלעדית לחודשי',
+    title: 'רקע שיחה נוסף נפתח רק במסלול ללא הגבלה חודשי',
+    body: 'הפיצ׳ר הזה מוסיף שכבת הקשר עמוקה יותר ומחזיר תשובות מדויקות ואישיות יותר.',
+    cta: 'לפתוח חודשי ללא הגבלה',
+  },
 } as const;
 const DEEP_LINK_PREFILL_BANNER_TEXT = 'מילאנו לך התחלה. אפשר לערוך לפני שמייצרים.';
 const QUERY_PARAM_MAX_LENGTH = {
@@ -835,6 +841,8 @@ function ChipGroup<T extends string>({
     };
   }, []);
 
+  const canClearSelection = allowEmpty && hasSelection;
+
   const renderOption = (option: T, mode: 'inline' | 'dialog' = 'inline') => {
     const isSelected = option === value;
     const isLockedOption = lockedOptionsSet.has(option);
@@ -859,10 +867,10 @@ function ChipGroup<T extends string>({
           }
         }}
         className={[
-          `w-full rounded-full border-2 px-3.5 py-2 font-bold transition duration-150 touch-manipulation ${whiteSurfaceFocusClass}`,
+          `w-full rounded-full border-2 px-3.5 py-2 text-center font-bold transition duration-150 touch-manipulation ${whiteSurfaceFocusClass}`,
           mode === 'dialog'
             ? 'min-h-[44px] text-sm sm:w-auto'
-            : 'min-h-[40px] text-sm sm:min-h-[42px] sm:w-auto',
+            : 'min-h-[40px] text-sm sm:min-h-[42px]',
           isLockedOption
             ? 'border-[#1d1608] bg-gradient-to-l from-[#241a08] via-[#3b2b0e] to-[#5d4416] text-[#f7e2ab] shadow-[0_5px_0_0_#0c0904] hover:-translate-y-0.5 hover:brightness-110'
             : isSelected
@@ -870,7 +878,12 @@ function ChipGroup<T extends string>({
             : 'border-black bg-[#fffdf8] text-black hover:-translate-y-0.5 hover:bg-[#fff8da]',
         ].join(' ')}
       >
-        <span className="flex items-center justify-between gap-2">
+        <span
+          className={[
+            'flex w-full items-center gap-2',
+            isLockedOption ? 'justify-between' : 'justify-center',
+          ].join(' ')}
+        >
           <span>{option}</span>
           {isLockedOption ? (
             <span className="rounded-full border border-[#f7cf76] bg-[#1d1608] px-2 py-0.5 text-[0.6rem] font-black uppercase tracking-[0.08em] text-[#ffe7b2]">
@@ -884,8 +897,8 @@ function ChipGroup<T extends string>({
 
   return (
     <section className="w-full min-w-0 rounded-[22px] border-2 border-black bg-white p-3 shadow-[0_4px_0_0_#111111] sm:p-3.5">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1.5">
+      <div className={['flex items-center gap-2', canClearSelection ? 'justify-between' : 'justify-center'].join(' ')}>
+        <div className="flex flex-wrap items-center justify-center gap-1.5 text-center">
           <p className="text-[0.92rem] font-black text-neutral-900 sm:text-[0.95rem]">{title}</p>
           <span
             className={[
@@ -897,7 +910,7 @@ function ChipGroup<T extends string>({
           </span>
         </div>
 
-        {allowEmpty && hasSelection ? (
+        {canClearSelection ? (
           <button
             type="button"
             onClick={() => onChange(null)}
@@ -913,7 +926,7 @@ function ChipGroup<T extends string>({
       ) : null}
 
       <div className="mt-2 space-y-2">
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+        <div className="grid grid-cols-2 gap-2">
           {primaryOptions.map((option) => renderOption(option, 'inline'))}
         </div>
 
@@ -1826,6 +1839,7 @@ export default function Home({
   const isGeneratorPrimaryMode = mode === 'generator';
 
   const hasUnlimitedAccess = billingBypassEnabled || paidPlan === 'unlimited_monthly';
+  const isConversationBackgroundLocked = !isBillingLoading && !hasUnlimitedAccess;
   const hasCreditBalance = paidCredits > 0;
   const isSessionReady = isAuthReady && Boolean(authToken) && !isBillingLoading;
   const totalFreeRemaining = useMemo(
@@ -1838,7 +1852,8 @@ export default function Home({
   const lastOutgoingMessageLength = lastOutgoingMessage.length;
   const conversationBackgroundLength = conversationBackground.length;
   const generateButtonLabel = 'קבלו מה לענות עכשיו';
-  const heroGenerateCtaLabel = 'קבלו מה לענות עכשיו';
+  const heroGenerateCtaLabel = 'יאללה, מתחילים לענות';
+  const heroStartUsingCtaLabel = 'התחילו להשתמש עכשיו';
   const billingStatusLine = billingBypassEnabled
     ? 'שימושים ללא הגבלה פעילים כרגע.'
     : hasUnlimitedAccess
@@ -1879,6 +1894,14 @@ export default function Home({
       setTone(toneOptions[0]);
     }
   }, [context, hasUnlimitedAccess, isBillingLoading, tone]);
+
+  useEffect(() => {
+    if (isBillingLoading || hasUnlimitedAccess || conversationBackground.length === 0) {
+      return;
+    }
+
+    setConversationBackground('');
+  }, [conversationBackground, hasUnlimitedAccess, isBillingLoading]);
 
   useEffect(() => {
     trackEvent('page_view_home');
@@ -1964,6 +1987,18 @@ export default function Home({
       (messageInputRef.current ?? lastOutgoingInputRef.current)?.focus();
     });
   }, [scrollToMobileSection]);
+
+  const handleHeroStartUsingClick = useCallback(() => {
+    trackEvent('hero_cta_click', { cta_text: heroStartUsingCtaLabel, target: 'incoming_message' });
+    setComposeMode('incoming');
+    setRequestError(null);
+    scrollToComposeSection();
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        messageInputRef.current?.focus();
+      });
+    });
+  }, [heroStartUsingCtaLabel, scrollToComposeSection]);
 
   useEffect(() => {
     const deepLinkPrefill = parseHomeDeepLinkPrefill(new URLSearchParams(window.location.search));
@@ -2889,6 +2924,7 @@ export default function Home({
     const trimmedConversationBackground = conversationBackground
       .trim()
       .slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH);
+    const allowedConversationBackground = hasUnlimitedAccess ? trimmedConversationBackground : '';
     const parsedNoReplyDuration = Number.parseInt(noReplyDurationValue, 10);
     const effectiveContinuePreference = isNoReplyMode ? null : continuePreference;
 
@@ -2943,7 +2979,7 @@ export default function Home({
       continue_preference: effectiveContinuePreference ?? 'unspecified',
       has_image: !isNoReplyMode && Boolean(imageBase64),
       has_text: !isNoReplyMode && Boolean(trimmedMessage),
-      has_background: Boolean(trimmedConversationBackground),
+      has_background: Boolean(allowedConversationBackground),
       has_last_outgoing: Boolean(trimmedLastOutgoingMessage),
       no_reply_duration_value: Number.isInteger(parsedNoReplyDuration) ? parsedNoReplyDuration : null,
       no_reply_duration_unit: isNoReplyMode ? noReplyDurationUnit : null,
@@ -2955,7 +2991,7 @@ export default function Home({
       context,
       tone,
       continuePreference: effectiveContinuePreference,
-      conversationBackground: trimmedConversationBackground || undefined,
+      conversationBackground: allowedConversationBackground || undefined,
       noReplyMode: isNoReplyMode,
       noReplyDurationValue: isNoReplyMode ? parsedNoReplyDuration : undefined,
       noReplyDurationUnit: isNoReplyMode ? noReplyDurationUnit : undefined,
@@ -2969,6 +3005,15 @@ export default function Home({
     }
 
     const effectiveContinuePreference = isNoReplyMode ? null : continuePreference;
+    const trimmedMessage = message.trim().slice(0, MAX_INCOMING_MESSAGE_LENGTH);
+    const trimmedLastOutgoingMessage = lastOutgoingMessage
+      .trim()
+      .slice(0, MAX_LAST_OUTGOING_MESSAGE_LENGTH);
+    const trimmedConversationBackground = conversationBackground
+      .trim()
+      .slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH);
+    const allowedConversationBackground = hasUnlimitedAccess ? trimmedConversationBackground : '';
+    const parsedNoReplyDuration = Number.parseInt(noReplyDurationValue, 10);
 
     trackEvent('refine_click', {
       action,
@@ -2978,19 +3023,10 @@ export default function Home({
       compose_mode: composeMode,
       continue_preference: effectiveContinuePreference ?? 'unspecified',
       has_image: !isNoReplyMode && Boolean(imageBase64),
-      has_text: !isNoReplyMode && Boolean(message.trim()),
-      has_background: Boolean(conversationBackground.trim()),
-      has_last_outgoing: Boolean(lastOutgoingMessage.trim()),
+      has_text: !isNoReplyMode && Boolean(trimmedMessage),
+      has_background: Boolean(allowedConversationBackground),
+      has_last_outgoing: Boolean(trimmedLastOutgoingMessage),
     });
-
-    const trimmedMessage = message.trim().slice(0, MAX_INCOMING_MESSAGE_LENGTH);
-    const trimmedLastOutgoingMessage = lastOutgoingMessage
-      .trim()
-      .slice(0, MAX_LAST_OUTGOING_MESSAGE_LENGTH);
-    const trimmedConversationBackground = conversationBackground
-      .trim()
-      .slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH);
-    const parsedNoReplyDuration = Number.parseInt(noReplyDurationValue, 10);
 
     if (
       isNoReplyMode &&
@@ -3011,7 +3047,7 @@ export default function Home({
         context,
         tone,
         continuePreference: effectiveContinuePreference,
-        conversationBackground: trimmedConversationBackground || undefined,
+        conversationBackground: allowedConversationBackground || undefined,
         noReplyMode: isNoReplyMode,
         noReplyDurationValue:
           isNoReplyMode && Number.isInteger(parsedNoReplyDuration)
@@ -3168,6 +3204,13 @@ export default function Home({
                   טבעיות ובול לסיטואציה. רוצים עוד רעיונות? מחכה לכם עמוד עם דוגמאות אמיתיות.
                 </p>
                 <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={handleHeroStartUsingClick}
+                    className={`inline-flex min-h-[48px] items-center justify-center rounded-full border-2 border-black bg-gradient-to-b from-[#ff7a56] to-[#ff623d] px-5 py-2.5 text-sm font-black text-white shadow-[0_6px_0_0_#111111] transition hover:-translate-y-0.5 hover:shadow-[0_8px_0_0_#111111] active:translate-y-0 active:shadow-[0_4px_0_0_#111111] ${lightSurfaceFocusClass}`}
+                  >
+                    {heroStartUsingCtaLabel}
+                  </button>
                   <Link
                     href="/home"
                     className={`inline-flex min-h-[44px] items-center justify-center rounded-full border-2 border-black bg-white px-4 py-2 text-sm font-black text-black transition hover:-translate-y-0.5 ${lightSurfaceFocusClass}`}
@@ -3230,10 +3273,7 @@ export default function Home({
             <section className="rounded-[26px] border-2 border-black bg-[#111111] p-3 shadow-[0_8px_0_0_#111111] sm:rounded-[30px] sm:p-4">
               <button
                 type="button"
-                onClick={() => {
-                  trackEvent('hero_cta_click');
-                  scrollToComposeSection();
-                }}
+                onClick={handleHeroStartUsingClick}
                 className={`inline-flex min-h-[56px] w-full items-center justify-center rounded-[22px] border-2 border-black bg-gradient-to-b from-[#ff7a56] to-[#ff623d] px-5 py-3 text-base font-black text-white shadow-[0_8px_0_0_#111111] transition hover:-translate-y-0.5 hover:shadow-[0_10px_0_0_#111111] active:translate-y-0 active:shadow-[0_5px_0_0_#111111] ${darkSurfaceFocusClass}`}
               >
                 {heroGenerateCtaLabel}
@@ -3503,31 +3543,72 @@ export default function Home({
                 <summary
                   className={`flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-black text-black marker:content-none ${lightSurfaceFocusClass}`}
                 >
-                  <span>רקע שיחה נוסף (אופציונלי)</span>
+                  <span className="flex items-center gap-2">
+                    <span>רקע שיחה נוסף (אופציונלי)</span>
+                    {isConversationBackgroundLocked ? (
+                      <span className="rounded-full border border-black bg-[#ffefbf] px-2 py-0.5 text-[10px] font-black text-black">
+                        חודשי
+                      </span>
+                    ) : null}
+                  </span>
                   <span className="text-xs transition-transform duration-200 group-open:rotate-180">⌄</span>
                 </summary>
                 <div className="sb-accordion-content">
                   <div className="sb-accordion-content-inner">
                     <div className="space-y-2 px-3 pb-3 pt-0.5">
-                      <p className="text-xs font-bold text-neutral-700">
-                        פרטים קצרים שיעזרו לדייק את הניסוח (למשל: מה היה לפני כן בשיחה).
-                      </p>
-                      <textarea
-                        id="conversation-background"
-                        value={conversationBackground}
-                        onChange={(event) =>
-                          setConversationBackground(
-                            event.target.value.slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH),
-                          )
-                        }
-                        placeholder='למשל: "דיברנו כמה ימים ואז השיחה נעצרה"'
-                        maxLength={MAX_CONVERSATION_BACKGROUND_LENGTH}
-                        className={`min-h-24 w-full rounded-[18px] border-2 border-black bg-white px-3 py-3 text-sm font-medium leading-6 text-black outline-none transition placeholder:text-neutral-400 focus:bg-[#fffdf6] ${lightSurfaceFocusClass}`}
-                      />
-                      <p className="text-xs font-bold text-neutral-700">
-                        עד {MAX_CONVERSATION_BACKGROUND_LENGTH} תווים ({conversationBackgroundLength}/
-                        {MAX_CONVERSATION_BACKGROUND_LENGTH}).
-                      </p>
+                      {isBillingLoading ? (
+                        <p className="text-xs font-bold text-neutral-700">
+                          בודקים את מצב המנוי כדי לפתוח את ההרחבה הזאת...
+                        </p>
+                      ) : hasUnlimitedAccess ? (
+                        <>
+                          <p className="text-xs font-bold text-neutral-700">
+                            פרטים קצרים שיעזרו לדייק את הניסוח (למשל: מה היה לפני כן בשיחה).
+                          </p>
+                          <textarea
+                            id="conversation-background"
+                            value={conversationBackground}
+                            onChange={(event) =>
+                              setConversationBackground(
+                                event.target.value.slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH),
+                              )
+                            }
+                            placeholder='למשל: "דיברנו כמה ימים ואז השיחה נעצרה"'
+                            maxLength={MAX_CONVERSATION_BACKGROUND_LENGTH}
+                            className={`min-h-24 w-full rounded-[18px] border-2 border-black bg-white px-3 py-3 text-sm font-medium leading-6 text-black outline-none transition placeholder:text-neutral-400 focus:bg-[#fffdf6] ${lightSurfaceFocusClass}`}
+                          />
+                          <p className="text-xs font-bold text-neutral-700">
+                            עד {MAX_CONVERSATION_BACKGROUND_LENGTH} תווים ({conversationBackgroundLength}/
+                            {MAX_CONVERSATION_BACKGROUND_LENGTH}).
+                          </p>
+                        </>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="rounded-[20px] border-2 border-black bg-[linear-gradient(135deg,#111111_0%,#2d2317_52%,#f4d39a_100%)] p-[1px] shadow-[0_10px_24px_rgba(0,0,0,0.16)]">
+                            <div className="space-y-2 rounded-[18px] bg-[#101010] px-4 py-4 text-[#f3d7a4]">
+                              <p className="text-[11px] font-black tracking-[0.12em] text-[#f8c879]">
+                                {MONTHLY_LOCK_COPY.conversationBackground.badge}
+                              </p>
+                              <p className="text-sm font-black leading-6 text-[#fff5de]">
+                                {MONTHLY_LOCK_COPY.conversationBackground.title}
+                              </p>
+                              <p className="text-xs font-semibold leading-6 text-[#f6deaf]">
+                                {MONTHLY_LOCK_COPY.conversationBackground.body}
+                              </p>
+                              <button
+                                type="button"
+                                onClick={openPaywall}
+                                className={`min-h-[44px] w-full rounded-full border-2 border-black bg-[#f8c879] px-4 py-2 text-sm font-black text-black transition hover:bg-[#fbd698] ${lightSurfaceFocusClass}`}
+                              >
+                                {MONTHLY_LOCK_COPY.conversationBackground.cta}
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-[11px] font-bold text-neutral-700">
+                            ברגע שמפעילים מנוי חודשי, ההרחבה נפתחת מיד.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
