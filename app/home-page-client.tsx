@@ -224,6 +224,8 @@ const toneOptions: ToneOption[] = [
 ];
 const CONTEXT_PRIMARY_VISIBLE_COUNT = 6;
 const TONE_PRIMARY_VISIBLE_COUNT = 5;
+const freeContextOptions = contextOptions.slice(0, CONTEXT_PRIMARY_VISIBLE_COUNT);
+const freeToneOptions = toneOptions.slice(0, TONE_PRIMARY_VISIBLE_COUNT);
 const monthlyOnlyContextOptions = contextOptions.slice(CONTEXT_PRIMARY_VISIBLE_COUNT);
 const monthlyOnlyToneOptions = toneOptions.slice(TONE_PRIMARY_VISIBLE_COUNT);
 const continuePreferenceOptions: ContinuePreference[] = ['כן', 'לא'];
@@ -717,6 +719,7 @@ function ChipGroup<T extends string>({
   lockedOptionsNoticeCta = 'לפתוח ללא הגבלה חודשי',
   showMoreOptionsSearch = true,
   onLockedOptionsNoticeCtaClick,
+  headerAlign = 'center',
 }: {
   title: string;
   description?: string;
@@ -736,6 +739,7 @@ function ChipGroup<T extends string>({
   lockedOptionsNoticeCta?: string;
   showMoreOptionsSearch?: boolean;
   onLockedOptionsNoticeCtaClick?: () => void;
+  headerAlign?: 'center' | 'right';
 }) {
   const hasSelection = value !== null;
   const normalizedPrimaryVisibleCount = Math.min(
@@ -842,6 +846,7 @@ function ChipGroup<T extends string>({
   }, []);
 
   const canClearSelection = allowEmpty && hasSelection;
+  const isHeaderRightAligned = headerAlign === 'right';
 
   const renderOption = (option: T, mode: 'inline' | 'dialog' = 'inline') => {
     const isSelected = option === value;
@@ -897,8 +902,18 @@ function ChipGroup<T extends string>({
 
   return (
     <section className="w-full min-w-0 rounded-[22px] border-2 border-black bg-white p-3 shadow-[0_4px_0_0_#111111] sm:p-3.5">
-      <div className={['flex items-center gap-2', canClearSelection ? 'justify-between' : 'justify-center'].join(' ')}>
-        <div className="flex flex-wrap items-center justify-center gap-1.5 text-center">
+      <div
+        className={[
+          'flex items-center gap-2',
+          canClearSelection ? 'justify-between' : isHeaderRightAligned ? 'justify-start' : 'justify-center',
+        ].join(' ')}
+      >
+        <div
+          className={[
+            'flex flex-wrap items-center gap-1.5',
+            isHeaderRightAligned ? 'justify-start text-right' : 'justify-center text-center',
+          ].join(' ')}
+        >
           <p className="text-[0.92rem] font-black text-neutral-900 sm:text-[0.95rem]">{title}</p>
           <span
             className={[
@@ -1518,6 +1533,7 @@ function PaywallModal({
       ? CREDIT_PLAN_COPY
       : UNLIMITED_PLAN_COPY
     : null;
+  const shouldShowUnlimitedPlanOption = !hasUnlimitedAccess;
 
   useEffect(() => {
     if (!open) {
@@ -1733,29 +1749,31 @@ function PaywallModal({
                 </button>
               </div>
 
-              <div className="rounded-[24px] border-2 border-black bg-[#111111] p-4 text-white">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <span className="rounded-full border border-white/40 bg-white/10 px-3 py-1 text-xs font-black">
-                      {UNLIMITED_PLAN_COPY.badge}
-                    </span>
-                    <h3 className="mt-3 text-lg font-black">{UNLIMITED_PLAN_COPY.title}</h3>
-                    <p className="mt-1 text-sm font-bold text-white/80">{UNLIMITED_PLAN_COPY.helper}</p>
-                    <p className="mt-1 text-sm text-white/80">{UNLIMITED_PLAN_COPY.body}</p>
+              {shouldShowUnlimitedPlanOption ? (
+                <div className="rounded-[24px] border-2 border-black bg-[#111111] p-4 text-white">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <span className="rounded-full border border-white/40 bg-white/10 px-3 py-1 text-xs font-black">
+                        {UNLIMITED_PLAN_COPY.badge}
+                      </span>
+                      <h3 className="mt-3 text-lg font-black">{UNLIMITED_PLAN_COPY.title}</h3>
+                      <p className="mt-1 text-sm font-bold text-white/80">{UNLIMITED_PLAN_COPY.helper}</p>
+                      <p className="mt-1 text-sm text-white/80">{UNLIMITED_PLAN_COPY.body}</p>
+                    </div>
+                    <p className="text-2xl font-black">{UNLIMITED_PLAN_COPY.price}</p>
                   </div>
-                  <p className="text-2xl font-black">{UNLIMITED_PLAN_COPY.price}</p>
+                  <button
+                    type="button"
+                    onClick={() => onSelectPlan('unlimited_monthly')}
+                    disabled={isCheckoutLoading}
+                    className={`mt-4 min-h-[48px] w-full rounded-2xl border-2 border-white bg-[#ff623d] px-4 py-3 text-sm font-black text-black transition disabled:cursor-not-allowed disabled:opacity-70 ${darkSurfaceFocusClass}`}
+                  >
+                    {checkoutPlan === 'unlimited_monthly'
+                      ? 'טוען טופס תשלום...'
+                      : UNLIMITED_PLAN_COPY.cta}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onSelectPlan('unlimited_monthly')}
-                  disabled={isCheckoutLoading}
-                  className={`mt-4 min-h-[48px] w-full rounded-2xl border-2 border-white bg-[#ff623d] px-4 py-3 text-sm font-black text-black transition disabled:cursor-not-allowed disabled:opacity-70 ${darkSurfaceFocusClass}`}
-                >
-                  {checkoutPlan === 'unlimited_monthly'
-                    ? 'טוען טופס תשלום...'
-                    : UNLIMITED_PLAN_COPY.cta}
-                </button>
-              </div>
+              ) : null}
 
               <div className="rounded-[20px] border-2 border-black bg-white px-4 py-3 text-sm font-bold text-neutral-800">
                 <p>התשלום קצר, ברור ובטוח.</p>
@@ -1882,7 +1900,7 @@ export default function Home({
     dailyFreeLimit > 0;
 
   useEffect(() => {
-    if (isBillingLoading || hasUnlimitedAccess) {
+    if (isBillingLoading) {
       return;
     }
 
@@ -1893,10 +1911,10 @@ export default function Home({
     if (monthlyOnlyToneOptions.includes(tone)) {
       setTone(toneOptions[0]);
     }
-  }, [context, hasUnlimitedAccess, isBillingLoading, tone]);
+  }, [context, isBillingLoading, tone]);
 
   useEffect(() => {
-    if (isBillingLoading || hasUnlimitedAccess || conversationBackground.length === 0) {
+    if (isBillingLoading || !hasUnlimitedAccess || conversationBackground.length === 0) {
       return;
     }
 
@@ -2537,6 +2555,21 @@ export default function Home({
     });
   }, [accessState, dailyFreeRemaining, freeUsed, showPaywall, totalFreeRemaining]);
 
+  useEffect(() => {
+    if (!hasUnlimitedAccess) {
+      return;
+    }
+
+    setShowPaywall(false);
+    setCheckoutError(null);
+    setCheckoutPlan((currentPlan) =>
+      currentPlan === 'unlimited_monthly' ? null : currentPlan,
+    );
+    setCheckoutSession((currentSession) =>
+      currentSession?.plan === 'unlimited_monthly' ? null : currentSession,
+    );
+  }, [hasUnlimitedAccess]);
+
   useDocumentScrollLock(showPaywall);
 
   function closePaywall() {
@@ -2552,7 +2585,7 @@ export default function Home({
   }
 
   function openPaywall() {
-    if (billingBypassEnabled) {
+    if (billingBypassEnabled || hasUnlimitedAccess) {
       return;
     }
 
@@ -2699,6 +2732,14 @@ export default function Home({
   async function handleCheckout(plan: CheckoutPlan) {
     if (billingBypassEnabled) {
       setShowPaywall(false);
+      setCheckoutSession(null);
+      setCheckoutError(null);
+      return;
+    }
+
+    if (plan === 'unlimited_monthly' && hasUnlimitedAccess) {
+      setShowPaywall(false);
+      setCheckoutPlan(null);
       setCheckoutSession(null);
       setCheckoutError(null);
       return;
@@ -2921,10 +2962,7 @@ export default function Home({
     const trimmedLastOutgoingMessage = lastOutgoingMessage
       .trim()
       .slice(0, MAX_LAST_OUTGOING_MESSAGE_LENGTH);
-    const trimmedConversationBackground = conversationBackground
-      .trim()
-      .slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH);
-    const allowedConversationBackground = hasUnlimitedAccess ? trimmedConversationBackground : '';
+    const allowedConversationBackground = '';
     const parsedNoReplyDuration = Number.parseInt(noReplyDurationValue, 10);
     const effectiveContinuePreference = isNoReplyMode ? null : continuePreference;
 
@@ -3009,10 +3047,7 @@ export default function Home({
     const trimmedLastOutgoingMessage = lastOutgoingMessage
       .trim()
       .slice(0, MAX_LAST_OUTGOING_MESSAGE_LENGTH);
-    const trimmedConversationBackground = conversationBackground
-      .trim()
-      .slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH);
-    const allowedConversationBackground = hasUnlimitedAccess ? trimmedConversationBackground : '';
+    const allowedConversationBackground = '';
     const parsedNoReplyDuration = Number.parseInt(noReplyDurationValue, 10);
 
     trackEvent('refine_click', {
@@ -3539,87 +3574,90 @@ export default function Home({
                 </div>
               )}
 
-              <details className="group rounded-[22px] border-2 border-dashed border-black bg-[#fff6d8] transition-colors duration-200 open:bg-[#fff2bf]">
-                <summary
-                  className={`flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-black text-black marker:content-none ${lightSurfaceFocusClass}`}
-                >
-                  <span className="flex items-center gap-2">
-                    <span>רקע שיחה נוסף (אופציונלי)</span>
-                    {isConversationBackgroundLocked ? (
-                      <span className="rounded-full border border-black bg-[#ffefbf] px-2 py-0.5 text-[10px] font-black text-black">
-                        חודשי
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="text-xs transition-transform duration-200 group-open:rotate-180">⌄</span>
-                </summary>
-                <div className="sb-accordion-content">
-                  <div className="sb-accordion-content-inner">
-                    <div className="space-y-2 px-3 pb-3 pt-0.5">
-                      {isBillingLoading ? (
-                        <p className="text-xs font-bold text-neutral-700">
-                          בודקים את מצב המנוי כדי לפתוח את ההרחבה הזאת...
-                        </p>
-                      ) : hasUnlimitedAccess ? (
-                        <>
+              {!hasUnlimitedAccess ? (
+                <details className="group rounded-[22px] border-2 border-dashed border-black bg-[#fff6d8] transition-colors duration-200 open:bg-[#fff2bf]">
+                  <summary
+                    className={`flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-black text-black marker:content-none ${lightSurfaceFocusClass}`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span>רקע שיחה נוסף (אופציונלי)</span>
+                      {isConversationBackgroundLocked ? (
+                        <span className="rounded-full border border-black bg-[#ffefbf] px-2 py-0.5 text-[10px] font-black text-black">
+                          חודשי
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="text-xs transition-transform duration-200 group-open:rotate-180">⌄</span>
+                  </summary>
+                  <div className="sb-accordion-content">
+                    <div className="sb-accordion-content-inner">
+                      <div className="space-y-2 px-3 pb-3 pt-0.5">
+                        {isBillingLoading ? (
                           <p className="text-xs font-bold text-neutral-700">
-                            פרטים קצרים שיעזרו לדייק את הניסוח (למשל: מה היה לפני כן בשיחה).
+                            בודקים את מצב המנוי כדי לפתוח את ההרחבה הזאת...
                           </p>
-                          <textarea
-                            id="conversation-background"
-                            value={conversationBackground}
-                            onChange={(event) =>
-                              setConversationBackground(
-                                event.target.value.slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH),
-                              )
-                            }
-                            placeholder='למשל: "דיברנו כמה ימים ואז השיחה נעצרה"'
-                            maxLength={MAX_CONVERSATION_BACKGROUND_LENGTH}
-                            className={`min-h-24 w-full rounded-[18px] border-2 border-black bg-white px-3 py-3 text-sm font-medium leading-6 text-black outline-none transition placeholder:text-neutral-400 focus:bg-[#fffdf6] ${lightSurfaceFocusClass}`}
-                          />
-                          <p className="text-xs font-bold text-neutral-700">
-                            עד {MAX_CONVERSATION_BACKGROUND_LENGTH} תווים ({conversationBackgroundLength}/
-                            {MAX_CONVERSATION_BACKGROUND_LENGTH}).
-                          </p>
-                        </>
-                      ) : (
-                        <div className="space-y-2">
-                          <div className="rounded-[20px] border-2 border-black bg-[linear-gradient(135deg,#111111_0%,#2d2317_52%,#f4d39a_100%)] p-[1px] shadow-[0_10px_24px_rgba(0,0,0,0.16)]">
-                            <div className="space-y-2 rounded-[18px] bg-[#101010] px-4 py-4 text-[#f3d7a4]">
-                              <p className="text-[11px] font-black tracking-[0.12em] text-[#f8c879]">
-                                {MONTHLY_LOCK_COPY.conversationBackground.badge}
-                              </p>
-                              <p className="text-sm font-black leading-6 text-[#fff5de]">
-                                {MONTHLY_LOCK_COPY.conversationBackground.title}
-                              </p>
-                              <p className="text-xs font-semibold leading-6 text-[#f6deaf]">
-                                {MONTHLY_LOCK_COPY.conversationBackground.body}
-                              </p>
-                              <button
-                                type="button"
-                                onClick={openPaywall}
-                                className={`min-h-[44px] w-full rounded-full border-2 border-black bg-[#f8c879] px-4 py-2 text-sm font-black text-black transition hover:bg-[#fbd698] ${lightSurfaceFocusClass}`}
-                              >
-                                {MONTHLY_LOCK_COPY.conversationBackground.cta}
-                              </button>
+                        ) : hasUnlimitedAccess ? (
+                          <>
+                            <p className="text-xs font-bold text-neutral-700">
+                              פרטים קצרים שיעזרו לדייק את הניסוח (למשל: מה היה לפני כן בשיחה).
+                            </p>
+                            <textarea
+                              id="conversation-background"
+                              value={conversationBackground}
+                              onChange={(event) =>
+                                setConversationBackground(
+                                  event.target.value.slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH),
+                                )
+                              }
+                              placeholder='למשל: "דיברנו כמה ימים ואז השיחה נעצרה"'
+                              maxLength={MAX_CONVERSATION_BACKGROUND_LENGTH}
+                              className={`min-h-24 w-full rounded-[18px] border-2 border-black bg-white px-3 py-3 text-sm font-medium leading-6 text-black outline-none transition placeholder:text-neutral-400 focus:bg-[#fffdf6] ${lightSurfaceFocusClass}`}
+                            />
+                            <p className="text-xs font-bold text-neutral-700">
+                              עד {MAX_CONVERSATION_BACKGROUND_LENGTH} תווים ({conversationBackgroundLength}/
+                              {MAX_CONVERSATION_BACKGROUND_LENGTH}).
+                            </p>
+                          </>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="rounded-[20px] border-2 border-black bg-[linear-gradient(135deg,#111111_0%,#2d2317_52%,#f4d39a_100%)] p-[1px] shadow-[0_10px_24px_rgba(0,0,0,0.16)]">
+                              <div className="space-y-2 rounded-[18px] bg-[#101010] px-4 py-4 text-[#f3d7a4]">
+                                <p className="text-[11px] font-black tracking-[0.12em] text-[#f8c879]">
+                                  {MONTHLY_LOCK_COPY.conversationBackground.badge}
+                                </p>
+                                <p className="text-sm font-black leading-6 text-[#fff5de]">
+                                  {MONTHLY_LOCK_COPY.conversationBackground.title}
+                                </p>
+                                <p className="text-xs font-semibold leading-6 text-[#f6deaf]">
+                                  {MONTHLY_LOCK_COPY.conversationBackground.body}
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={openPaywall}
+                                  className={`min-h-[44px] w-full rounded-full border-2 border-black bg-[#f8c879] px-4 py-2 text-sm font-black text-black transition hover:bg-[#fbd698] ${lightSurfaceFocusClass}`}
+                                >
+                                  {MONTHLY_LOCK_COPY.conversationBackground.cta}
+                                </button>
+                              </div>
                             </div>
+                            <p className="text-[11px] font-bold text-neutral-700">
+                              ברגע שמפעילים מנוי חודשי, ההרחבה נפתחת מיד.
+                            </p>
                           </div>
-                          <p className="text-[11px] font-bold text-neutral-700">
-                            ברגע שמפעילים מנוי חודשי, ההרחבה נפתחת מיד.
-                          </p>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </details>
+                </details>
+              ) : null}
             </div>
 
             <div className="grid gap-2.5 sm:gap-3">
               <ChipGroup
                 title="מה המצב?"
                 description="נבין את הסיטואציה כדי לנסח תשובה שמתאימה לך."
-                options={contextOptions}
+                headerAlign="right"
+                options={hasUnlimitedAccess ? freeContextOptions : contextOptions}
                 primaryVisibleCount={CONTEXT_PRIMARY_VISIBLE_COUNT}
                 moreOptionsLabel="עוד סיטואציות"
                 lockedOptions={hasUnlimitedAccess ? [] : monthlyOnlyContextOptions}
@@ -3642,7 +3680,8 @@ export default function Home({
               <ChipGroup
                 title="איך תרצו לענות?"
                 description="בחרו את הווייב שתרצו לשדר בתשובה."
-                options={toneOptions}
+                headerAlign="right"
+                options={hasUnlimitedAccess ? freeToneOptions : toneOptions}
                 primaryVisibleCount={TONE_PRIMARY_VISIBLE_COUNT}
                 moreOptionsLabel="עוד וייבים"
                 lockedOptions={hasUnlimitedAccess ? [] : monthlyOnlyToneOptions}
@@ -3666,6 +3705,7 @@ export default function Home({
                 <ChipGroup
                   title="להמשיך באותו כיוון?"
                   description="אופציונלי: עוזר לנו לדייק אם לזרום עם המסר או לעצור."
+                  headerAlign="right"
                   options={continuePreferenceOptions}
                   value={continuePreference}
                   onChange={(nextValue) => {
@@ -3891,7 +3931,12 @@ export default function Home({
             className="mt-4"
           />
 
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div
+            className={[
+              'mt-4 grid gap-4',
+              hasUnlimitedAccess ? 'md:grid-cols-1' : 'md:grid-cols-2',
+            ].join(' ')}
+          >
             <div className="rounded-[24px] border-2 border-black bg-white p-5">
               <span className="rounded-full border border-black bg-[#f7ff4f] px-3 py-1 text-xs font-black text-black">
                 {CREDIT_PLAN_COPY.badge}
@@ -3910,25 +3955,27 @@ export default function Home({
               </button>
             </div>
 
-            <div className="rounded-[24px] border-2 border-black bg-[#111111] p-5 text-white">
-              <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-black">
-                {UNLIMITED_PLAN_COPY.badge}
-              </span>
-              <h3 className="mt-3 text-xl font-black">{UNLIMITED_PLAN_COPY.title}</h3>
-              <p className="mt-2 text-sm font-black text-white/80">{UNLIMITED_PLAN_COPY.helper}</p>
-              <p className="mt-1 text-sm font-bold text-white/80">{UNLIMITED_PLAN_COPY.body}</p>
-              <p className="mt-4 text-3xl font-black">{UNLIMITED_PLAN_COPY.price}</p>
-              <button
-                type="button"
-                onClick={() => handleCheckout('unlimited_monthly')}
-                disabled={checkoutPlan !== null || !isSessionReady}
-                className={`mt-4 min-h-[48px] w-full rounded-2xl border-2 border-white bg-[#ff623d] px-4 py-3 text-sm font-black text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 ${darkSurfaceFocusClass}`}
-              >
-                {checkoutPlan === 'unlimited_monthly'
-                  ? 'טוען טופס תשלום...'
-                  : UNLIMITED_PLAN_COPY.cta}
-              </button>
-            </div>
+            {!hasUnlimitedAccess ? (
+              <div className="rounded-[24px] border-2 border-black bg-[#111111] p-5 text-white">
+                <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-black">
+                  {UNLIMITED_PLAN_COPY.badge}
+                </span>
+                <h3 className="mt-3 text-xl font-black">{UNLIMITED_PLAN_COPY.title}</h3>
+                <p className="mt-2 text-sm font-black text-white/80">{UNLIMITED_PLAN_COPY.helper}</p>
+                <p className="mt-1 text-sm font-bold text-white/80">{UNLIMITED_PLAN_COPY.body}</p>
+                <p className="mt-4 text-3xl font-black">{UNLIMITED_PLAN_COPY.price}</p>
+                <button
+                  type="button"
+                  onClick={() => handleCheckout('unlimited_monthly')}
+                  disabled={checkoutPlan !== null || !isSessionReady}
+                  className={`mt-4 min-h-[48px] w-full rounded-2xl border-2 border-white bg-[#ff623d] px-4 py-3 text-sm font-black text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 ${darkSurfaceFocusClass}`}
+                >
+                  {checkoutPlan === 'unlimited_monthly'
+                    ? 'טוען טופס תשלום...'
+                    : UNLIMITED_PLAN_COPY.cta}
+                </button>
+              </div>
+            ) : null}
           </div>
 
           {checkoutError ? (
