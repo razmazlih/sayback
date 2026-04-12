@@ -3382,8 +3382,22 @@ export default function Home({
                   : 'bg-[#d7f9ff] text-black',
               ].join(' ')}
             >
-              תשובה
+              תשובות
             </button>
+          </div>
+          <div className="rounded-[18px] border-2 border-black bg-[#fff6d8] px-3 py-2.5 lg:hidden">
+            <p className="text-[0.72rem] font-black uppercase tracking-[0.14em] text-[#8b2d10]">מה עכשיו?</p>
+            {mobilePrimaryView === 'compose' ? (
+              <p className="mt-1 text-xs font-bold leading-5 text-neutral-800">
+                1) ממלאים הודעה וסגנון. 2) לוחצים על כפתור יצירה. 3) עוברים ללשונית
+                <span className="font-black"> תשובות</span>.
+              </p>
+            ) : (
+              <p className="mt-1 text-xs font-bold leading-5 text-neutral-800">
+                כאן רואים 3 ניסוחים מוכנים להעתקה. צריכים שינוי? חוזרים ללשונית
+                <span className="font-black"> מילוי פרטים</span>.
+              </p>
+            )}
           </div>
 
           <div
@@ -3401,6 +3415,9 @@ export default function Home({
               <h2 className="text-2xl font-black text-black sm:text-3xl">מדביקים הודעה. מקבלים ניסוח מוכן.</h2>
               <p className="text-sm font-bold leading-6 text-neutral-700">
                 כאן מתחילים: מדביקים את ההודעה כמו שהיא, בוחרים איך לענות, ותוך שניות נפתחות 3 תשובות קצרות שאפשר לשלוח מיד.
+              </p>
+              <p className="rounded-2xl border-2 border-black bg-white px-3 py-2 text-xs font-black text-neutral-800 sm:hidden">
+                טיפ: מספיק למלא רק את השדה הראשי + לבחור וייב, וכל השאר אופציונלי.
               </p>
             </div>
 
