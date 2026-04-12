@@ -57,6 +57,7 @@ type CheckoutPlan = 'credits_50' | 'unlimited_monthly';
 type PaidPlan = CheckoutPlan | null;
 type MobileSectionId = 'compose' | 'results' | 'examples' | 'plans';
 type MobileNavSectionId = Exclude<MobileSectionId, 'plans'>;
+type MobilePrimaryPanel = 'compose' | 'results';
 type ExampleId = 'crush-comeback' | 'ex-check-in' | 'client-discount' | 'yad2-classic';
 
 type ExampleScenario = {
@@ -1852,6 +1853,7 @@ export default function Home({
   const [billingBypassEnabled, setBillingBypassEnabled] = useState(
     BILLING_BYPASS_FALLBACK_ENABLED,
   );
+  const [mobilePrimaryPanel, setMobilePrimaryPanel] = useState<MobilePrimaryPanel>('compose');
   const authRecoveryPromiseRef = useRef<Promise<void> | null>(null);
   const authTokenPromiseRef = useRef<Promise<string> | null>(null);
   const isGeneratorPrimaryMode = mode === 'generator';
@@ -1866,6 +1868,8 @@ export default function Home({
   );
   const isGenerating = isLoading || busyReplyIndex !== null;
   const isNoReplyMode = composeMode === 'no_reply';
+  const isComposePanelActive = mobilePrimaryPanel === 'compose';
+  const isResultsPanelActive = mobilePrimaryPanel === 'results';
   const messageLength = message.length;
   const lastOutgoingMessageLength = lastOutgoingMessage.length;
   const conversationBackgroundLength = conversationBackground.length;
@@ -1967,6 +1971,10 @@ export default function Home({
         return;
       }
 
+      if (section === 'compose' || section === 'results') {
+        setMobilePrimaryPanel(section);
+      }
+
       const sectionElement =
         section === 'compose'
           ? composeSectionRef.current
@@ -1987,6 +1995,22 @@ export default function Home({
       });
     },
     [],
+  );
+
+  const switchMobilePrimaryPanel = useCallback(
+    (
+      panel: MobilePrimaryPanel,
+      options?: { behavior?: ScrollBehavior; source?: 'navigation' | 'system' },
+    ) => {
+      setMobilePrimaryPanel(panel);
+
+      if (!isCompactViewport()) {
+        return;
+      }
+
+      scrollToMobileSection(panel, options);
+    },
+    [scrollToMobileSection],
   );
 
   const scrollToComposeSection = useCallback(() => {
@@ -2912,6 +2936,7 @@ export default function Home({
       });
 
       if (isCompactViewport()) {
+        setMobilePrimaryPanel('results');
         window.requestAnimationFrame(() => {
           scrollToMobileSection('results', { source: 'system' });
         });
@@ -3176,6 +3201,7 @@ export default function Home({
     setShowDeepLinkPrefillBanner(false);
     setRequestError(null);
     setResult(null);
+    setMobilePrimaryPanel('compose');
 
     const nextUrl = buildHomeDeepLink(
       {
@@ -3349,10 +3375,51 @@ export default function Home({
         </section>
 
         <section className="grid w-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-5">
+          <div className="rounded-[20px] border-2 border-black bg-[#fff6d8] p-2 lg:hidden">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                aria-pressed={isComposePanelActive}
+                onClick={() =>
+                  switchMobilePrimaryPanel('compose', { source: 'navigation' })
+                }
+                className={[
+                  `min-h-[44px] rounded-2xl border-2 px-3 py-2 text-sm font-black transition ${lightSurfaceFocusClass}`,
+                  isComposePanelActive
+                    ? 'border-black bg-[#111111] text-[#f7ff4f]'
+                    : 'border-black bg-white text-black',
+                ].join(' ')}
+              >
+                מילוי פרטים
+              </button>
+              <button
+                type="button"
+                aria-pressed={isResultsPanelActive}
+                onClick={() =>
+                  switchMobilePrimaryPanel('results', { source: 'navigation' })
+                }
+                className={[
+                  `min-h-[44px] rounded-2xl border-2 px-3 py-2 text-sm font-black transition ${lightSurfaceFocusClass}`,
+                  isResultsPanelActive
+                    ? 'border-black bg-[#111111] text-[#f7ff4f]'
+                    : 'border-black bg-white text-black',
+                ].join(' ')}
+              >
+                תשובה
+              </button>
+            </div>
+          </div>
+
           <div
             ref={composeSectionRef}
             id="compose-section"
-            className="mobile-section-anchor w-full min-w-0 space-y-4 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]"
+            className={[
+              'mobile-section-anchor w-full min-w-0 space-y-4 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] transition-all duration-300 ease-out sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]',
+              isComposePanelActive
+                ? 'max-h-[5000px] opacity-100'
+                : 'max-h-0 overflow-hidden border-transparent p-0 opacity-0 pointer-events-none sm:border-transparent sm:p-0 lg:max-h-[5000px] lg:border-2 lg:border-black lg:p-6 lg:opacity-100 lg:pointer-events-auto',
+              'lg:max-h-none lg:overflow-visible lg:opacity-100',
+            ].join(' ')}
           >
             <div className="min-w-0 space-y-2">
               <p className="inline-flex min-h-[32px] items-center rounded-full border-2 border-black bg-white px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-[#9a2f10] lg:hidden">
@@ -3771,7 +3838,13 @@ export default function Home({
           <div
             ref={resultsSectionRef}
             id="results-section"
-            className="mobile-section-anchor w-full min-w-0 space-y-4 rounded-[30px] border-2 border-black bg-white p-3.5 shadow-[0_10px_0_0_#6ce8ff] sm:rounded-[36px] sm:p-5 sm:shadow-[0_12px_0_0_#6ce8ff]"
+            className={[
+              'mobile-section-anchor w-full min-w-0 space-y-4 rounded-[30px] border-2 border-black bg-white p-3.5 shadow-[0_10px_0_0_#6ce8ff] transition-all duration-300 ease-out sm:rounded-[36px] sm:p-5 sm:shadow-[0_12px_0_0_#6ce8ff]',
+              isResultsPanelActive
+                ? 'max-h-[5000px] opacity-100'
+                : 'max-h-0 overflow-hidden border-transparent p-0 opacity-0 pointer-events-none sm:border-transparent sm:p-0 lg:max-h-[5000px] lg:border-2 lg:border-black lg:p-5 lg:opacity-100 lg:pointer-events-auto',
+              'lg:max-h-none lg:overflow-visible lg:opacity-100',
+            ].join(' ')}
           >
             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
