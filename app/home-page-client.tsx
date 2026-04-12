@@ -2965,9 +2965,15 @@ export default function Home({
       });
 
       if (isCompactViewport()) {
+        const activeElement = document.activeElement;
+        if (activeElement instanceof HTMLElement) {
+          activeElement.blur();
+        }
         setMobilePrimaryView('results');
         window.requestAnimationFrame(() => {
-          scrollToMobileSection('results', { source: 'system' });
+          window.requestAnimationFrame(() => {
+            scrollToMobileSection('results', { source: 'system' });
+          });
         });
       }
 
