@@ -3382,8 +3382,22 @@ export default function Home({
                   : 'bg-[#d7f9ff] text-black',
               ].join(' ')}
             >
-              תשובה
+              תשובות
             </button>
+          </div>
+          <div className="rounded-2xl border-2 border-black bg-[#fff6d8] px-3 py-2.5 lg:hidden">
+            <p className="text-xs font-black text-black">
+              {mobilePrimaryView === 'compose'
+                ? 'עכשיו: ממלאים פרטים בטופס.'
+                : 'עכשיו: בודקים ומעתיקים תשובה.'}
+            </p>
+            <p className="mt-0.5 text-[11px] font-bold leading-5 text-neutral-700">
+              {mobilePrimaryView === 'compose'
+                ? 'טיפ: מספיק להדביק הודעה ולבחור וייב כדי להתחיל.'
+                : result
+                  ? 'יש לך כאן 3 תשובות מוכנות. אפשר גם לרכך, לחדד או לנסות שוב.'
+                  : 'עדיין אין תשובות — לוחצים למילוי פרטים ואז על כפתור היצירה.'}
+            </p>
           </div>
 
           <div
