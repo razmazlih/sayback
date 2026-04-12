@@ -1871,9 +1871,55 @@ export default function Home({
   const messageLength = message.length;
   const lastOutgoingMessageLength = lastOutgoingMessage.length;
   const conversationBackgroundLength = conversationBackground.length;
+  const trimmedMessage = message.trim();
+  const trimmedLastOutgoingMessage = lastOutgoingMessage.trim();
+  const parsedNoReplyDuration = Number.parseInt(noReplyDurationValue, 10);
   const generateButtonLabel = 'קבלו מה לענות עכשיו';
   const heroGenerateCtaLabel = 'יאללה, מתחילים לענות';
   const heroStartUsingCtaLabel = 'התחילו להשתמש עכשיו';
+  const mobileComposeHelper = useMemo(() => {
+    if (isNoReplyMode) {
+      if (!trimmedLastOutgoingMessage) {
+        return {
+          title: 'שלב 1 מתוך 2: מה עוד צריך למלא?',
+          body: 'כתבו את ההודעה האחרונה ששלחתם כדי שנוכל לבנות פולו-אפ מדויק.',
+          tone: 'warning',
+        } as const;
+      }
+
+      if (
+        !Number.isInteger(parsedNoReplyDuration) ||
+        parsedNoReplyDuration < 1 ||
+        parsedNoReplyDuration > MAX_NO_REPLY_DURATION_VALUE
+      ) {
+        return {
+          title: 'שלב 1 מתוך 2: חסר זמן המתנה',
+          body: 'בחרו מספר תקין של דקות/שעות/ימים כדי שננסח תשובה מתאימה.',
+          tone: 'warning',
+        } as const;
+      }
+
+      return {
+        title: 'מעולה. שלב 1 הושלם',
+        body: 'אפשר ללחוץ על הכפתור ולקבל מיד 3 תשובות פולו-אפ קצרות.',
+        tone: 'ready',
+      } as const;
+    }
+
+    if (!trimmedMessage && !imageBase64) {
+      return {
+        title: 'שלב 1 מתוך 2: הדביקו הודעה או צילום מסך',
+        body: 'ברגע שיש טקסט או צילום, נוכל להציע 3 תשובות מוכנות.',
+        tone: 'warning',
+      } as const;
+    }
+
+    return {
+      title: 'מעולה. שלב 1 הושלם',
+      body: 'עכשיו לוחצים על הכפתור ומקבלים 3 תשובות קצרות לשליחה.',
+      tone: 'ready',
+    } as const;
+  }, [imageBase64, isNoReplyMode, parsedNoReplyDuration, trimmedLastOutgoingMessage, trimmedMessage]);
   const billingStatusLine = billingBypassEnabled
     ? 'שימושים ללא הגבלה פעילים כרגע.'
     : hasUnlimitedAccess
@@ -3369,7 +3415,7 @@ export default function Home({
                   : 'bg-[#fff6d8] text-black',
               ].join(' ')}
             >
-              מילוי פרטים
+              שלב 1: מילוי
             </button>
             <button
               type="button"
@@ -3382,7 +3428,7 @@ export default function Home({
                   : 'bg-[#d7f9ff] text-black',
               ].join(' ')}
             >
-              תשובה
+              שלב 2: תשובות
             </button>
           </div>
 
@@ -3402,6 +3448,16 @@ export default function Home({
               <p className="text-sm font-bold leading-6 text-neutral-700">
                 כאן מתחילים: מדביקים את ההודעה כמו שהיא, בוחרים איך לענות, ותוך שניות נפתחות 3 תשובות קצרות שאפשר לשלוח מיד.
               </p>
+            </div>
+
+            <div
+              className={[
+                'sm:hidden rounded-[20px] border-2 border-black px-3.5 py-3',
+                mobileComposeHelper.tone === 'ready' ? 'bg-[#d7f9ff]' : 'bg-[#fff6d8]',
+              ].join(' ')}
+            >
+              <p className="text-sm font-black text-black">{mobileComposeHelper.title}</p>
+              <p className="mt-1 text-xs font-bold leading-5 text-neutral-800">{mobileComposeHelper.body}</p>
             </div>
 
             {showDeepLinkPrefillBanner ? (
@@ -3890,6 +3946,16 @@ export default function Home({
                   <p className="mt-3 max-w-md text-sm font-bold leading-6 text-neutral-700">
                     בחרו מצב כתיבה, מלאו את השדה הראשי ותוך רגע יופיעו 3 תשובות מוכנות להעתקה.
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobilePrimaryView('compose');
+                      scrollToMobileSection('compose', { source: 'navigation' });
+                    }}
+                    className={`mt-4 min-h-[44px] w-full rounded-full border-2 border-black bg-white px-4 py-2 text-sm font-black text-black sm:hidden ${lightSurfaceFocusClass}`}
+                  >
+                    לחזור לשלב 1: מילוי
+                  </button>
                 </div>
               )}
             </div>
