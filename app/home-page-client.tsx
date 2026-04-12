@@ -269,6 +269,11 @@ const quickStartSteps = [
     body: 'אפשר להעתיק כמו שזה, או לרכך, לחדד ולבקש ניסוח חדש בלחיצה.',
   },
 ] as const;
+const mobileFlowGuidanceCopy = {
+  compose: 'שלב 1 מתוך 2: ממלאים פרטים ולוחצים על יצירת 3 תשובות.',
+  resultsReady: 'שלב 2 מתוך 2: בוחרים תשובה, מעתיקים ושולחים.',
+  resultsEmpty: 'שלב 2 מתוך 2: עדיין אין תשובות. חוזרים לשלב 1 ומייצרים.',
+} as const;
 type HomePageClientMode = 'generator' | 'full';
 
 type ScrollLockSnapshot = {
@@ -3382,8 +3387,17 @@ export default function Home({
                   : 'bg-[#d7f9ff] text-black',
               ].join(' ')}
             >
-              תשובה
+              תשובות
             </button>
+          </div>
+          <div className="rounded-[18px] border-2 border-black bg-[#fff6d8] px-3 py-2 lg:hidden">
+            <p className="text-xs font-black leading-5 text-black">
+              {mobilePrimaryView === 'compose'
+                ? mobileFlowGuidanceCopy.compose
+                : result
+                  ? mobileFlowGuidanceCopy.resultsReady
+                  : mobileFlowGuidanceCopy.resultsEmpty}
+            </p>
           </div>
 
           <div
@@ -3890,6 +3904,16 @@ export default function Home({
                   <p className="mt-3 max-w-md text-sm font-bold leading-6 text-neutral-700">
                     בחרו מצב כתיבה, מלאו את השדה הראשי ותוך רגע יופיעו 3 תשובות מוכנות להעתקה.
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobilePrimaryView('compose');
+                      scrollToMobileSection('compose', { source: 'navigation' });
+                    }}
+                    className={`mt-4 inline-flex min-h-[42px] w-full items-center justify-center rounded-[16px] border-2 border-black bg-white px-3 py-2 text-sm font-black text-black sm:hidden ${lightSurfaceFocusClass}`}
+                  >
+                    לחזרה לשלב 1
+                  </button>
                 </div>
               )}
             </div>
