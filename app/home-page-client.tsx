@@ -2009,7 +2009,11 @@ export default function Home({
   const scrollToMobileSection = useCallback(
     (
       section: MobileSectionId,
-      options?: { behavior?: ScrollBehavior; source?: 'navigation' | 'system' },
+      options?: {
+        behavior?: ScrollBehavior;
+        source?: 'navigation' | 'system';
+        topOffsetPx?: number;
+      },
     ) => {
       if (!isCompactViewport()) {
         return;
@@ -2033,6 +2037,25 @@ export default function Home({
       }
 
       const behavior = options?.behavior ?? getPreferredScrollBehavior();
+      const topOffsetPx = options?.topOffsetPx;
+
+      if (typeof topOffsetPx === 'number') {
+        const scrollToTarget = () => {
+          const targetTop = sectionElement.getBoundingClientRect().top + window.scrollY - topOffsetPx;
+          window.scrollTo({
+            top: Math.max(0, targetTop),
+            behavior,
+          });
+        };
+
+        window.requestAnimationFrame(() => {
+          scrollToTarget();
+          window.setTimeout(scrollToTarget, 120);
+        });
+
+        return;
+      }
+
       sectionElement.scrollIntoView({
         behavior,
         block: 'start',
@@ -2967,7 +2990,7 @@ export default function Home({
       if (isCompactViewport()) {
         setMobilePrimaryView('results');
         window.requestAnimationFrame(() => {
-          scrollToMobileSection('results', { source: 'system' });
+          scrollToMobileSection('results', { source: 'system', topOffsetPx: 16 });
         });
       }
 
