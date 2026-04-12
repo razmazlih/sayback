@@ -57,6 +57,7 @@ type CheckoutPlan = 'credits_50' | 'unlimited_monthly';
 type PaidPlan = CheckoutPlan | null;
 type MobileSectionId = 'compose' | 'results' | 'examples' | 'plans';
 type MobileNavSectionId = Exclude<MobileSectionId, 'plans'>;
+type MobilePrimaryView = 'compose' | 'results';
 type ExampleId = 'crush-comeback' | 'ex-check-in' | 'client-discount' | 'yad2-classic';
 
 type ExampleScenario = {
@@ -1807,6 +1808,7 @@ export default function Home({
   const hasTrackedQuotaBadgeViewRef = useRef(false);
   const hasTrackedBillingStatusViewRef = useRef(false);
   const [composeMode, setComposeMode] = useState<ComposeMode>('incoming');
+  const [mobilePrimaryView, setMobilePrimaryView] = useState<MobilePrimaryView>('compose');
   const [message, setMessage] = useState('');
   const [lastOutgoingMessage, setLastOutgoingMessage] = useState('');
   const [noReplyDurationValue, setNoReplyDurationValue] = useState('');
@@ -1967,6 +1969,10 @@ export default function Home({
         return;
       }
 
+      if (section === 'compose' || section === 'results') {
+        setMobilePrimaryView(section);
+      }
+
       const sectionElement =
         section === 'compose'
           ? composeSectionRef.current
@@ -2009,6 +2015,7 @@ export default function Home({
   const handleHeroStartUsingClick = useCallback(() => {
     trackEvent('hero_cta_click', { cta_text: heroStartUsingCtaLabel, target: 'incoming_message' });
     setComposeMode('incoming');
+    setMobilePrimaryView('compose');
     setRequestError(null);
     scrollToComposeSection();
     window.requestAnimationFrame(() => {
@@ -2912,6 +2919,7 @@ export default function Home({
       });
 
       if (isCompactViewport()) {
+        setMobilePrimaryView('results');
         window.requestAnimationFrame(() => {
           scrollToMobileSection('results', { source: 'system' });
         });
@@ -3349,10 +3357,42 @@ export default function Home({
         </section>
 
         <section className="grid w-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-5">
+          <div className="flex items-center justify-between gap-2 rounded-[20px] border-2 border-black bg-white p-2 lg:hidden">
+            <button
+              type="button"
+              onClick={() => setMobilePrimaryView('compose')}
+              aria-pressed={mobilePrimaryView === 'compose'}
+              className={[
+                `min-h-[42px] flex-1 rounded-[14px] border-2 border-black px-3 py-2 text-sm font-black transition ${lightSurfaceFocusClass}`,
+                mobilePrimaryView === 'compose'
+                  ? 'bg-[#111111] text-[#f7ff4f]'
+                  : 'bg-[#fff6d8] text-black',
+              ].join(' ')}
+            >
+              מילוי פרטים
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobilePrimaryView('results')}
+              aria-pressed={mobilePrimaryView === 'results'}
+              className={[
+                `min-h-[42px] flex-1 rounded-[14px] border-2 border-black px-3 py-2 text-sm font-black transition ${lightSurfaceFocusClass}`,
+                mobilePrimaryView === 'results'
+                  ? 'bg-[#111111] text-[#f7ff4f]'
+                  : 'bg-[#d7f9ff] text-black',
+              ].join(' ')}
+            >
+              תשובה
+            </button>
+          </div>
+
           <div
             ref={composeSectionRef}
             id="compose-section"
-            className="mobile-section-anchor w-full min-w-0 space-y-4 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]"
+            className={[
+              'mobile-section-anchor w-full min-w-0 space-y-4 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]',
+              mobilePrimaryView === 'compose' ? 'block' : 'hidden lg:block',
+            ].join(' ')}
           >
             <div className="min-w-0 space-y-2">
               <p className="inline-flex min-h-[32px] items-center rounded-full border-2 border-black bg-white px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-[#9a2f10] lg:hidden">
@@ -3771,7 +3811,10 @@ export default function Home({
           <div
             ref={resultsSectionRef}
             id="results-section"
-            className="mobile-section-anchor w-full min-w-0 space-y-4 rounded-[30px] border-2 border-black bg-white p-3.5 shadow-[0_10px_0_0_#6ce8ff] sm:rounded-[36px] sm:p-5 sm:shadow-[0_12px_0_0_#6ce8ff]"
+            className={[
+              'mobile-section-anchor w-full min-w-0 space-y-4 rounded-[30px] border-2 border-black bg-white p-3.5 shadow-[0_10px_0_0_#6ce8ff] sm:rounded-[36px] sm:p-5 sm:shadow-[0_12px_0_0_#6ce8ff]',
+              mobilePrimaryView === 'results' ? 'block' : 'hidden lg:block',
+            ].join(' ')}
           >
             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
@@ -3790,9 +3833,10 @@ export default function Home({
                 <div className="flex items-center gap-2 sm:hidden">
                   <button
                     type="button"
-                    onClick={() =>
-                      scrollToMobileSection('compose', { source: 'navigation' })
-                    }
+                    onClick={() => {
+                      setMobilePrimaryView('compose');
+                      scrollToMobileSection('compose', { source: 'navigation' });
+                    }}
                     className={`min-h-[36px] rounded-full border-2 border-black bg-white px-3 py-1 text-[0.72rem] font-black text-black ${lightSurfaceFocusClass}`}
                   >
                     לטופס
