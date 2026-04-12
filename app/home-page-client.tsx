@@ -57,6 +57,7 @@ type CheckoutPlan = 'credits_50' | 'unlimited_monthly';
 type PaidPlan = CheckoutPlan | null;
 type MobileSectionId = 'compose' | 'results' | 'examples' | 'plans';
 type MobileNavSectionId = Exclude<MobileSectionId, 'plans'>;
+type MobileMainView = Extract<MobileSectionId, 'compose' | 'results'>;
 type ExampleId = 'crush-comeback' | 'ex-check-in' | 'client-discount' | 'yad2-classic';
 
 type ExampleScenario = {
@@ -1852,6 +1853,7 @@ export default function Home({
   const [billingBypassEnabled, setBillingBypassEnabled] = useState(
     BILLING_BYPASS_FALLBACK_ENABLED,
   );
+  const [mobileMainView, setMobileMainView] = useState<MobileMainView>('compose');
   const authRecoveryPromiseRef = useRef<Promise<void> | null>(null);
   const authTokenPromiseRef = useRef<Promise<string> | null>(null);
   const isGeneratorPrimaryMode = mode === 'generator';
@@ -1967,6 +1969,10 @@ export default function Home({
         return;
       }
 
+      if (section === 'compose' || section === 'results') {
+        setMobileMainView(section);
+      }
+
       const sectionElement =
         section === 'compose'
           ? composeSectionRef.current
@@ -1981,9 +1987,11 @@ export default function Home({
       }
 
       const behavior = options?.behavior ?? getPreferredScrollBehavior();
-      sectionElement.scrollIntoView({
-        behavior,
-        block: 'start',
+      window.requestAnimationFrame(() => {
+        sectionElement.scrollIntoView({
+          behavior,
+          block: 'start',
+        });
       });
     },
     [],
@@ -3349,10 +3357,39 @@ export default function Home({
         </section>
 
         <section className="grid w-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-5">
+          <div className="flex items-center gap-2 rounded-[22px] border-2 border-black bg-[#fff6d8] p-2 sm:hidden">
+            {([
+              { id: 'compose', label: 'מילוי פרטים' },
+              { id: 'results', label: 'התשובות' },
+            ] as const).map((item) => {
+              const isActive = mobileMainView === item.id;
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => scrollToMobileSection(item.id, { source: 'navigation' })}
+                  aria-pressed={isActive}
+                  className={[
+                    `min-h-[44px] flex-1 rounded-2xl border-2 px-3 py-2 text-sm font-black transition ${lightSurfaceFocusClass}`,
+                    isActive
+                      ? 'border-black bg-[#111111] text-[#f7ff4f]'
+                      : 'border-black bg-white text-black',
+                  ].join(' ')}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+
           <div
             ref={composeSectionRef}
             id="compose-section"
-            className="mobile-section-anchor w-full min-w-0 space-y-4 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]"
+            className={[
+              'mobile-section-anchor w-full min-w-0 space-y-4 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]',
+              mobileMainView === 'compose' ? 'block' : 'hidden sm:block',
+            ].join(' ')}
           >
             <div className="min-w-0 space-y-2">
               <p className="inline-flex min-h-[32px] items-center rounded-full border-2 border-black bg-white px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-[#9a2f10] lg:hidden">
@@ -3771,7 +3808,10 @@ export default function Home({
           <div
             ref={resultsSectionRef}
             id="results-section"
-            className="mobile-section-anchor w-full min-w-0 space-y-4 rounded-[30px] border-2 border-black bg-white p-3.5 shadow-[0_10px_0_0_#6ce8ff] sm:rounded-[36px] sm:p-5 sm:shadow-[0_12px_0_0_#6ce8ff]"
+            className={[
+              'mobile-section-anchor w-full min-w-0 space-y-4 rounded-[30px] border-2 border-black bg-white p-3.5 shadow-[0_10px_0_0_#6ce8ff] sm:rounded-[36px] sm:p-5 sm:shadow-[0_12px_0_0_#6ce8ff]',
+              mobileMainView === 'results' ? 'block' : 'hidden sm:block',
+            ].join(' ')}
           >
             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
