@@ -2033,9 +2033,18 @@ export default function Home({
       }
 
       const behavior = options?.behavior ?? getPreferredScrollBehavior();
-      sectionElement.scrollIntoView({
+      const sectionTop = Math.max(
+        0,
+        sectionElement.getBoundingClientRect().top + window.scrollY - 8,
+      );
+
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+
+      window.scrollTo({
+        top: sectionTop,
         behavior,
-        block: 'start',
       });
     },
     [],
