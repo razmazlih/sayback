@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ChangeEvent,
   type ClipboardEvent,
 } from 'react';
@@ -625,6 +626,10 @@ function isCompactViewport() {
 
 function getPreferredScrollBehavior(): ScrollBehavior {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+}
+
+function subscribeToHydration() {
+  return () => {};
 }
 
 function formatSubscriptionPeriodEnd(value: string | null) {
@@ -1856,6 +1861,7 @@ export default function Home({
   );
   const authRecoveryPromiseRef = useRef<Promise<void> | null>(null);
   const authTokenPromiseRef = useRef<Promise<string> | null>(null);
+  const hasHydrated = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const isGeneratorPrimaryMode = mode === 'generator';
 
   const hasUnlimitedAccess = billingBypassEnabled || paidPlan === 'unlimited_monthly';
@@ -3403,34 +3409,36 @@ export default function Home({
         </section>
 
         <section className="grid w-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-5">
-          <div className="flex items-center justify-between gap-2 rounded-[20px] border-2 border-black bg-white p-2 lg:hidden">
-            <button
-              type="button"
-              onClick={() => setMobilePrimaryView('compose')}
-              aria-pressed={mobilePrimaryView === 'compose'}
-              className={[
-                `min-h-[42px] flex-1 rounded-[14px] border-2 border-black px-3 py-2 text-sm font-black transition ${lightSurfaceFocusClass}`,
-                mobilePrimaryView === 'compose'
-                  ? 'bg-[#111111] text-[#f7ff4f]'
-                  : 'bg-[#fff6d8] text-black',
-              ].join(' ')}
-            >
-              שלב 1: מילוי
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobilePrimaryView('results')}
-              aria-pressed={mobilePrimaryView === 'results'}
-              className={[
-                `min-h-[42px] flex-1 rounded-[14px] border-2 border-black px-3 py-2 text-sm font-black transition ${lightSurfaceFocusClass}`,
-                mobilePrimaryView === 'results'
-                  ? 'bg-[#111111] text-[#f7ff4f]'
-                  : 'bg-[#d7f9ff] text-black',
-              ].join(' ')}
-            >
-              שלב 2: תשובות
-            </button>
-          </div>
+          {hasHydrated ? (
+            <div className="flex items-center justify-between gap-2 rounded-[20px] border-2 border-black bg-white p-2 lg:hidden">
+              <button
+                type="button"
+                onClick={() => setMobilePrimaryView('compose')}
+                aria-pressed={mobilePrimaryView === 'compose'}
+                className={[
+                  `min-h-[42px] flex-1 rounded-[14px] border-2 border-black px-3 py-2 text-sm font-black transition ${lightSurfaceFocusClass}`,
+                  mobilePrimaryView === 'compose'
+                    ? 'bg-[#111111] text-[#f7ff4f]'
+                    : 'bg-[#fff6d8] text-black',
+                ].join(' ')}
+              >
+                שלב 1: מילוי
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobilePrimaryView('results')}
+                aria-pressed={mobilePrimaryView === 'results'}
+                className={[
+                  `min-h-[42px] flex-1 rounded-[14px] border-2 border-black px-3 py-2 text-sm font-black transition ${lightSurfaceFocusClass}`,
+                  mobilePrimaryView === 'results'
+                    ? 'bg-[#111111] text-[#f7ff4f]'
+                    : 'bg-[#d7f9ff] text-black',
+                ].join(' ')}
+              >
+                שלב 2: תשובות
+              </button>
+            </div>
+          ) : null}
 
           <div
             ref={composeSectionRef}
@@ -3872,7 +3880,7 @@ export default function Home({
               mobilePrimaryView === 'results' ? 'block' : 'hidden lg:block',
             ].join(' ')}
           >
-            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
               <div className="min-w-0">
                 <p className="inline-flex min-h-[32px] items-center rounded-full border-2 border-black bg-[#d7f9ff] px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-black lg:hidden">
                   {mobileSectionNavItems[1].stepLabel}
@@ -3881,34 +3889,6 @@ export default function Home({
                 <p className="mt-1.5 text-sm font-bold leading-6 text-neutral-700">
                   הסבר קצר ואז תשובות שמוכנות להעתקה.
                 </p>
-              </div>
-              <div className="flex flex-col items-start gap-2 sm:items-end">
-                <span className="rounded-full border-2 border-black bg-[#d7f9ff] px-3 py-2 text-xs font-black text-black">
-                  מוכן לשליחה
-                </span>
-                <div className="flex items-center gap-2 sm:hidden">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobilePrimaryView('compose');
-                      scrollToMobileSection('compose', { source: 'navigation' });
-                    }}
-                    className={`min-h-[36px] rounded-full border-2 border-black bg-white px-3 py-1 text-[0.72rem] font-black text-black ${lightSurfaceFocusClass}`}
-                  >
-                    לטופס
-                  </button>
-                  {!isGeneratorPrimaryMode ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        scrollToMobileSection('examples', { source: 'navigation' })
-                      }
-                      className={`min-h-[36px] rounded-full border-2 border-black bg-[#fff6d8] px-3 py-1 text-[0.72rem] font-black text-black ${lightSurfaceFocusClass}`}
-                    >
-                      לדוגמאות
-                    </button>
-                  ) : null}
-                </div>
               </div>
             </div>
 
