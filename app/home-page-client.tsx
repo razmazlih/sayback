@@ -1880,7 +1880,11 @@ export default function Home({
   const trimmedMessage = message.trim();
   const trimmedLastOutgoingMessage = lastOutgoingMessage.trim();
   const parsedNoReplyDuration = Number.parseInt(noReplyDurationValue, 10);
-  const generateButtonLabel = 'קבלו מה לענות עכשיו';
+  const generateButtonLabel = isLoading
+    ? 'מכינים 3 תשובות...'
+    : isNoReplyMode
+      ? 'קבלו פולו-אפ לשליחה'
+      : 'קבלו מה לענות עכשיו';
   const heroGenerateCtaLabel = 'יאללה, מתחילים לענות';
   const heroStartUsingCtaLabel = 'התחילו להשתמש עכשיו';
   const mobileComposeHelper = useMemo(() => {
@@ -2869,10 +2873,20 @@ export default function Home({
     const payloadHasBackground = Boolean(payload.conversationBackground?.trim());
     const payloadHasLastOutgoing = Boolean(payload.lastOutgoingMessage?.trim());
 
-    if (typeof options?.replyIndex === 'number') {
-      setBusyReplyIndex(options.replyIndex);
+    const requestedReplyIndex = options?.replyIndex;
+    const isReplyUpdate = typeof requestedReplyIndex === 'number';
+
+    if (isReplyUpdate) {
+      setBusyReplyIndex(requestedReplyIndex);
     } else {
       setIsLoading(true);
+
+      if (isCompactViewport()) {
+        setMobilePrimaryView('results');
+        window.requestAnimationFrame(() => {
+          scrollToMobileSection('results', { source: 'system' });
+        });
+      }
     }
 
     try {
@@ -2927,7 +2941,7 @@ export default function Home({
         throw new Error('לא קיבלתי תשובות תקינות. נסה שוב.');
       }
 
-      const replyIndex = options?.replyIndex;
+      const replyIndex = requestedReplyIndex;
 
       if (typeof replyIndex === 'number') {
         setResult((currentResult) => {
@@ -3011,6 +3025,13 @@ export default function Home({
           error instanceof Error ? error.message : 'משהו השתבש. נסה שוב בעוד רגע.',
         ),
       );
+
+      if (!isReplyUpdate && isCompactViewport()) {
+        setMobilePrimaryView('compose');
+        window.requestAnimationFrame(() => {
+          scrollToMobileSection('compose', { source: 'system' });
+        });
+      }
     } finally {
       setIsLoading(false);
       setBusyReplyIndex(null);
@@ -3893,7 +3914,7 @@ export default function Home({
             </div>
 
             <div aria-live="polite" aria-busy={isGenerating} className="space-y-3">
-              {result ? (
+              {result && !isLoading ? (
                 <div className="w-full min-w-0 space-y-3">
                 <div className="w-full min-w-0 rounded-[26px] border-2 border-black bg-[#fff6d8] p-4 shadow-[0_8px_0_0_#111111]">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3922,20 +3943,36 @@ export default function Home({
                 </div>
               ) : (
                 <div className="flex w-full min-w-0 min-h-72 flex-col justify-center rounded-[28px] border-2 border-dashed border-black bg-[#f8f4ed] p-5 sm:min-h-80">
-                  <h3 className="text-2xl font-black text-black">כאן יופיעו התשובות שלך</h3>
+                  <h3 className="text-2xl font-black text-black">
+                    {isLoading
+                      ? isNoReplyMode
+                        ? 'מכינים פולו-אפ קצר'
+                        : 'עוד רגע זה מוכן'
+                      : 'כאן יופיעו התשובות שלך'}
+                  </h3>
                   <p className="mt-3 max-w-md text-sm font-bold leading-6 text-neutral-700">
-                    בחרו מצב כתיבה, מלאו את השדה הראשי ותוך רגע יופיעו 3 תשובות מוכנות להעתקה.
+                    {isLoading
+                      ? isNoReplyMode
+                        ? 'בודקים מה שלחת, כמה זמן עבר, ואיך להחזיר את השיחה בלי לחץ.'
+                        : 'מנסחים עכשיו 3 תשובות קצרות וטבעיות שאפשר להעתיק מיד.'
+                      : 'בחרו מצב כתיבה, מלאו את השדה הראשי ותוך רגע יופיעו 3 תשובות מוכנות להעתקה.'}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobilePrimaryView('compose');
-                      scrollToMobileSection('compose', { source: 'navigation' });
-                    }}
-                    className={`mt-4 min-h-[44px] w-full rounded-full border-2 border-black bg-white px-4 py-2 text-sm font-black text-black sm:hidden ${lightSurfaceFocusClass}`}
-                  >
-                    לחזור לשלב 1: מילוי
-                  </button>
+                  {isLoading ? (
+                    <p className="mt-4 inline-flex min-h-[36px] items-center self-start rounded-full border-2 border-black bg-[#f7ff4f] px-3 py-1 text-xs font-black text-black">
+                      עובדים על זה עכשיו...
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobilePrimaryView('compose');
+                        scrollToMobileSection('compose', { source: 'navigation' });
+                      }}
+                      className={`mt-4 min-h-[44px] w-full rounded-full border-2 border-black bg-white px-4 py-2 text-sm font-black text-black sm:hidden ${lightSurfaceFocusClass}`}
+                    >
+                      לחזור לשלב 1: מילוי
+                    </button>
+                  )}
                 </div>
               )}
             </div>
