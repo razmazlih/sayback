@@ -7,17 +7,14 @@ import {
   refundGenerationAccess,
 } from "@/lib/billing";
 import {
+  clearLocalUsageLogConversationBackgroundLength,
   completeLocalUsageLog,
   startLocalUsageLog,
   type GenerationConsumption,
 } from "@/lib/local-usage-logs";
 import { persistUsageLog, type PersistedUsageLogStatus } from "@/lib/persisted-usage-logs";
 import { consumeRateLimit } from "@/lib/rate-limit";
-import {
-  MAX_CONVERSATION_BACKGROUND_LENGTH,
-  MAX_LAST_OUTGOING_MESSAGE_LENGTH,
-  MAX_NO_REPLY_DURATION_VALUE,
-} from "@/lib/message-limits";
+import { MAX_NO_REPLY_DURATION_VALUE } from "@/lib/message-limits";
 import { after } from "next/server";
 import { isIP } from "node:net";
 
@@ -61,23 +58,24 @@ interface GenerateRequestBody {
 
 type PersistedUsageLogBase = {
   uid: string;
-  message: string | null;
+  messageLength: number | null;
   hasImage: boolean;
   context: string | null;
   tone: string | null;
   continuePreference: string | null;
-  conversationBackground: string | null;
+  conversationBackgroundLength: number | null;
   noReplyMode: boolean | null;
   noReplyDurationValue: number | null;
   noReplyDurationUnit: string | null;
-  lastOutgoingMessage: string | null;
+  lastOutgoingMessageLength: number | null;
   action: string | null;
-  sourceReply: string | null;
+  sourceReplyLength: number | null;
 };
 
 export async function POST(request: Request) {
   let body: GenerateRequestBody;
   let authenticatedUserUid: string | null = null;
+  let authenticatedUserEmail: string | null = null;
   let consumption: GenerationConsumption | null = null;
   let localUsageLogId: string | null = null;
   let persistedUsageLogBase: PersistedUsageLogBase | null = null;
@@ -85,6 +83,7 @@ export async function POST(request: Request) {
   try {
     const authenticatedUser = await requireAuthenticatedUser(request);
     authenticatedUserUid = authenticatedUser.uid;
+    authenticatedUserEmail = authenticatedUser.email;
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       return noStoreJson(
@@ -145,30 +144,27 @@ export async function POST(request: Request) {
   if (authenticatedUserUid) {
     localUsageLogId = startLocalUsageLog({
       uid: authenticatedUserUid,
-      message: body.message,
-      imageBase64: body.imageBase64 ? "1" : undefined,
+      messageLength: readOptionalTextLength(body.message),
+      hasImage: typeof body.imageBase64 === "string" && body.imageBase64.length > 0,
       context: body.context,
       tone: body.tone,
       continuePreference: body.continuePreference ?? null,
-      conversationBackground: body.conversationBackground,
+      conversationBackgroundLength: readOptionalTextLength(body.conversationBackground),
       noReplyMode: body.noReplyMode,
       noReplyDurationValue: body.noReplyDurationValue,
       noReplyDurationUnit: body.noReplyDurationUnit,
-      lastOutgoingMessage: body.lastOutgoingMessage,
+      lastOutgoingMessageLength: readOptionalTextLength(body.lastOutgoingMessage),
       action: body.action,
-      sourceReply: body.sourceReply,
+      sourceReplyLength: readOptionalTextLength(body.sourceReply),
     });
     persistedUsageLogBase = {
       uid: authenticatedUserUid,
-      message: normalizeOptionalText(body.message, 3000),
+      messageLength: readOptionalTextLength(body.message),
       hasImage: typeof body.imageBase64 === "string" && body.imageBase64.length > 0,
       context: normalizeOptionalText(body.context, 80),
       tone: normalizeOptionalText(body.tone, 80),
       continuePreference: normalizeOptionalText(body.continuePreference ?? null, 24),
-      conversationBackground: normalizeOptionalText(
-        body.conversationBackground,
-        MAX_CONVERSATION_BACKGROUND_LENGTH,
-      ),
+      conversationBackgroundLength: readOptionalTextLength(body.conversationBackground),
       noReplyMode: normalizeOptionalBoolean(body.noReplyMode),
       noReplyDurationValue: normalizeOptionalInteger(
         body.noReplyDurationValue,
@@ -176,12 +172,9 @@ export async function POST(request: Request) {
         MAX_NO_REPLY_DURATION_VALUE,
       ),
       noReplyDurationUnit: normalizeOptionalText(body.noReplyDurationUnit, 16),
-      lastOutgoingMessage: normalizeOptionalText(
-        body.lastOutgoingMessage,
-        MAX_LAST_OUTGOING_MESSAGE_LENGTH,
-      ),
+      lastOutgoingMessageLength: readOptionalTextLength(body.lastOutgoingMessage),
       action: normalizeOptionalText(body.action, 24),
-      sourceReply: normalizeOptionalText(body.sourceReply, 3000),
+      sourceReplyLength: readOptionalTextLength(body.sourceReply),
     };
   }
 
@@ -195,6 +188,10 @@ export async function POST(request: Request) {
     if (!access.allowed) {
       const blockedError = "כרגע אין שימושים זמינים בחשבון.";
 
+      clearLocalUsageLogConversationBackgroundLength(localUsageLogId);
+      if (persistedUsageLogBase) {
+        persistedUsageLogBase.conversationBackgroundLength = null;
+      }
       completeLocalUsageLog(localUsageLogId, {
         status: "error",
         error: blockedError,
@@ -207,7 +204,7 @@ export async function POST(request: Request) {
       return noStoreJson(
         {
           error: blockedError,
-          billing: access.snapshot,
+          billing: withAccountIdentity(access.snapshot, authenticatedUserEmail),
         },
         402,
       );
@@ -216,27 +213,29 @@ export async function POST(request: Request) {
     consumption = access.consumption;
     if (!access.snapshot.hasUnlimited) {
       body.conversationBackground = undefined;
+      clearLocalUsageLogConversationBackgroundLength(localUsageLogId);
       if (persistedUsageLogBase) {
-        persistedUsageLogBase.conversationBackground = null;
+        persistedUsageLogBase.conversationBackgroundLength = null;
       }
     }
 
     const generated = await generateRepliesWithModelSource(body);
     const result = generated.result;
-    const billing = await getBillingSnapshot(authenticatedUserUid);
+    const billing = await getBillingSnapshot(authenticatedUserUid, {
+      accountEmail: authenticatedUserEmail,
+    });
+    const outputLogMetadata = buildOutputLogMetadata(result.intent, result.replies);
 
     completeLocalUsageLog(localUsageLogId, {
       status: "success",
       consumption,
-      intent: result.intent,
-      replies: result.replies,
+      ...outputLogMetadata,
       modelSource: generated.modelSource,
     });
     schedulePersistedUsageLog(persistedUsageLogBase, {
       status: "success",
       consumption,
-      intent: result.intent,
-      replies: result.replies,
+      ...outputLogMetadata,
       modelSource: generated.modelSource,
     });
 
@@ -298,6 +297,17 @@ export async function POST(request: Request) {
   }
 }
 
+function withAccountIdentity<T extends { accountEmail: string | null; isRecoverableAccount: boolean }>(
+  billing: T,
+  accountEmail: string | null,
+) {
+  return {
+    ...billing,
+    accountEmail,
+    isRecoverableAccount: Boolean(accountEmail),
+  };
+}
+
 function hasJsonContentType(request: Request) {
   const contentType = request.headers.get("content-type");
   return typeof contentType === "string" && contentType.toLowerCase().includes(JSON_CONTENT_TYPE);
@@ -309,8 +319,9 @@ function schedulePersistedUsageLog(
     status: PersistedUsageLogStatus;
     consumption?: GenerationConsumption | null;
     modelSource?: AIModelSource | null;
-    intent?: string | null;
-    replies?: [string, string, string] | null;
+    intentLength?: number | null;
+    replyCount?: number | null;
+    schemaValid?: boolean | null;
     error?: string | null;
   },
 ) {
@@ -332,6 +343,33 @@ function readErrorMessage(error: unknown) {
   }
 
   return "יש תקלה זמנית. נסו שוב בעוד רגע.";
+}
+
+function buildOutputLogMetadata(intent: string, replies: [string, string, string]) {
+  const intentLength = readOptionalTextLength(intent);
+
+  return {
+    intentLength,
+    replyCount: replies.length,
+    schemaValid:
+      intentLength !== null &&
+      replies.length === 3 &&
+      replies.every((reply) => readOptionalTextLength(reply) !== null),
+  };
+}
+
+function readOptionalTextLength(value: string | null | undefined) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  return normalized.length;
 }
 
 function normalizeOptionalText(value: string | null | undefined, maxLength: number) {

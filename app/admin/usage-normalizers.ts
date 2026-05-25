@@ -43,19 +43,26 @@ export function normalizeLocalUsageEntry(
     context: entry.context,
     tone: entry.tone,
     continuePreference: entry.continuePreference,
-    conversationBackground: entry.conversationBackground,
+    messageLength: entry.messageLength,
+    conversationBackgroundLength: entry.conversationBackgroundLength,
+    lastOutgoingMessageLength: entry.lastOutgoingMessageLength,
+    sourceReplyLength: entry.sourceReplyLength,
+    intentLength: entry.intentLength,
+    replyCount: entry.replyCount,
+    schemaValid: entry.schemaValid,
+    conversationBackground: formatLengthMetadata(entry.conversationBackgroundLength, "רקע"),
     noReplyMode: entry.noReplyMode,
     noReplyDurationValue: entry.noReplyDurationValue,
     noReplyDurationUnit: entry.noReplyDurationUnit,
-    lastOutgoingMessage: entry.lastOutgoingMessage,
+    lastOutgoingMessage: formatLengthMetadata(entry.lastOutgoingMessageLength, "הודעה אחרונה"),
     status: entry.status,
-    message: entry.message,
-    replies: entry.replies ? [...entry.replies] : [],
+    message: formatLengthMetadata(entry.messageLength, "הודעה"),
+    replies: formatReplyMetadata(entry.replyCount, entry.schemaValid),
     error: entry.error,
     hasImage: entry.hasImage,
     consumption: entry.consumption,
-    intent: entry.intent,
-    sourceReply: entry.sourceReply,
+    intent: formatLengthMetadata(entry.intentLength, "intent"),
+    sourceReply: formatLengthMetadata(entry.sourceReplyLength, "תשובת מקור"),
     durationMs: entry.durationMs,
     completedAt: entry.completedAt,
     modelSource: entry.modelSource,
@@ -75,19 +82,26 @@ export function normalizePersistedUsageEntry(
     context: entry.context,
     tone: entry.tone,
     continuePreference: entry.continuePreference,
-    conversationBackground: entry.conversationBackground,
+    messageLength: entry.messageLength,
+    conversationBackgroundLength: entry.conversationBackgroundLength,
+    lastOutgoingMessageLength: entry.lastOutgoingMessageLength,
+    sourceReplyLength: entry.sourceReplyLength,
+    intentLength: entry.intentLength,
+    replyCount: entry.replyCount,
+    schemaValid: entry.schemaValid,
+    conversationBackground: formatLengthMetadata(entry.conversationBackgroundLength, "רקע"),
     noReplyMode: entry.noReplyMode,
     noReplyDurationValue: entry.noReplyDurationValue,
     noReplyDurationUnit: entry.noReplyDurationUnit,
-    lastOutgoingMessage: entry.lastOutgoingMessage,
+    lastOutgoingMessage: formatLengthMetadata(entry.lastOutgoingMessageLength, "הודעה אחרונה"),
     status: entry.status,
-    message: entry.message,
-    replies: entry.replies ? [...entry.replies] : [],
+    message: formatLengthMetadata(entry.messageLength, "הודעה"),
+    replies: formatReplyMetadata(entry.replyCount, entry.schemaValid),
     error: entry.error,
     hasImage: entry.hasImage,
     consumption: entry.consumption,
-    intent: entry.intent,
-    sourceReply: entry.sourceReply,
+    intent: formatLengthMetadata(entry.intentLength, "intent"),
+    sourceReply: formatLengthMetadata(entry.sourceReplyLength, "תשובת מקור"),
     durationMs: null,
     completedAt: null,
     modelSource: entry.modelSource,
@@ -104,4 +118,22 @@ export function normalizeUsageRows({
   return [...productionRows, ...localRows].toSorted(
     (left, right) => right.createdAtMs - left.createdAtMs,
   );
+}
+
+function formatLengthMetadata(length: number | null, label: string) {
+  return typeof length === "number" ? `${label}: ${length} תווים (תוכן לא נשמר)` : null;
+}
+
+function formatReplyMetadata(replyCount: number | null, schemaValid: boolean | null) {
+  if (typeof replyCount !== "number" || replyCount <= 0) {
+    return [];
+  }
+
+  return Array.from({ length: replyCount }, (_, index) => {
+    if (schemaValid === false) {
+      return "";
+    }
+
+    return `תשובה ${index + 1}: תוכן לא נשמר`;
+  });
 }

@@ -107,7 +107,7 @@ export async function POST(request: Request) {
             code: result.code,
             grantedUses: result.grantedUses,
           },
-          billing: result.snapshot,
+          billing: withAccountIdentity(result.snapshot, authenticatedUser.email),
         },
         200,
       );
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
           code: result.code,
           grantedUses: result.grantedUses,
         },
-        billing: result.snapshot,
+        billing: withAccountIdentity(result.snapshot, authenticatedUser.email),
       },
       200,
     );
@@ -153,6 +153,17 @@ export async function POST(request: Request) {
       500,
     );
   }
+}
+
+function withAccountIdentity<T extends { accountEmail: string | null; isRecoverableAccount: boolean }>(
+  billing: T,
+  accountEmail: string | null,
+) {
+  return {
+    ...billing,
+    accountEmail,
+    isRecoverableAccount: Boolean(accountEmail),
+  };
 }
 
 function hasJsonContentType(request: Request) {

@@ -12,7 +12,9 @@ const NO_STORE_HEADERS = {
 export async function GET(request: Request) {
   try {
     const user = await requireAuthenticatedUser(request);
-    const billing = await getBillingSnapshot(user.uid);
+    const billing = await getBillingSnapshot(user.uid, {
+      accountEmail: user.email,
+    });
 
     return Response.json(
       {

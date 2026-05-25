@@ -1,6 +1,14 @@
 import { isLocalAdminEnabled } from "@/lib/local-admin";
 
 const MAX_LOCAL_USAGE_LOGS = 400;
+const RAW_USAGE_LOG_FIELDS = [
+  "message",
+  "conversationBackground",
+  "lastOutgoingMessage",
+  "sourceReply",
+  "intent",
+  "replies",
+] as const;
 
 type LocalUsageLogState = {
   nextSequence: number;
@@ -17,47 +25,49 @@ export interface LocalUsageLogEntry {
   completedAt: string | null;
   durationMs: number | null;
   uid: string;
-  message: string | null;
+  messageLength: number | null;
   hasImage: boolean;
   context: string | null;
   tone: string | null;
   continuePreference: string | null;
-  conversationBackground: string | null;
+  conversationBackgroundLength: number | null;
   noReplyMode: boolean | null;
   noReplyDurationValue: number | null;
   noReplyDurationUnit: string | null;
-  lastOutgoingMessage: string | null;
+  lastOutgoingMessageLength: number | null;
   action: string | null;
-  sourceReply: string | null;
+  sourceReplyLength: number | null;
   status: LocalUsageLogStatus;
   consumption: GenerationConsumption | null;
-  intent: string | null;
-  replies: [string, string, string] | null;
+  intentLength: number | null;
+  replyCount: number | null;
+  schemaValid: boolean | null;
   error: string | null;
   modelSource: GenerationModelSource | null;
 }
 
 type StartLocalUsageLogInput = {
   uid: string;
-  message?: string;
-  imageBase64?: string;
+  messageLength?: number | null;
+  hasImage?: boolean;
   context?: string;
   tone?: string;
   continuePreference?: string | null;
-  conversationBackground?: string;
+  conversationBackgroundLength?: number | null;
   noReplyMode?: boolean;
   noReplyDurationValue?: number;
   noReplyDurationUnit?: string;
-  lastOutgoingMessage?: string;
+  lastOutgoingMessageLength?: number | null;
   action?: string;
-  sourceReply?: string;
+  sourceReplyLength?: number | null;
 };
 
 type CompleteLocalUsageLogInput = {
   status: "success" | "error";
   consumption?: GenerationConsumption | null;
-  intent?: string | null;
-  replies?: [string, string, string] | null;
+  intentLength?: number | null;
+  replyCount?: number | null;
+  schemaValid?: boolean | null;
   error?: string | null;
   modelSource?: GenerationModelSource | null;
 };
@@ -80,22 +90,23 @@ export function startLocalUsageLog(input: StartLocalUsageLogInput) {
     completedAt: null,
     durationMs: null,
     uid: normalizeText(input.uid, 200) ?? "unknown",
-    message: normalizeText(input.message, 3000),
-    hasImage: Boolean(normalizeText(input.imageBase64, 20)),
+    messageLength: normalizeLength(input.messageLength),
+    hasImage: input.hasImage === true,
     context: normalizeText(input.context, 80),
     tone: normalizeText(input.tone, 80),
     continuePreference: normalizeText(input.continuePreference ?? null, 24),
-    conversationBackground: normalizeText(input.conversationBackground, 500),
+    conversationBackgroundLength: normalizeLength(input.conversationBackgroundLength),
     noReplyMode: normalizeBoolean(input.noReplyMode),
     noReplyDurationValue: normalizeInteger(input.noReplyDurationValue, 1, 999),
     noReplyDurationUnit: normalizeText(input.noReplyDurationUnit, 16),
-    lastOutgoingMessage: normalizeText(input.lastOutgoingMessage, 240),
+    lastOutgoingMessageLength: normalizeLength(input.lastOutgoingMessageLength),
     action: normalizeText(input.action, 24),
-    sourceReply: normalizeText(input.sourceReply, 3000),
+    sourceReplyLength: normalizeLength(input.sourceReplyLength),
     status: "pending",
     consumption: null,
-    intent: null,
-    replies: null,
+    intentLength: null,
+    replyCount: null,
+    schemaValid: null,
     error: null,
     modelSource: null,
   };
@@ -132,21 +143,29 @@ export function completeLocalUsageLog(
   );
   entry.status = updates.status;
   entry.consumption = updates.consumption ?? null;
-  entry.intent = normalizeText(updates.intent ?? null, 500);
-  entry.replies = normalizeReplies(updates.replies);
+  entry.intentLength = normalizeLength(updates.intentLength);
+  entry.replyCount = normalizeLength(updates.replyCount);
+  entry.schemaValid = normalizeBoolean(updates.schemaValid);
   entry.error = normalizeText(updates.error ?? null, 400);
   entry.modelSource = normalizeModelSource(updates.modelSource ?? null);
+}
+
+export function clearLocalUsageLogConversationBackgroundLength(id: string | null) {
+  if (!id || !isLocalAdminEnabled()) {
+    return;
+  }
+
+  const entry = getState().entries.find((current) => current.id === id);
+
+  if (entry) {
+    entry.conversationBackgroundLength = null;
+  }
 }
 
 export function getLocalUsageLogs() {
   const state = getState();
 
-  return state.entries.map((entry) => ({
-    ...entry,
-    replies: entry.replies
-      ? [entry.replies[0], entry.replies[1], entry.replies[2]]
-      : null,
-  }));
+  return state.entries.map((entry) => ({ ...entry }));
 }
 
 function getState() {
@@ -155,6 +174,10 @@ function getState() {
       nextSequence: 1,
       entries: [],
     };
+  }
+
+  for (const entry of globalThis.__saybackLocalUsageLogState.entries) {
+    sanitizeStoredEntry(entry);
   }
 
   return globalThis.__saybackLocalUsageLogState;
@@ -198,26 +221,62 @@ function normalizeInteger(value: number | null | undefined, min: number, max: nu
   return value;
 }
 
+function normalizeLength(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    return null;
+  }
+
+  return value;
+}
+
+function sanitizeStoredEntry(entry: LocalUsageLogEntry) {
+  const record = entry as unknown as Record<string, unknown>;
+  entry.messageLength = normalizeLength(entry.messageLength) ?? readLegacyTextLength(record.message);
+  entry.conversationBackgroundLength =
+    normalizeLength(entry.conversationBackgroundLength) ??
+    readLegacyTextLength(record.conversationBackground);
+  entry.lastOutgoingMessageLength =
+    normalizeLength(entry.lastOutgoingMessageLength) ??
+    readLegacyTextLength(record.lastOutgoingMessage);
+  entry.sourceReplyLength =
+    normalizeLength(entry.sourceReplyLength) ?? readLegacyTextLength(record.sourceReply);
+  entry.intentLength = normalizeLength(entry.intentLength) ?? readLegacyTextLength(record.intent);
+  entry.replyCount = normalizeLength(entry.replyCount) ?? readLegacyReplyCount(record.replies);
+  entry.schemaValid =
+    normalizeBoolean(entry.schemaValid) ?? inferLegacySchemaValidity(record.intent, record.replies);
+
+  for (const field of RAW_USAGE_LOG_FIELDS) {
+    delete record[field];
+  }
+}
+
+function readLegacyTextLength(value: unknown) {
+  const text = typeof value === "string" ? value.trim() : "";
+  return text.length > 0 ? text.length : null;
+}
+
+function readLegacyReplyCount(value: unknown) {
+  return Array.isArray(value) ? value.length : null;
+}
+
+function inferLegacySchemaValidity(intent: unknown, replies: unknown) {
+  const hasIntent = readLegacyTextLength(intent) !== null;
+
+  if (!Array.isArray(replies)) {
+    return null;
+  }
+
+  return (
+    hasIntent &&
+    replies.length === 3 &&
+    replies.every((reply) => readLegacyTextLength(reply) !== null)
+  );
+}
+
 function normalizeModelSource(value: string | null | undefined): GenerationModelSource | null {
   if (value === "api" || value === "local") {
     return value;
   }
 
   return null;
-}
-
-function normalizeReplies(value: [string, string, string] | null | undefined) {
-  if (!Array.isArray(value) || value.length !== 3) {
-    return null;
-  }
-
-  const normalized = value
-    .map((reply) => normalizeText(reply, 500))
-    .filter((reply): reply is string => typeof reply === "string");
-
-  if (normalized.length !== 3) {
-    return null;
-  }
-
-  return [normalized[0], normalized[1], normalized[2]] as [string, string, string];
 }

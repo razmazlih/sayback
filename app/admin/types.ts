@@ -11,6 +11,13 @@ export interface AdminUsageEntry {
   context: string | null;
   tone: string | null;
   continuePreference: string | null;
+  messageLength: number | null;
+  conversationBackgroundLength: number | null;
+  lastOutgoingMessageLength: number | null;
+  sourceReplyLength: number | null;
+  intentLength: number | null;
+  replyCount: number | null;
+  schemaValid: boolean | null;
   conversationBackground: string | null;
   noReplyMode: boolean | null;
   noReplyDurationValue: number | null;

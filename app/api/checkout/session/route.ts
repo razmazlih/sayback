@@ -121,6 +121,7 @@ export async function GET(request: Request) {
           stripe,
           session,
           uid: authenticatedUser.uid,
+          accountEmail: authenticatedUser.email,
           plan: normalizedPlan,
         });
       } catch (error) {
@@ -196,11 +197,13 @@ async function reconcilePaidCheckoutSession({
   stripe,
   session,
   uid,
+  accountEmail,
   plan,
 }: {
   stripe: Stripe;
   session: Stripe.Checkout.Session;
   uid: string;
+  accountEmail: string | null;
   plan: "credits_50" | "unlimited_monthly";
 }) {
   const stripeCustomerId = readString(session.customer);
@@ -222,7 +225,7 @@ async function reconcilePaidCheckoutSession({
         amountTotal,
         expectedMinimum: CREDIT_PACK_PRICE_AGOROT,
       });
-      return getBillingSnapshot(uid);
+      return getBillingSnapshot(uid, { accountEmail });
     }
 
     if (currency && currency !== CREDIT_PACK_CURRENCY) {
@@ -231,7 +234,7 @@ async function reconcilePaidCheckoutSession({
         currency,
         expectedCurrency: CREDIT_PACK_CURRENCY,
       });
-      return getBillingSnapshot(uid);
+      return getBillingSnapshot(uid, { accountEmail });
     }
 
     return applyCreditPackPurchase({
@@ -240,20 +243,33 @@ async function reconcilePaidCheckoutSession({
       stripeCustomerId,
       amountTotal,
       currency,
-    });
+    }).then((billing) => withAccountIdentity(billing, accountEmail));
   }
 
   if (plan === "unlimited_monthly" && typeof session.subscription === "string") {
     const subscription = await stripe.subscriptions.retrieve(session.subscription);
-    return syncSubscriptionState({
+    const billing = await syncSubscriptionState({
       uid,
       stripeCustomerId,
       subscriptionId: subscription.id,
       subscriptionStatus: readString(subscription.status),
     });
+
+    return withAccountIdentity(billing, accountEmail);
   }
 
-  return getBillingSnapshot(uid);
+  return getBillingSnapshot(uid, { accountEmail });
+}
+
+function withAccountIdentity<T extends { accountEmail: string | null; isRecoverableAccount: boolean }>(
+  billing: T,
+  accountEmail: string | null,
+) {
+  return {
+    ...billing,
+    accountEmail,
+    isRecoverableAccount: Boolean(accountEmail),
+  };
 }
 
 async function enforceRateLimits(request: Request, uid: string) {

@@ -89,6 +89,7 @@ export async function GET(request: NextRequest) {
     const state = await loadSubscriptionState({
       stripe,
       uid: authenticatedUser.uid,
+      accountEmail: authenticatedUser.email,
     });
 
     return json(
@@ -184,6 +185,7 @@ export async function POST(request: NextRequest) {
     const state = await loadSubscriptionState({
       stripe,
       uid: authenticatedUser.uid,
+      accountEmail: authenticatedUser.email,
     });
 
     if (!state.subscription || !state.stripeSubscription) {
@@ -224,7 +226,7 @@ export async function POST(request: NextRequest) {
       return json(
         {
           message: "החיוב הבא בוטל. המנוי נשאר פעיל עד סוף התוקף הנוכחי.",
-          billing: updatedBilling,
+          billing: withAccountIdentity(updatedBilling, authenticatedUser.email),
           subscription: mapManagedSubscription(updatedSubscription),
         },
         200,
@@ -264,7 +266,7 @@ export async function POST(request: NextRequest) {
     return json(
       {
         message: "החידוש האוטומטי חזר לפעול.",
-        billing: updatedBilling,
+        billing: withAccountIdentity(updatedBilling, authenticatedUser.email),
         subscription: mapManagedSubscription(updatedSubscription),
       },
       200,
@@ -274,9 +276,21 @@ export async function POST(request: NextRequest) {
   }
 }
 
+function withAccountIdentity<T extends { accountEmail: string | null; isRecoverableAccount: boolean }>(
+  billing: T,
+  accountEmail: string | null,
+) {
+  return {
+    ...billing,
+    accountEmail,
+    isRecoverableAccount: Boolean(accountEmail),
+  };
+}
+
 async function loadSubscriptionState(params: {
   stripe: Stripe;
   uid: string;
+  accountEmail: string | null;
 }): Promise<{
   billing: Awaited<ReturnType<typeof getBillingSnapshot>>;
   subscription: ManagedSubscription | null;
@@ -286,7 +300,9 @@ async function loadSubscriptionState(params: {
 
   if (!billingRecord.subscriptionId) {
     return {
-      billing: await getBillingSnapshot(params.uid),
+      billing: await getBillingSnapshot(params.uid, {
+        accountEmail: params.accountEmail,
+      }),
       subscription: null,
       stripeSubscription: null,
     };
@@ -309,7 +325,11 @@ async function loadSubscriptionState(params: {
   });
 
   return {
-    billing,
+    billing: {
+      ...billing,
+      accountEmail: params.accountEmail,
+      isRecoverableAccount: Boolean(params.accountEmail),
+    },
     subscription: mapManagedSubscription(stripeSubscription),
     stripeSubscription,
   };

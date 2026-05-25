@@ -121,6 +121,16 @@ export async function POST(request: NextRequest) {
       throw new UnauthorizedError();
     }
 
+    if (!authenticatedUser.email) {
+      return json(
+        {
+          error: "כדי לשמור את הרכישה לחשבון, צריך להתחבר עם אימייל לפני התשלום.",
+          code: "recoverable_email_required",
+        },
+        409,
+      );
+    }
+
     const stripe = getStripe();
     const selectedPlan = getCheckoutPlan(body.plan);
     const origin = getRequestOrigin(request);

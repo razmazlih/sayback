@@ -29,6 +29,10 @@ type BillingDocument = {
   updatedAt?: string;
 };
 
+type BillingIdentity = {
+  accountEmail?: string | null;
+};
+
 type CouponDocument = {
   active?: boolean;
   usesGranted?: number;
@@ -52,6 +56,10 @@ export type BillingSnapshot = {
   subscriptionStatus: string | null;
   stripeCustomerId: string | null;
   billingBypassEnabled: boolean;
+  accountEmail: string | null;
+  isRecoverableAccount: boolean;
+  nextConsumptionSource: ConsumptionKind | "blocked";
+  dailyResetAt: string | null;
   accessState: "free" | "credits" | "unlimited" | "blocked";
 };
 
@@ -121,6 +129,13 @@ function getDailyUsageDate(value = new Date()) {
   return value.toISOString().slice(0, 10);
 }
 
+function getNextDailyResetAt(value = new Date()) {
+  const nextReset = new Date(value);
+  nextReset.setUTCDate(nextReset.getUTCDate() + 1);
+  nextReset.setUTCHours(0, 0, 0, 0);
+  return nextReset.toISOString();
+}
+
 function readString(value: unknown) {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
@@ -163,10 +178,23 @@ function normalizeBillingDocument(
   };
 }
 
-function buildSnapshot(document: NormalizedBillingDocument): BillingSnapshot {
+function buildSnapshot(
+  document: NormalizedBillingDocument,
+  identity: BillingIdentity = {},
+): BillingSnapshot {
   const hasUnlimited = document.unlimited && isUnlimitedStatus(document.subscriptionStatus);
   const freeRemaining = Math.max(FREE_LIMIT - document.freeUsed, 0);
   const dailyRemaining = Math.max(DAILY_FREE_LIMIT - document.dailyUsed, 0);
+  const accountEmail = readString(identity.accountEmail);
+  const nextConsumptionSource: BillingSnapshot["nextConsumptionSource"] = hasUnlimited
+    ? "unlimited"
+    : document.credits > 0
+      ? "credits"
+      : freeRemaining > 0
+        ? "initial_free"
+        : dailyRemaining > 0
+          ? "daily_free"
+          : "blocked";
 
   return {
     freeLimit: FREE_LIMIT,
@@ -180,6 +208,10 @@ function buildSnapshot(document: NormalizedBillingDocument): BillingSnapshot {
     subscriptionStatus: document.subscriptionStatus,
     stripeCustomerId: document.stripeCustomerId,
     billingBypassEnabled: false,
+    accountEmail,
+    isRecoverableAccount: Boolean(accountEmail),
+    nextConsumptionSource,
+    dailyResetAt: getNextDailyResetAt(),
     accessState: hasUnlimited
       ? "unlimited"
       : document.credits > 0
@@ -203,6 +235,10 @@ function buildBillingBypassSnapshot(): BillingSnapshot {
     subscriptionStatus: null,
     stripeCustomerId: null,
     billingBypassEnabled: true,
+    accountEmail: null,
+    isRecoverableAccount: false,
+    nextConsumptionSource: "unlimited",
+    dailyResetAt: null,
     accessState: "unlimited",
   };
 }
@@ -238,9 +274,19 @@ async function getCouponRedemptionDocRef(code: string, uid: string) {
   ).doc(`${code}__${uid}`);
 }
 
-export async function getBillingSnapshot(uid: string): Promise<BillingSnapshot> {
+export async function getBillingSnapshot(
+  uid: string,
+  identity: BillingIdentity = {},
+): Promise<BillingSnapshot> {
   if (isBillingBypassEnabled()) {
-    return buildBillingBypassSnapshot();
+    const snapshot = buildBillingBypassSnapshot();
+    const accountEmail = readString(identity.accountEmail);
+
+    return {
+      ...snapshot,
+      accountEmail,
+      isRecoverableAccount: Boolean(accountEmail),
+    };
   }
 
   const ref = await getBillingDocRef(uid);
@@ -249,7 +295,10 @@ export async function getBillingSnapshot(uid: string): Promise<BillingSnapshot> 
     data: () => unknown;
   };
 
-  return buildSnapshot(normalizeBillingDocument(snapshot.exists ? snapshot.data() : undefined));
+  return buildSnapshot(
+    normalizeBillingDocument(snapshot.exists ? snapshot.data() : undefined),
+    identity,
+  );
 }
 
 export async function getBillingSubscriptionRecord(

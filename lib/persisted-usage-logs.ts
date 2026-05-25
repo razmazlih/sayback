@@ -11,22 +11,23 @@ export type PersistedUsageLogStatus = "success" | "error" | "blocked";
 
 export type PersistedUsageLogInput = {
   uid: string;
-  message?: string | null;
+  messageLength?: number | null;
   hasImage: boolean;
   context?: string | null;
   tone?: string | null;
   continuePreference?: string | null;
-  conversationBackground?: string | null;
+  conversationBackgroundLength?: number | null;
   noReplyMode?: boolean | null;
   noReplyDurationValue?: number | null;
   noReplyDurationUnit?: string | null;
-  lastOutgoingMessage?: string | null;
+  lastOutgoingMessageLength?: number | null;
   action?: string | null;
-  sourceReply?: string | null;
+  sourceReplyLength?: number | null;
   status: PersistedUsageLogStatus;
   consumption?: GenerationConsumption | null;
-  intent?: string | null;
-  replies?: [string, string, string] | null;
+  intentLength?: number | null;
+  replyCount?: number | null;
+  schemaValid?: boolean | null;
   error?: string | null;
   modelSource?: GenerationModelSource | null;
 };
@@ -35,28 +36,38 @@ export type PersistedUsageLogEntry = {
   id: string;
   createdAt: string;
   uid: string;
-  message: string | null;
+  messageLength: number | null;
   hasImage: boolean;
   context: string | null;
   tone: string | null;
   continuePreference: string | null;
-  conversationBackground: string | null;
+  conversationBackgroundLength: number | null;
   noReplyMode: boolean | null;
   noReplyDurationValue: number | null;
   noReplyDurationUnit: string | null;
-  lastOutgoingMessage: string | null;
+  lastOutgoingMessageLength: number | null;
   action: string | null;
-  sourceReply: string | null;
+  sourceReplyLength: number | null;
   status: PersistedUsageLogStatus;
   consumption: GenerationConsumption | null;
-  intent: string | null;
-  replies: [string, string, string] | null;
+  intentLength: number | null;
+  replyCount: number | null;
+  schemaValid: boolean | null;
   error: string | null;
   modelSource: GenerationModelSource | null;
 };
 
 type PersistedUsageLogDocument = Omit<PersistedUsageLogEntry, "id"> & {
   createdAtMs: number;
+};
+
+type LegacyPersistedUsageLogDocument = {
+  message?: unknown;
+  conversationBackground?: unknown;
+  lastOutgoingMessage?: unknown;
+  sourceReply?: unknown;
+  intent?: unknown;
+  replies?: unknown;
 };
 
 type FirestoreDoc = {
@@ -103,22 +114,23 @@ export async function persistUsageLog(input: PersistedUsageLogInput) {
     createdAt: now.toISOString(),
     createdAtMs: now.getTime(),
     uid: normalizeText(input.uid, 200) ?? "unknown",
-    message: normalizeText(input.message ?? null, 3000),
+    messageLength: normalizeLength(input.messageLength),
     hasImage: input.hasImage === true,
     context: normalizeText(input.context ?? null, 80),
     tone: normalizeText(input.tone ?? null, 80),
     continuePreference: normalizeText(input.continuePreference ?? null, 24),
-    conversationBackground: normalizeText(input.conversationBackground ?? null, 500),
+    conversationBackgroundLength: normalizeLength(input.conversationBackgroundLength),
     noReplyMode: normalizeBoolean(input.noReplyMode),
     noReplyDurationValue: normalizeInteger(input.noReplyDurationValue, 1, 999),
     noReplyDurationUnit: normalizeText(input.noReplyDurationUnit ?? null, 16),
-    lastOutgoingMessage: normalizeText(input.lastOutgoingMessage ?? null, 240),
+    lastOutgoingMessageLength: normalizeLength(input.lastOutgoingMessageLength),
     action: normalizeText(input.action ?? null, 24),
-    sourceReply: normalizeText(input.sourceReply ?? null, 3000),
+    sourceReplyLength: normalizeLength(input.sourceReplyLength),
     status: normalizeStatus(input.status),
     consumption: normalizeConsumption(input.consumption),
-    intent: normalizeText(input.intent ?? null, 500),
-    replies: normalizeReplies(input.replies),
+    intentLength: normalizeLength(input.intentLength),
+    replyCount: normalizeLength(input.replyCount),
+    schemaValid: normalizeBoolean(input.schemaValid),
     error: normalizeText(input.error ?? null, 500),
     modelSource: normalizeModelSource(input.modelSource),
   };
@@ -151,7 +163,8 @@ export async function listPersistedUsageLogs(limit = 200): Promise<PersistedUsag
 }
 
 function normalizeEntry(id: string, data: unknown): PersistedUsageLogEntry | null {
-  const document = (data ?? {}) as Partial<PersistedUsageLogDocument>;
+  const document = (data ?? {}) as Partial<PersistedUsageLogDocument> &
+    LegacyPersistedUsageLogDocument;
   const createdAt = readString(document.createdAt);
   const createdAtMs = readNumber(document.createdAtMs);
 
@@ -163,22 +176,29 @@ function normalizeEntry(id: string, data: unknown): PersistedUsageLogEntry | nul
     id,
     createdAt: createdAt ?? new Date(createdAtMs ?? Date.now()).toISOString(),
     uid: readString(document.uid) ?? "unknown",
-    message: readString(document.message),
+    messageLength: normalizeLength(document.messageLength) ?? readLegacyTextLength(document.message),
     hasImage: document.hasImage === true,
     context: readString(document.context),
     tone: readString(document.tone),
     continuePreference: readString(document.continuePreference),
-    conversationBackground: readString(document.conversationBackground),
+    conversationBackgroundLength:
+      normalizeLength(document.conversationBackgroundLength) ??
+      readLegacyTextLength(document.conversationBackground),
     noReplyMode: readBoolean(document.noReplyMode),
     noReplyDurationValue: normalizeInteger(document.noReplyDurationValue, 1, 999),
     noReplyDurationUnit: readString(document.noReplyDurationUnit),
-    lastOutgoingMessage: readString(document.lastOutgoingMessage),
+    lastOutgoingMessageLength:
+      normalizeLength(document.lastOutgoingMessageLength) ??
+      readLegacyTextLength(document.lastOutgoingMessage),
     action: readString(document.action),
-    sourceReply: readString(document.sourceReply),
+    sourceReplyLength:
+      normalizeLength(document.sourceReplyLength) ?? readLegacyTextLength(document.sourceReply),
     status: normalizeStatus(document.status),
     consumption: normalizeConsumption(document.consumption),
-    intent: readString(document.intent),
-    replies: normalizeReplies(document.replies),
+    intentLength: normalizeLength(document.intentLength) ?? readLegacyTextLength(document.intent),
+    replyCount: normalizeLength(document.replyCount) ?? readLegacyReplyCount(document.replies),
+    schemaValid:
+      readBoolean(document.schemaValid) ?? inferLegacySchemaValidity(document.intent, document.replies),
     error: readString(document.error),
     modelSource: normalizeModelSource(document.modelSource),
   };
@@ -249,18 +269,29 @@ function normalizeInteger(value: unknown, min: number, max: number) {
   return value;
 }
 
-function normalizeReplies(value: unknown): [string, string, string] | null {
-  if (!Array.isArray(value) || value.length !== 3) {
+function normalizeLength(value: unknown) {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
     return null;
   }
 
-  const replies = value
-    .map((item) => readString(item))
-    .filter((item): item is string => Boolean(item));
+  return value;
+}
 
-  if (replies.length !== 3) {
+function readLegacyTextLength(value: unknown) {
+  const text = readString(value);
+  return text ? text.length : null;
+}
+
+function readLegacyReplyCount(value: unknown) {
+  return Array.isArray(value) ? value.length : null;
+}
+
+function inferLegacySchemaValidity(intent: unknown, replies: unknown) {
+  const hasIntent = readLegacyTextLength(intent) !== null;
+
+  if (!Array.isArray(replies)) {
     return null;
   }
 
-  return [replies[0], replies[1], replies[2]];
+  return hasIntent && replies.length === 3 && replies.every((reply) => readString(reply) !== null);
 }

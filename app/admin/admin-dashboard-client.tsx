@@ -87,6 +87,13 @@ const warmSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-[
 const whiteSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-white`;
 const darkSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-[#111111]`;
 const stableScrollbarStyle = { scrollbarGutter: 'stable' } as const;
+const filterGridStyle = {
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+} as const;
+const filterSearchStyle = { gridColumn: 'span 2 / span 2' } as const;
+const workbenchGridStyle = {
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
+} as const;
 
 export default function AdminDashboardClient({ rows }: AdminDashboardClientProps) {
   const searchId = useId();
@@ -601,97 +608,92 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <section className="relative overflow-hidden rounded-[2rem] border border-black/10 bg-surface px-5 py-5 shadow-[0_20px_60px_rgba(25,19,15,0.08)] sm:px-6 sm:py-6">
-        <div className="absolute inset-x-0 top-0 h-24 bg-[linear-gradient(90deg,rgba(255,212,0,0.22),rgba(255,77,0,0.14),transparent)]" />
-        <div className="absolute -left-10 top-8 h-24 w-24 rounded-full bg-accent/20 blur-3xl" />
-        <div className="absolute -right-6 top-0 h-28 w-28 rounded-full bg-brand/15 blur-3xl" />
-        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <p className="text-xs font-medium tracking-[0.14em] text-black/45">לוח בקרה מקומי</p>
-            <h1 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-brand-ink sm:text-4xl">
-              חלוקה ברורה לפי משתמשים וציר זמן לכל הודעה
+    <div className="flex flex-col gap-4">
+      <section className="rounded-2xl border border-black/10 bg-white/90 px-4 py-4 shadow-[0_14px_38px_rgba(25,19,15,0.06)] sm:px-5">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <div>
+            <p className="text-xs font-semibold tracking-[0.12em] text-brand">ניהול SayBack</p>
+            <h1 className="mt-1 text-2xl font-semibold text-brand-ink sm:text-3xl">
+              סקירת שימוש לפי משתמשים ואירועים
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-black/65 sm:text-base">
-              כל משתמש מוצג בנפרד, ובתוך כל משתמש תראה סדר כרונולוגי מלא של הבקשות. בכל אירוע יש
-              סימון מפורש אם זו הודעה חדשה או תיקון (softer / sharper / retry) + מה בדיוק נשלח ומה התקבל.
-            </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[360px]">
             <CompactFact
               label="רשומה אחרונה"
               value={latestRow ? formatDateTime(latestRow.createdAt) : 'אין נתונים'}
             />
-            <CompactFact label="קבוצות משתמשים" value={String(groupedUsers.length)} />
+            <CompactFact label="משתמשים בתצוגה" value={String(groupedUsers.length)} />
           </div>
         </div>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="סה״כ ברשימה" value={String(filteredRows.length)} toneClass="bg-brand text-white" />
-        <StatCard label="הצלחות" value={String(summary.statusCounts.success)} toneClass="bg-emerald-600 text-white" />
-        <StatCard label="חסומים" value={String(summary.statusCounts.blocked)} toneClass="bg-amber-500 text-white" />
-        <StatCard label="נכשלו" value={String(summary.statusCounts.failed)} toneClass="bg-rose-600 text-white" />
+      <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="אירועים" value={String(filteredRows.length)} toneClass="bg-brand" />
+        <StatCard label="הצלחות" value={String(summary.statusCounts.success)} toneClass="bg-emerald-500" />
+        <StatCard label="חסומים" value={String(summary.statusCounts.blocked)} toneClass="bg-amber-400" />
+        <StatCard label="נכשלו" value={String(summary.statusCounts.failed)} toneClass="bg-rose-500" />
+        <StatCard label="משתמשים" value={String(summary.uniqueUsersCount)} toneClass="bg-sky-500" />
+        <StatCard label="משתמשים חסומים" value={String(summary.uniqueBlockedUsersCount)} toneClass="bg-zinc-700" />
         <StatCard
-          label="משתמשים ייחודיים"
-          value={String(summary.uniqueUsersCount)}
-          toneClass="bg-accent text-brand-ink"
-        />
-        <StatCard
-          label="משתמשים חסומים (ייחודיים)"
-          value={String(summary.uniqueBlockedUsersCount)}
-          toneClass="bg-[#1f2937] text-white"
-        />
-        <StatCard
-          label="יחס Retry מתוך תיקונים"
+          label="Retry מתיקונים"
           value={`${formatRatioPercent(summary.retryRatio)} (${summary.retryCount}/${summary.refineCount})`}
-          toneClass="bg-sky-600 text-white"
+          toneClass="bg-violet-500"
         />
         <StatCard
-          label="אותות תקינות סכימה"
-          value={`${summary.invalidSchemaCount} חריגים / ${summary.successRowsCount} הצלחות`}
-          toneClass={summary.invalidSchemaCount > 0 ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'}
+          label="חריגות סכימה"
+          value={`${summary.invalidSchemaCount}/${summary.successRowsCount}`}
+          toneClass={summary.invalidSchemaCount > 0 ? 'bg-rose-600' : 'bg-emerald-600'}
         />
       </section>
 
-      <section className="rounded-[1.5rem] border border-black/10 bg-white/75 px-4 py-3">
-        <div className="text-xs font-semibold tracking-[0.1em] text-black/50">Preset טריאז׳ מהירים</div>
-        <p className="mt-1 text-xs text-black/60">לחיצה אחת להחלפת תצוגת טיפול בלי להרכיב מסננים ידנית.</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <SummaryShortcutButton
-            label={`הכול (${presetSummary.totalCount})`}
-            active={status === 'all' && action === 'all' && integrityFilter === 'all'}
-            onClick={() => applySummaryShortcut('all')}
-          />
-          <SummaryShortcutButton
-            label={`חסומים בלבד (${presetSummary.blockedCount})`}
-            active={status === 'blocked' && action === 'all' && integrityFilter === 'all'}
-            onClick={() => applySummaryShortcut('blocked')}
-            disabled={presetSummary.blockedCount === 0}
-          />
-          <SummaryShortcutButton
-            label={`נכשלו בלבד (${presetSummary.failedCount})`}
-            active={status === 'failed' && action === 'all' && integrityFilter === 'all'}
-            onClick={() => applySummaryShortcut('failed')}
-            disabled={presetSummary.failedCount === 0}
-          />
-          <SummaryShortcutButton
-            label={`Retry בלבד (${presetSummary.retryCount})`}
-            active={status === 'all' && action === 'retry' && integrityFilter === 'all'}
-            onClick={() => applySummaryShortcut('retry')}
-            disabled={presetSummary.retryCount === 0}
-          />
-          <SummaryShortcutButton
-            label={`חריגות סכימה (${presetSummary.invalidSchemaCount})`}
-            active={integrityFilter === 'invalid_schema'}
-            onClick={() => applySummaryShortcut('schema_issues')}
-            disabled={presetSummary.invalidSchemaCount === 0}
-          />
-        </div>
-      </section>
+      <section
+        className="overflow-hidden rounded-2xl border border-black/10 bg-white/95 shadow-[0_18px_55px_rgba(25,19,15,0.07)]"
+        tabIndex={0}
+        onKeyDown={handleDesktopNavigationKeyDown}
+      >
+        <div className="sticky top-3 z-20 border-b border-black/10 bg-white/95 px-3 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/90 sm:px-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-brand-ink">מסננים וטריאז׳</h2>
+              <p className="mt-0.5 text-xs text-black/55">
+                {filteredRows.length} אירועים, {groupedUsers.length} משתמשים, {summary.invalidSchemaCount} חריגות סכימה
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <SummaryShortcutButton
+                label={`הכול (${presetSummary.totalCount})`}
+                active={status === 'all' && action === 'all' && integrityFilter === 'all'}
+                onClick={() => applySummaryShortcut('all')}
+              />
+              <SummaryShortcutButton
+                label={`חסומים (${presetSummary.blockedCount})`}
+                active={status === 'blocked' && action === 'all' && integrityFilter === 'all'}
+                onClick={() => applySummaryShortcut('blocked')}
+                disabled={presetSummary.blockedCount === 0}
+              />
+              <SummaryShortcutButton
+                label={`נכשלו (${presetSummary.failedCount})`}
+                active={status === 'failed' && action === 'all' && integrityFilter === 'all'}
+                onClick={() => applySummaryShortcut('failed')}
+                disabled={presetSummary.failedCount === 0}
+              />
+              <SummaryShortcutButton
+                label={`Retry (${presetSummary.retryCount})`}
+                active={status === 'all' && action === 'retry' && integrityFilter === 'all'}
+                onClick={() => applySummaryShortcut('retry')}
+                disabled={presetSummary.retryCount === 0}
+              />
+              <SummaryShortcutButton
+                label={`סכימה (${presetSummary.invalidSchemaCount})`}
+                active={integrityFilter === 'invalid_schema'}
+                onClick={() => applySummaryShortcut('schema_issues')}
+                disabled={presetSummary.invalidSchemaCount === 0}
+              />
+            </div>
+          </div>
 
-      <section className="sticky top-3 z-20 rounded-[2rem] border border-black/10 bg-surface px-4 py-4 shadow-[0_16px_45px_rgba(25,19,15,0.06)] backdrop-blur supports-[backdrop-filter]:bg-surface/90 sm:px-5">
-        <div className="grid gap-3 xl:grid-cols-[minmax(0,1.7fr)_repeat(4,minmax(0,0.8fr))]">
+          <div className="mt-3 grid gap-2" style={filterGridStyle}>
+          <div style={filterSearchStyle}>
           <Field label="חיפוש חופשי" htmlFor={searchId}>
             <input
               id={searchId}
@@ -700,9 +702,10 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="חפש לפי UID, הודעה/הודעה אחרונה, רקע, תשובה, שגיאה, intent או sourceReply"
-              className={`w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black/80 outline-none transition focus:border-brand/40 ${whiteSurfaceFocusClass}`}
+              className={`h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm text-black/85 outline-none transition focus:border-brand/40 ${whiteSurfaceFocusClass}`}
             />
           </Field>
+          </div>
           <Field label="מקור" htmlFor={sourceId}>
             <select
               id={sourceId}
@@ -710,7 +713,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
               onChange={(event) =>
                 startTransition(() => setSource(event.target.value as SourceFilter))
               }
-              className={`w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black/80 outline-none transition focus:border-brand/40 ${whiteSurfaceFocusClass}`}
+              className={`h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm text-black/85 outline-none transition focus:border-brand/40 ${whiteSurfaceFocusClass}`}
             >
               {SOURCE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -726,7 +729,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
               onChange={(event) =>
                 startTransition(() => setStatus(event.target.value as StatusFilter))
               }
-              className={`w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black/80 outline-none transition focus:border-brand/40 ${whiteSurfaceFocusClass}`}
+              className={`h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm text-black/85 outline-none transition focus:border-brand/40 ${whiteSurfaceFocusClass}`}
             >
               {STATUS_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -740,7 +743,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
               id={actionId}
               value={action}
               onChange={(event) => startTransition(() => setAction(event.target.value))}
-              className={`w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black/80 outline-none transition focus:border-brand/40 ${whiteSurfaceFocusClass}`}
+              className={`h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm text-black/85 outline-none transition focus:border-brand/40 ${whiteSurfaceFocusClass}`}
             >
               <option value="all">כל הפעולות</option>
               {availableActions.map((availableAction) => (
@@ -758,7 +761,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
                 onChange={(event) =>
                   startTransition(() => setSortOrder(event.target.value as SortOrder))
                 }
-                className={`min-w-0 flex-1 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black/80 outline-none transition focus:border-brand/40 ${whiteSurfaceFocusClass}`}
+                className={`h-11 min-w-0 flex-1 rounded-xl border border-black/10 bg-white px-3 text-sm text-black/85 outline-none transition focus:border-brand/40 ${whiteSurfaceFocusClass}`}
               >
                 {SORT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -769,20 +772,15 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
               <button
                 type="button"
                 onClick={resetFilters}
-                className={`rounded-2xl border border-black/10 bg-black px-4 py-3 text-sm font-medium text-white transition hover:bg-black/85 ${darkSurfaceFocusClass}`}
+                className={`h-11 rounded-xl border border-black/10 bg-black px-4 text-sm font-medium text-white transition hover:bg-black/85 ${darkSurfaceFocusClass}`}
               >
                 איפוס
               </button>
             </div>
-            <p className="text-[11px] text-black/50">
-              אותו מיון חל גם על סדר האירועים בתוך משתמש וגם על סדר רשימת המשתמשים.
-            </p>
           </Field>
-        </div>
+          </div>
 
-        <div className="mt-4">
-          <p className="mb-2 text-xs font-medium text-black/55">סטטוסים מהירים (צ׳יפים)</p>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             {STATUS_OPTIONS.map((option) => {
               const active = status === option.value;
 
@@ -792,7 +790,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
                   type="button"
                   onClick={() => startTransition(() => setStatus(option.value))}
                   aria-pressed={active}
-                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition ${
+                  className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
                     active
                       ? `${getStatusFilterChipTone(option.value)} border-transparent`
                       : 'border-black/10 bg-white text-black/75 hover:bg-black/[0.03]'
@@ -810,22 +808,8 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
               );
             })}
           </div>
-        </div>
 
-        <div className="mt-4 rounded-2xl border border-black/10 bg-white/75 px-3 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs font-medium text-black/55">מסננים פעילים</p>
-            {hasActiveFilters ? (
-              <button
-                type="button"
-                onClick={resetFilters}
-                className={`rounded-full border border-black/10 bg-white px-2.5 py-1 text-[11px] font-medium text-black/70 transition hover:bg-black/[0.03] ${whiteSurfaceFocusClass}`}
-              >
-                נקה הכול
-              </button>
-            ) : null}
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
             {normalizedSearch ? (
               <ActiveFilterChip label={`חיפוש: "${deferredSearch.trim()}"`} onClear={() => setSearch('')} />
             ) : null}
@@ -859,134 +843,49 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
                 onClear={() => startTransition(() => setSortOrder('newest'))}
               />
             ) : null}
-            {hasActiveFilters ? null : <span className="text-xs text-black/55">אין מסננים פעילים כרגע.</span>}
+            {hasActiveFilters ? (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className={`rounded-lg border border-black/10 bg-black px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-black/85 ${darkSurfaceFocusClass}`}
+              >
+                נקה הכול
+              </button>
+            ) : (
+              <span className="text-xs text-black/50">אין מסננים פעילים.</span>
+            )}
           </div>
-        </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {hiddenUsersCount > 0 ? (
-            <button
-              type="button"
-              onClick={() => setVisibleUsersLimit((current) => current + USER_LIST_PAGE_SIZE)}
-              className={`rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-medium text-black/75 transition hover:bg-black/[0.03] ${whiteSurfaceFocusClass}`}
-            >
-              הצג עוד משתמשים (+{Math.min(USER_LIST_PAGE_SIZE, hiddenUsersCount)})
-            </button>
-          ) : null}
-          {hiddenEventsCount > 0 ? (
-            <button
-              type="button"
-              onClick={() => setVisibleEventsLimit((current) => current + TIMELINE_PAGE_SIZE)}
-              className={`rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-medium text-black/75 transition hover:bg-black/[0.03] ${whiteSurfaceFocusClass}`}
-            >
-              הצג עוד אירועים למשתמש הנבחר (+{Math.min(TIMELINE_PAGE_SIZE, hiddenEventsCount)})
-            </button>
-          ) : null}
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-black/55">
-          <InfoPill label={`${filteredRows.length} אירועים`} />
-          <InfoPill label={`${groupedUsers.length} משתמשים`} />
-          <InfoPill label={normalizedSearch ? 'חיפוש פעיל' : 'ללא חיפוש'} />
-          <InfoPill label={`פרודקשן: ${summary.productionCount}`} />
-          <InfoPill label={`מקומי: ${summary.localCount}`} />
-          <InfoPill label={`הצלחות: ${summary.statusCounts.success}`} />
-          <InfoPill label={`חסומים: ${summary.statusCounts.blocked}`} />
-          <InfoPill label={`נכשלו: ${summary.statusCounts.failed}`} />
-          <InfoPill label={`בתהליך: ${summary.statusCounts.pending}`} />
-          <InfoPill label={`משתמשים חסומים: ${summary.uniqueBlockedUsersCount}`} />
-          <InfoPill label={`Retry ratio: ${formatRatioPercent(summary.retryRatio)}`} />
-          <InfoPill
-            label={
-              summary.invalidSchemaCount > 0
-                ? `תקינות סכימה: ${summary.invalidSchemaCount} חריגים`
-                : 'תקינות סכימה: תקין'
-            }
-          />
-          <InfoPill label={`intent חסר: ${summary.missingIntentCount}`} />
-          <InfoPill label={`אורך replies שגוי: ${summary.invalidRepliesCount}`} />
-          <InfoPill label={`replies ריקים: ${summary.emptyReplyItemsCount}`} />
-          {integrityFilter === 'invalid_schema' ? <InfoPill label="סינון: חריגות סכימה בלבד" /> : null}
-        </div>
-        <p id={resultsStatusId} role="status" aria-live="polite" aria-atomic="true" className="sr-only">
-          {liveStatusText}
-        </p>
-      </section>
-
-      <section
-        className="overflow-hidden rounded-[2rem] border border-black/10 bg-surface shadow-[0_16px_50px_rgba(25,19,15,0.06)]"
-        tabIndex={0}
-        onKeyDown={handleDesktopNavigationKeyDown}
-      >
-        <div className="flex flex-col gap-3 border-b border-black/10 px-4 py-4 sm:px-6">
-          <div>
-            <h2 className="text-lg font-semibold text-brand-ink">משתמשים וציר הודעות</h2>
-            <p className="text-sm text-black/60">
-              תצוגת ניהול מחולקת לבחירת משתמש מהירה ואז עבודה ממוקדת על ציר אירועים ופרטי האירוע.
-            </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-black/55">
+            <InfoPill label={`פרודקשן: ${summary.productionCount}`} />
+            <InfoPill label={`מקומי: ${summary.localCount}`} />
+            <InfoPill label={`בתהליך: ${summary.statusCounts.pending}`} />
+            <InfoPill label={`intent חסר: ${summary.missingIntentCount}`} />
+            <InfoPill label={`replies שגוי: ${summary.invalidRepliesCount}`} />
+            <InfoPill label={`replies ריקים: ${summary.emptyReplyItemsCount}`} />
           </div>
-          <div className="hidden items-center justify-between gap-3 xl:flex">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-black/65">
-              <InfoPill
-                label={
-                  selectedUserIndex >= 0
-                    ? `משתמש ${selectedUserIndex + 1} מתוך ${groupedUsers.length}`
-                    : `משתמשים: ${groupedUsers.length}`
-                }
-              />
-              <InfoPill
-                label={
-                  selectedGroup && selectedEventIndex >= 0
-                    ? `אירוע ${selectedEventIndex + 1} מתוך ${selectedGroup.rows.length}`
-                    : 'אין אירוע נבחר'
-                }
-              />
-              <InfoPill label="ניווט מקלדת: ↑ ↓ לאירועים • PgUp/PgDn למשתמשים • Home/End לקצוות" />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <DesktopNavButton
-                label="משתמש קודם"
-                onClick={() => moveUserSelection(-1)}
-                disabled={!canMoveToPreviousUser}
-              />
-              <DesktopNavButton
-                label="משתמש הבא"
-                onClick={() => moveUserSelection(1)}
-                disabled={!canMoveToNextUser}
-              />
-              <DesktopNavButton
-                label="אירוע קודם"
-                onClick={() => moveEventSelection(-1)}
-                disabled={!canMoveToPreviousEvent}
-              />
-              <DesktopNavButton
-                label="אירוע הבא"
-                onClick={() => moveEventSelection(1)}
-                disabled={!canMoveToNextEvent}
-              />
-            </div>
-          </div>
+          <p id={resultsStatusId} role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+            {liveStatusText}
+          </p>
         </div>
 
         {groupedUsers.length === 0 ? (
           <div className="px-4 py-14 text-center sm:px-6">
-            <div className="mx-auto max-w-md rounded-[1.5rem] border border-dashed border-black/15 bg-white/80 px-6 py-8">
+            <div className="mx-auto max-w-md rounded-xl border border-dashed border-black/15 bg-white px-6 py-8">
               <p className="text-base font-medium text-brand-ink">לא נמצאו תוצאות</p>
               <p className="mt-2 text-sm leading-7 text-black/60">נסה לשנות את החיפוש או הסינון.</p>
             </div>
           </div>
         ) : (
-          <div className="grid gap-4 p-3 sm:p-4 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)] xl:h-[780px] 2xl:h-[840px]">
-            <aside className="overflow-hidden rounded-[1.4rem] border border-black/10 bg-white/85 xl:flex xl:h-full xl:min-h-0 xl:flex-col">
-              <div className="border-b border-black/10 px-3 py-3">
-                <p className="text-xs font-semibold tracking-[0.1em] text-black/50">רשימת משתמשים</p>
-                <p className="mt-1 text-xs text-black/65">
-                  מוצגים {visibleUserGroups.length} מתוך {groupedUsers.length}
-                </p>
-              </div>
+          <div className="grid" style={workbenchGridStyle}>
+            <aside className="border-b border-black/10 bg-[#fbfaf7] xl:border-b-0 xl:border-l">
+              <PaneHeader
+                title="משתמשים"
+                meta={`מוצגים ${visibleUserGroups.length} מתוך ${groupedUsers.length}`}
+              />
               <ul
                 id={usersListId}
-                className="max-h-[68vh] divide-y divide-black/10 overflow-y-scroll overscroll-contain xl:max-h-none xl:flex-1"
+                className="max-h-[64vh] divide-y divide-black/10 overflow-y-auto overscroll-contain xl:max-h-none xl:h-[718px]"
                 aria-label="רשימת משתמשים"
                 aria-describedby={resultsStatusId}
                 style={stableScrollbarStyle}
@@ -1001,29 +900,29 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
                         type="button"
                         onClick={() => selectUser(group.uid)}
                         aria-pressed={isSelected}
-                        className={`w-full p-3 text-right transition xl:min-h-[118px] xl:p-2.5 ${
+                        className={`w-full px-3 py-3 text-right transition ${
                           isSelected
                             ? 'bg-black text-white'
                             : `bg-white text-black hover:bg-black/[0.03] ${whiteSurfaceFocusClass}`
                         }`}
                       >
-                        <code
-                          className={`block break-all text-[12px] font-semibold ${
-                            isSelected ? 'text-white' : 'text-brand-ink'
-                          }`}
-                          dir="auto"
-                          style={{ unicodeBidi: 'plaintext' }}
-                        >
-                          {group.uid}
-                        </code>
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          <UserMetricPill selected={isSelected} label={`${group.totalCount} אירועים`} />
-                          <UserMetricPill selected={isSelected} label={`${group.newMessageCount} חדש`} />
-                          <UserMetricPill selected={isSelected} label={`${group.refineCount} תיקון`} />
+                        <div className="flex items-start justify-between gap-2">
+                          <code
+                            className={`min-w-0 flex-1 break-all text-[12px] font-semibold ${
+                              isSelected ? 'text-white' : 'text-brand-ink'
+                            }`}
+                            dir="auto"
+                            style={{ unicodeBidi: 'plaintext' }}
+                          >
+                            {group.uid}
+                          </code>
+                          <span className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] ${isSelected ? 'bg-white/15 text-white' : 'bg-black/[0.06] text-black/65'}`}>
+                            {group.totalCount}
+                          </span>
                         </div>
                         <UserStatusBar selected={isSelected} group={group} />
                         <p
-                          className={`mt-2 line-clamp-2 text-xs xl:line-clamp-1 ${isSelected ? 'text-white/90' : 'text-black/70'}`}
+                          className={`mt-2 line-clamp-2 text-xs ${isSelected ? 'text-white/90' : 'text-black/70'}`}
                           dir="auto"
                           style={{ unicodeBidi: 'plaintext' }}
                         >
@@ -1036,12 +935,10 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
                               )
                             : 'אין הודעות חדשות להצגה'}
                         </p>
-                        <div
-                          className={`mt-1 text-[11px] ${isSelected ? 'text-white/70' : 'text-black/55'}`}
-                        >
-                          <p className="truncate">
-                            ראשון: {formatDateTime(group.firstAt)} | אחרון: {formatDateTime(group.lastAt)}
-                          </p>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          <UserMetricPill selected={isSelected} label={`${group.newMessageCount} חדשות`} />
+                          <UserMetricPill selected={isSelected} label={`${group.refineCount} תיקונים`} />
+                          <UserMetricPill selected={isSelected} label={`${group.blockedCount} חסומים`} />
                         </div>
                       </button>
                     </li>
@@ -1049,240 +946,290 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
                 })}
               </ul>
               {hiddenUsersCount > 0 ? (
-                <div className="border-t border-black/10 px-3 py-2 text-xs text-black/60">
-                  עדיין לא מוצגים {hiddenUsersCount} משתמשים.
+                <div className="border-t border-black/10 bg-white px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleUsersLimit((current) => current + USER_LIST_PAGE_SIZE)}
+                    className={`w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-medium text-black/75 transition hover:bg-black/[0.03] ${whiteSurfaceFocusClass}`}
+                  >
+                    הצג עוד משתמשים (+{Math.min(USER_LIST_PAGE_SIZE, hiddenUsersCount)})
+                  </button>
                 </div>
               ) : null}
             </aside>
 
-            <div className="grid gap-3 xl:h-full xl:min-h-0 xl:grid-rows-[auto_minmax(0,1fr)]">
+            <section className="border-b border-black/10 bg-white xl:border-b-0 xl:border-l">
+              <PaneHeader
+                title="ציר אירועים"
+                meta={
+                  selectedGroup
+                    ? `${visibleTimelineRows.length} מתוך ${selectedGroup.rows.length} אירועים`
+                    : 'בחר משתמש'
+                }
+              />
               {selectedGroup ? (
                 <>
-                  <div className="rounded-[1.2rem] border border-black/10 bg-white/85 px-4 py-3">
-                    <p className="text-xs text-black/50">משתמש נבחר</p>
+                  <div className="border-b border-black/10 bg-white px-3 py-2">
                     <code
-                      className="mt-1 block break-all text-sm font-semibold text-brand-ink"
+                      className="block break-all text-xs font-semibold text-brand-ink"
                       dir="auto"
                       style={{ unicodeBidi: 'plaintext' }}
                     >
                       {selectedGroup.uid}
                     </code>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      <InfoPill label={`אירועים: ${selectedGroup.totalCount}`} />
-                      <InfoPill label={`הצלחות: ${selectedGroup.successCount}`} />
-                      <InfoPill label={`חסומים: ${selectedGroup.blockedCount}`} />
-                      <InfoPill label={`נכשלו: ${selectedGroup.failedCount}`} />
-                      <InfoPill label={`בתהליך: ${selectedGroup.pendingCount}`} />
+                    <div className="mt-2 hidden flex-wrap gap-1.5 xl:flex">
+                      <InfoPill
+                        label={
+                          selectedEventIndex >= 0
+                            ? `אירוע ${selectedEventIndex + 1} מתוך ${selectedGroup.rows.length}`
+                            : 'אין אירוע נבחר'
+                        }
+                      />
+                      <InfoPill label="↑ ↓ אירועים · PgUp/PgDn משתמשים · Home/End קצוות" />
                     </div>
                   </div>
+                  <ul
+                    className="max-h-[66vh] divide-y divide-black/10 overflow-y-auto overscroll-contain xl:max-h-none xl:h-[660px]"
+                    style={stableScrollbarStyle}
+                  >
+                    {visibleTimelineRows.map((row, index) => {
+                      const actionInfo = describeAction(row.action);
+                      const isSelectedEvent = selectedEvent?.id === row.id;
+                      const outputPreview = actionInfo.isRefine
+                        ? pickPrimaryRefineReply(row.replies) || row.sourceReply || 'ללא פלט'
+                        : row.replies[0] || row.intent || 'ללא פלט';
 
-                  <div className="grid gap-3 xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-                    <div className="overflow-hidden rounded-[1.2rem] border border-black/10 bg-white/85 xl:flex xl:h-full xl:min-h-0 xl:flex-col">
-                      <div className="flex items-center justify-between border-b border-black/10 px-3 py-2">
-                        <p className="text-xs font-semibold tracking-[0.1em] text-black/50">ציר אירועים</p>
-                        <p className="text-xs text-black/60">
-                          מוצגים {visibleTimelineRows.length} מתוך {selectedGroup.rows.length}
-                        </p>
-                      </div>
-                      <ul
-                        className="max-h-[68vh] divide-y divide-black/10 overflow-y-scroll overscroll-contain xl:max-h-none xl:flex-1"
-                        style={stableScrollbarStyle}
-                      >
-                        {visibleTimelineRows.map((row, index) => {
-                          const actionInfo = describeAction(row.action);
-                          const isSelectedEvent = selectedEvent?.id === row.id;
-                          const outputPreview = actionInfo.isRefine
-                            ? pickPrimaryRefineReply(row.replies) || row.sourceReply || 'ללא פלט'
-                            : row.replies[0] || row.intent || 'ללא פלט';
-
-                          return (
-                            <li key={row.id}>
-                              <button
-                                type="button"
-                                onClick={() => selectEvent(row.id)}
-                                aria-pressed={isSelectedEvent}
-                                className={`w-full p-3 text-right transition xl:min-h-[132px] xl:p-2.5 ${
-                                  isSelectedEvent
-                                    ? 'bg-[#111111] text-white'
-                                    : `bg-white text-black hover:bg-black/[0.03] ${whiteSurfaceFocusClass}`
-                                }`}
-                              >
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2 text-xs">
-                                    <span
-                                      className={`rounded-full px-2 py-0.5 ${
-                                        isSelectedEvent ? 'bg-white/15 text-white' : 'bg-black/[0.06] text-black/70'
-                                      }`}
-                                    >
-                                      #{index + 1}
-                                    </span>
-                                    <span className={isSelectedEvent ? 'text-white/80' : 'text-black/60'}>
-                                      {formatDateTime(row.createdAt)}
-                                    </span>
-                                  </div>
-                                  <div className="flex flex-wrap gap-1">
-                                    {renderStatusPill(row.status)}
-                                    {renderActionPill(actionInfo)}
-                                  </div>
-                                </div>
-
-                                <p
-                                  className={`mt-2 line-clamp-2 text-xs xl:line-clamp-1 ${isSelectedEvent ? 'text-white/90' : 'text-black/75'}`}
-                                  dir="auto"
-                                  style={{ unicodeBidi: 'plaintext' }}
-                                >
-                                  נכנס: {toCompactMessagePreview(row.message, row.hasImage, row.noReplyMode, row.lastOutgoingMessage)}
-                                </p>
-                                <p
-                                  className={`mt-1 line-clamp-2 text-xs xl:line-clamp-1 ${isSelectedEvent ? 'text-white/75' : 'text-black/60'}`}
-                                  dir="auto"
-                                  style={{ unicodeBidi: 'plaintext' }}
-                                >
-                                  יצא: {outputPreview}
-                                </p>
-                                <div className="mt-2 flex flex-wrap gap-1">
-                                  {row.consumption ? (
-                                    <EventMetaChip selected={isSelectedEvent} label={toConsumptionLabel(row.consumption)} />
-                                  ) : null}
-                                  {typeof row.durationMs === 'number' ? (
-                                    <EventMetaChip selected={isSelectedEvent} label={`${row.durationMs}ms`} />
-                                  ) : null}
-                                  {row.noReplyMode ? (
-                                    <EventMetaChip selected={isSelectedEvent} label="ללא מענה" />
-                                  ) : null}
-                                </div>
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                      {hiddenEventsCount > 0 ? (
-                        <div className="border-t border-black/10 px-3 py-2 text-xs text-black/60">
-                          לטעינה: עוד {hiddenEventsCount} אירועים.
-                        </div>
-                      ) : null}
-                    </div>
-
-                    <div className="overflow-hidden rounded-[1.2rem] border border-black/10 bg-white/85 xl:flex xl:h-full xl:min-h-0 xl:flex-col">
-                      <div className="border-b border-black/10 px-3 py-2">
-                        <p className="text-xs font-semibold tracking-[0.1em] text-black/50">פרטי אירוע נבחר</p>
-                      </div>
-                      {selectedEvent ? (
-                        <div
-                          className="space-y-3 p-3 xl:min-h-0 xl:flex-1 xl:overflow-y-scroll xl:overscroll-contain"
-                          style={stableScrollbarStyle}
-                        >
-                          <div className="flex flex-wrap gap-2">
-                            {renderSourcePill(selectedEvent.source)}
-                            {renderModelSourcePill(selectedEvent.modelSource)}
-                            {renderEventTypePill(describeAction(selectedEvent.action))}
-                            {renderStatusPill(selectedEvent.status)}
-                            <InfoPill label={`מזהה: ${selectedEvent.id}`} />
-                          </div>
-                          <TextPanel
-                            title="מה נשלח"
-                            tone="input"
-                            panelId={`selected-input-${toDomToken(selectedEvent.id)}`}
+                      return (
+                        <li key={row.id}>
+                          <button
+                            type="button"
+                            onClick={() => selectEvent(row.id)}
+                            aria-pressed={isSelectedEvent}
+                            className={`w-full px-3 py-3 text-right transition ${
+                              isSelectedEvent
+                                ? 'bg-[#161616] text-white'
+                                : `bg-white text-black hover:bg-black/[0.03] ${whiteSurfaceFocusClass}`
+                            }`}
                           >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 text-xs">
+                                <span
+                                  className={`rounded-md px-2 py-0.5 ${
+                                    isSelectedEvent ? 'bg-white/15 text-white' : 'bg-black/[0.06] text-black/70'
+                                  }`}
+                                >
+                                  #{index + 1}
+                                </span>
+                                <span className={isSelectedEvent ? 'text-white/80' : 'text-black/60'}>
+                                  {formatDateTime(row.createdAt)}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-1">
+                                {renderStatusPill(row.status)}
+                                {renderActionPill(actionInfo)}
+                              </div>
+                            </div>
                             <p
-                              className="whitespace-pre-wrap break-words text-xs leading-5 text-black/80"
+                              className={`mt-2 line-clamp-2 text-xs ${isSelectedEvent ? 'text-white/90' : 'text-black/75'}`}
                               dir="auto"
                               style={{ unicodeBidi: 'plaintext' }}
                             >
-                              {selectedEvent.noReplyMode
-                                ? selectedEvent.lastOutgoingMessage || 'ללא טקסט'
-                                : selectedEvent.message || 'ללא טקסט'}
+                              נכנס: {toCompactMessagePreview(row.message, row.hasImage, row.noReplyMode, row.lastOutgoingMessage)}
                             </p>
-                            {selectedEvent.conversationBackground ? (
-                              <p
-                                className="mt-2 whitespace-pre-wrap break-words text-xs leading-5 text-black/70"
-                                dir="auto"
-                                style={{ unicodeBidi: 'plaintext' }}
-                              >
-                                רקע: {selectedEvent.conversationBackground}
-                              </p>
-                            ) : null}
-                          </TextPanel>
-                          <TextPanel
-                            title="מה חזר"
-                            tone="output"
-                            panelId={`selected-output-${toDomToken(selectedEvent.id)}`}
-                          >
                             <p
-                              className="whitespace-pre-wrap break-words text-xs leading-5 text-black/80"
+                              className={`mt-1 line-clamp-2 text-xs ${isSelectedEvent ? 'text-white/75' : 'text-black/60'}`}
                               dir="auto"
                               style={{ unicodeBidi: 'plaintext' }}
                             >
-                              intent: {selectedEvent.intent || 'לא התקבל'}
+                              יצא: {outputPreview}
                             </p>
-                            {selectedEvent.replies.length > 0 ? (
-                              <ol className="mt-2 grid gap-1.5">
-                                {selectedEvent.replies.map((reply, replyIndex) => (
-                                  <li
-                                    key={`${selectedEvent.id}-reply-${replyIndex}`}
-                                    className="rounded-lg border border-black/10 bg-white px-2 py-1.5"
-                                  >
-                                    <p
-                                      className="whitespace-pre-wrap break-words text-xs leading-5 text-black/78"
-                                      dir="auto"
-                                      style={{ unicodeBidi: 'plaintext' }}
-                                    >
-                                      {reply}
-                                    </p>
-                                  </li>
-                                ))}
-                              </ol>
-                            ) : null}
-                          </TextPanel>
-                          {selectedEvent.error ? (
-                            <TextPanel
-                              title="שגיאה"
-                              tone="error"
-                              panelId={`selected-error-${toDomToken(selectedEvent.id)}`}
-                            >
-                              <p
-                                className="whitespace-pre-wrap break-words text-xs leading-5 text-rose-800"
-                                dir="auto"
-                                style={{ unicodeBidi: 'plaintext' }}
-                              >
-                                {selectedEvent.error}
-                              </p>
-                            </TextPanel>
-                          ) : null}
-                          <div className="flex flex-wrap gap-1.5">
-                            {selectedEvent.consumption ? (
-                              <InfoPill label={`חיוב: ${toConsumptionLabel(selectedEvent.consumption)}`} />
-                            ) : null}
-                            {typeof selectedEvent.durationMs === 'number' ? (
-                              <InfoPill label={`משך: ${selectedEvent.durationMs}ms`} />
-                            ) : null}
-                            {selectedEvent.completedAt ? (
-                              <InfoPill label={`הסתיים: ${formatDateTime(selectedEvent.completedAt)}`} />
-                            ) : null}
-                            {selectedEvent.noReplyMode && selectedEvent.noReplyDurationValue && selectedEvent.noReplyDurationUnit
-                              ? (
-                                <InfoPill
-                                  label={`זמן ללא מענה: ${selectedEvent.noReplyDurationValue} ${toDurationUnitLabel(selectedEvent.noReplyDurationUnit)}`}
-                                />
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {row.consumption ? (
+                                <EventMetaChip selected={isSelectedEvent} label={toConsumptionLabel(row.consumption)} />
                               ) : null}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="px-4 py-10 text-center text-sm text-black/60 xl:flex xl:min-h-0 xl:flex-1 xl:items-center xl:justify-center">
-                          בחר אירוע מהרשימה כדי לראות את כל הפרטים.
-                        </div>
-                      )}
+                              {typeof row.durationMs === 'number' ? (
+                                <EventMetaChip selected={isSelectedEvent} label={`${row.durationMs}ms`} />
+                              ) : null}
+                              {row.noReplyMode ? <EventMetaChip selected={isSelectedEvent} label="ללא מענה" /> : null}
+                            </div>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {hiddenEventsCount > 0 ? (
+                    <div className="border-t border-black/10 bg-white px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => setVisibleEventsLimit((current) => current + TIMELINE_PAGE_SIZE)}
+                        className={`w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-xs font-medium text-black/75 transition hover:bg-black/[0.03] ${whiteSurfaceFocusClass}`}
+                      >
+                        הצג עוד אירועים (+{Math.min(TIMELINE_PAGE_SIZE, hiddenEventsCount)})
+                      </button>
                     </div>
-                  </div>
+                  ) : null}
                 </>
               ) : (
-                <div className="rounded-[1.2rem] border border-dashed border-black/15 bg-white/70 px-4 py-10 text-center text-sm text-black/60">
-                  בחר משתמש מהרשימה כדי לטעון ציר אירועים.
-                </div>
+                <EmptyPane text="בחר משתמש מהרשימה כדי לטעון ציר אירועים." />
               )}
-            </div>
+            </section>
+
+            <section className="bg-[#fbfaf7]">
+              <PaneHeader title="פרטי אירוע" meta={selectedEvent ? formatDateTime(selectedEvent.createdAt) : 'לא נבחר'} />
+              {selectedEvent ? (
+                <div
+                  className="max-h-[72vh] space-y-3 overflow-y-auto overscroll-contain p-3 xl:max-h-none xl:h-[718px]"
+                  style={stableScrollbarStyle}
+                >
+                  <div className="flex flex-wrap gap-2">
+                    {renderSourcePill(selectedEvent.source)}
+                    {renderModelSourcePill(selectedEvent.modelSource)}
+                    {renderEventTypePill(describeAction(selectedEvent.action))}
+                    {renderStatusPill(selectedEvent.status)}
+                  </div>
+                  <InfoGrid
+                    items={[
+                      ['מזהה', selectedEvent.id],
+                      ['חיוב', selectedEvent.consumption ? toConsumptionLabel(selectedEvent.consumption) : 'לא זמין'],
+                      ['משך', typeof selectedEvent.durationMs === 'number' ? `${selectedEvent.durationMs}ms` : 'לא זמין'],
+                      ['הסתיים', selectedEvent.completedAt ? formatDateTime(selectedEvent.completedAt) : 'לא זמין'],
+                    ]}
+                  />
+                  <TextPanel
+                    title="מה נשלח"
+                    tone="input"
+                    panelId={`selected-input-${toDomToken(selectedEvent.id)}`}
+                  >
+                    <p
+                      className="whitespace-pre-wrap break-words text-xs leading-5 text-black/80"
+                      dir="auto"
+                      style={{ unicodeBidi: 'plaintext' }}
+                    >
+                      {selectedEvent.noReplyMode
+                        ? selectedEvent.lastOutgoingMessage || 'ללא טקסט'
+                        : selectedEvent.message || 'ללא טקסט'}
+                    </p>
+                    {selectedEvent.conversationBackground ? (
+                      <p
+                        className="mt-2 whitespace-pre-wrap break-words text-xs leading-5 text-black/70"
+                        dir="auto"
+                        style={{ unicodeBidi: 'plaintext' }}
+                      >
+                        רקע: {selectedEvent.conversationBackground}
+                      </p>
+                    ) : null}
+                  </TextPanel>
+                  <TextPanel
+                    title="מה חזר"
+                    tone="output"
+                    panelId={`selected-output-${toDomToken(selectedEvent.id)}`}
+                  >
+                    <p
+                      className="whitespace-pre-wrap break-words text-xs leading-5 text-black/80"
+                      dir="auto"
+                      style={{ unicodeBidi: 'plaintext' }}
+                    >
+                      intent: {selectedEvent.intent || 'לא התקבל'}
+                    </p>
+                    {selectedEvent.replies.length > 0 ? (
+                      <ol className="mt-2 grid gap-1.5">
+                        {selectedEvent.replies.map((reply, replyIndex) => (
+                          <li
+                            key={`${selectedEvent.id}-reply-${replyIndex}`}
+                            className="rounded-lg border border-black/10 bg-white px-2 py-1.5"
+                          >
+                            <p
+                              className="whitespace-pre-wrap break-words text-xs leading-5 text-black/80"
+                              dir="auto"
+                              style={{ unicodeBidi: 'plaintext' }}
+                            >
+                              {reply}
+                            </p>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : null}
+                  </TextPanel>
+                  {selectedEvent.sourceReply ? (
+                    <TextPanel title="תשובת מקור לתיקון" tone="neutral">
+                      <p
+                        className="whitespace-pre-wrap break-words text-xs leading-5 text-black/75"
+                        dir="auto"
+                        style={{ unicodeBidi: 'plaintext' }}
+                      >
+                        {selectedEvent.sourceReply}
+                      </p>
+                    </TextPanel>
+                  ) : null}
+                  {selectedEvent.error ? (
+                    <TextPanel
+                      title="שגיאה"
+                      tone="error"
+                      panelId={`selected-error-${toDomToken(selectedEvent.id)}`}
+                    >
+                      <p
+                        className="whitespace-pre-wrap break-words text-xs leading-5 text-rose-800"
+                        dir="auto"
+                        style={{ unicodeBidi: 'plaintext' }}
+                      >
+                        {selectedEvent.error}
+                      </p>
+                    </TextPanel>
+                  ) : null}
+                  {selectedEvent.noReplyMode && selectedEvent.noReplyDurationValue && selectedEvent.noReplyDurationUnit ? (
+                    <InfoPill
+                      label={`זמן ללא מענה: ${selectedEvent.noReplyDurationValue} ${toDurationUnitLabel(selectedEvent.noReplyDurationUnit)}`}
+                    />
+                  ) : null}
+                </div>
+              ) : (
+                <EmptyPane text="בחר אירוע מהרשימה כדי לראות את כל הפרטים." />
+              )}
+            </section>
           </div>
         )}
+
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-black/10 bg-white px-3 py-2 text-xs text-black/55">
+          <div className="flex flex-wrap gap-2">
+            <InfoPill
+              label={
+                selectedUserIndex >= 0
+                  ? `משתמש ${selectedUserIndex + 1} מתוך ${groupedUsers.length}`
+                  : `משתמשים: ${groupedUsers.length}`
+              }
+            />
+            <InfoPill label={normalizedSearch ? 'חיפוש פעיל' : 'ללא חיפוש'} />
+          </div>
+          <div className="hidden flex-wrap items-center gap-2 xl:flex">
+            <DesktopNavButton
+              label="משתמש קודם"
+              onClick={() => moveUserSelection(-1)}
+              disabled={!canMoveToPreviousUser}
+            />
+            <DesktopNavButton
+              label="משתמש הבא"
+              onClick={() => moveUserSelection(1)}
+              disabled={!canMoveToNextUser}
+            />
+            <button
+              type="button"
+              onClick={() => moveEventSelection(-1)}
+              disabled={!canMoveToPreviousEvent}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                !canMoveToPreviousEvent
+                  ? 'cursor-not-allowed border-black/10 bg-white text-black/35'
+                  : `border-black/10 bg-white text-black/80 hover:bg-black/[0.03] ${whiteSurfaceFocusClass}`
+              }`}
+            >
+              אירוע קודם
+            </button>
+            <DesktopNavButton
+              label="אירוע הבא"
+              onClick={() => moveEventSelection(1)}
+              disabled={!canMoveToNextEvent}
+            />
+          </div>
+        </div>
       </section>
     </div>
   );
@@ -1320,6 +1267,42 @@ function CompactFact({
   );
 }
 
+function PaneHeader({ title, meta }: { title: string; meta: string }) {
+  return (
+    <div className="flex min-h-14 items-center justify-between gap-3 border-b border-black/10 bg-white px-3 py-2">
+      <h3 className="text-sm font-semibold text-brand-ink">{title}</h3>
+      <span className="text-xs text-black/55">{meta}</span>
+    </div>
+  );
+}
+
+function EmptyPane({ text }: { text: string }) {
+  return (
+    <div className="flex min-h-[280px] items-center justify-center px-4 py-10 text-center text-sm text-black/60 xl:h-[718px]">
+      <div className="rounded-xl border border-dashed border-black/15 bg-white px-5 py-4">{text}</div>
+    </div>
+  );
+}
+
+function InfoGrid({ items }: { items: Array<[string, string]> }) {
+  return (
+    <dl className="grid gap-2 sm:grid-cols-2">
+      {items.map(([label, value]) => (
+        <div key={label} className="rounded-lg border border-black/10 bg-white px-3 py-2">
+          <dt className="text-[10px] font-medium text-black/45">{label}</dt>
+          <dd
+            className="mt-1 break-words text-xs font-medium text-black/75"
+            dir="auto"
+            style={{ unicodeBidi: 'plaintext' }}
+          >
+            {value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 function StatCard({
   label,
   value,
@@ -1330,11 +1313,11 @@ function StatCard({
   toneClass: string;
 }) {
   return (
-    <article className="overflow-hidden rounded-[1.7rem] border border-black/10 bg-surface shadow-[0_12px_35px_rgba(25,19,15,0.05)]">
-      <div className={`h-2 w-full ${toneClass}`} />
-      <div className="p-5">
-        <div className="text-sm text-black/60">{label}</div>
-        <div className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-brand-ink">{value}</div>
+    <article className="overflow-hidden rounded-xl border border-black/10 bg-white shadow-[0_8px_24px_rgba(25,19,15,0.04)]">
+      <div className={`h-1 w-full ${toneClass}`} />
+      <div className="px-4 py-3">
+        <div className="text-xs text-black/55">{label}</div>
+        <div className="mt-1 text-2xl font-semibold text-brand-ink">{value}</div>
       </div>
     </article>
   );
