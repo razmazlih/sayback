@@ -15,6 +15,10 @@ const HOME_DESCRIPTION =
 const UNLIMITED_MONTHLY_PRICE_ILS = "24.90";
 const BILLING_BYPASS_ENABLED =
   process.env.BILLING_BYPASS?.trim().toLowerCase() === "true";
+const PUBLIC_BILLING_BYPASS_ENABLED =
+  process.env.NEXT_PUBLIC_BILLING_BYPASS?.trim().toLowerCase() === "true";
+const INITIAL_CLIENT_BILLING_BYPASS_ENABLED =
+  BILLING_BYPASS_ENABLED && PUBLIC_BILLING_BYPASS_ENABLED;
 
 const siteUrl = resolveSiteUrl();
 const siteOrigin = siteUrl.origin;
@@ -111,7 +115,10 @@ export default function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: toSafeJsonLd(softwareApplicationJsonLd) }}
       />
-      <HomePageClient mode="generator" />
+      <HomePageClient
+        mode="generator"
+        initialBillingBypassEnabled={INITIAL_CLIENT_BILLING_BYPASS_ENABLED}
+      />
     </>
   );
 }

@@ -10,6 +10,7 @@ import {
   useSyncExternalStore,
   type ChangeEvent,
   type ClipboardEvent,
+  type FormEvent,
 } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -56,6 +57,7 @@ type ReplyAction = 'softer' | 'sharper' | 'retry';
 type SubscriptionAction = 'cancel_next_charge' | 'resume_renewal';
 type CheckoutPlan = 'credits_50' | 'unlimited_monthly';
 type PaidPlan = CheckoutPlan | null;
+type AuthEmailIntent = 'checkout' | 'recover';
 type MobileSectionId = 'compose' | 'results' | 'examples' | 'plans';
 type MobileNavSectionId = Exclude<MobileSectionId, 'plans'>;
 type MobilePrimaryView = 'compose' | 'results';
@@ -113,6 +115,10 @@ type BillingSnapshot = {
   subscriptionStatus: string | null;
   stripeCustomerId: string | null;
   billingBypassEnabled?: boolean;
+  accountEmail?: string | null;
+  isRecoverableAccount?: boolean;
+  nextConsumptionSource?: 'initial_free' | 'daily_free' | 'credits' | 'unlimited' | 'blocked';
+  dailyResetAt?: string | null;
   accessState: 'free' | 'credits' | 'unlimited' | 'blocked';
 };
 
@@ -149,9 +155,20 @@ type CouponRedeemResponse = {
 };
 
 const FREE_LIMIT = 3;
-const BILLING_BYPASS_FALLBACK_ENABLED =
-  process.env.NEXT_PUBLIC_BILLING_BYPASS?.trim().toLowerCase() === 'true';
 const MAX_IMAGE_UPLOAD_BYTES = 4 * 1024 * 1024;
+const AUTH_EMAIL_STORAGE_KEY = 'sayback.auth.email';
+const AUTH_EMAIL_INTENT_STORAGE_KEY = 'sayback.auth.intent';
+const AUTH_EMAIL_PLAN_STORAGE_KEY = 'sayback.auth.checkoutPlan';
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const AUTH_LINK_QUERY_KEYS = [
+  'apiKey',
+  'oobCode',
+  'mode',
+  'continueUrl',
+  'lang',
+  'sb_auth_intent',
+  'sb_auth_plan',
+] as const;
 const AUTH_ERROR_MESSAGE = 'לא הצלחנו לחבר מחדש את החשבון. נסה שוב בעוד רגע.';
 const PAYWALL_TITLE = 'ממשיכים בלי להיתקע';
 const PAYWALL_BODY = 'בוחרים מסלול וממשיכים לנסח תשובות מעולות בלי לעצור.';
@@ -565,6 +582,10 @@ function mapApiErrorMessage(message: string) {
     return 'נגמרו השימושים כרגע. אפשר לבחור מסלול ולהמשיך.';
   }
 
+  if (lower.includes('recoverable_email_required') || lower.includes('צריך להתחבר עם אימייל')) {
+    return 'לפני תשלום צריך לשמור גישה עם אימייל, כדי שתוכלו לשחזר את הרכישה גם ממכשיר אחר.';
+  }
+
   if (lower.includes('unable to start checkout') || lower.includes('unable to load checkout session')) {
     return 'לא הצלחנו לפתוח את התשלום כרגע. נסה שוב בעוד רגע.';
   }
@@ -647,6 +668,83 @@ function formatSubscriptionPeriodEnd(value: string | null) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(timestamp));
+}
+
+function formatShortDateTime(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const timestamp = Date.parse(value);
+
+  if (!Number.isFinite(timestamp)) {
+    return null;
+  }
+
+  return new Intl.DateTimeFormat('he-IL', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(new Date(timestamp));
+}
+
+function normalizeEmailInput(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function isValidEmail(value: string) {
+  return EMAIL_PATTERN.test(normalizeEmailInput(value));
+}
+
+function getAuthLinkIntentFromUrl() {
+  const intent = readAuthLinkParam('sb_auth_intent');
+  return intent === 'checkout' ? 'checkout' : 'recover';
+}
+
+function getAuthLinkPlanFromUrl() {
+  const plan = readAuthLinkParam('sb_auth_plan');
+  return isCheckoutPlan(plan) ? plan : null;
+}
+
+function readAuthLinkParam(name: string) {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const directValue = params.get(name);
+
+  if (directValue) {
+    return directValue;
+  }
+
+  const continueUrl = params.get('continueUrl');
+
+  if (!continueUrl) {
+    return null;
+  }
+
+  try {
+    return new URL(continueUrl, window.location.origin).searchParams.get(name);
+  } catch {
+    return null;
+  }
+}
+
+function stripAuthLinkParamsFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+
+  for (const key of AUTH_LINK_QUERY_KEYS) {
+    params.delete(key);
+  }
+
+  const nextQuery = params.toString();
+  const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`;
+  window.history.replaceState(null, '', nextUrl);
+}
+
+function readFirebaseErrorCode(error: unknown) {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === 'string' && code.trim().length > 0 ? code.trim() : null;
 }
 
 function isExampleId(value: string): value is ExampleId {
@@ -1147,7 +1245,9 @@ function ReplyCard({
   reply,
   index,
   onCopy,
+  onShare,
   onAdjust,
+  onEdit,
   isBusy,
   isUpdating,
   copied,
@@ -1155,11 +1255,19 @@ function ReplyCard({
   reply: string;
   index: number;
   onCopy: (reply: string, index: number) => void;
+  onShare: (reply: string, index: number) => void;
   onAdjust: (index: number, action: ReplyAction) => void;
+  onEdit: (reply: string, index: number) => void;
   isBusy: boolean;
   isUpdating: boolean;
   copied: boolean;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftReply, setDraftReply] = useState(reply);
+
+  const displayedReply = isEditing ? draftReply : reply;
+  const whatsappHref = `https://wa.me/?text=${encodeURIComponent(displayedReply)}`;
+
   return (
     <article className="relative w-full min-w-0 overflow-hidden rounded-[26px] border-2 border-black bg-white p-3.5 shadow-[0_8px_0_0_#111111] sm:rounded-[28px] sm:p-4 sm:shadow-[0_10px_0_0_#111111]">
       <div className="mb-3 flex items-center justify-between gap-2">
@@ -1171,16 +1279,55 @@ function ReplyCard({
         ) : null}
       </div>
 
-      <p className="text-base leading-7 font-bold text-neutral-900">{reply}</p>
+      {isEditing ? (
+        <textarea
+          value={draftReply}
+          onChange={(event) => setDraftReply(event.target.value)}
+          className={`min-h-28 w-full resize-none rounded-[20px] border-2 border-black bg-[#fffdf8] px-3 py-3 text-base font-bold leading-7 text-neutral-900 outline-none ${whiteSurfaceFocusClass}`}
+        />
+      ) : (
+        <p className="text-base leading-7 font-bold text-neutral-900">{reply}</p>
+      )}
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5 text-sm font-bold">
         <button
           type="button"
-          onClick={() => onCopy(reply, index)}
+          onClick={() => onCopy(displayedReply, index)}
           className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-[#111111] px-3.5 py-2 leading-5 text-[#f7ff4f] transition hover:bg-[#222222] ${whiteSurfaceFocusClass}`}
         >
           {copied ? 'הועתק' : 'העתק'}
         </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (isEditing) {
+              onEdit(draftReply, index);
+            }
+            setIsEditing((current) => !current);
+          }}
+          className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-[#d7f9ff] px-3.5 py-2 leading-5 text-black transition hover:bg-[#b8f2ff] ${whiteSurfaceFocusClass}`}
+        >
+          {isEditing ? 'שמור עריכה' : 'ערוך לפני העתקה'}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onShare(displayedReply, index)}
+          className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-white px-3.5 py-2 leading-5 text-black transition hover:bg-[#f5f5f5] ${whiteSurfaceFocusClass}`}
+        >
+          שתף
+        </button>
+
+        <a
+          href={whatsappHref}
+          target="_blank"
+          rel="noreferrer"
+          onClick={() => trackEvent('reply_share', { index, method: 'whatsapp' })}
+          className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-[#fff6d8] px-3.5 py-2 leading-5 text-black transition hover:bg-[#fff2bf] ${whiteSurfaceFocusClass}`}
+        >
+          וואטסאפ
+        </a>
 
         <details className="group min-w-0 flex-1 rounded-[20px] border-2 border-dashed border-black bg-[#fff6d8] transition-colors duration-200 open:bg-[#fff2bf] sm:min-w-[11rem]">
           <summary
@@ -1192,7 +1339,11 @@ function ReplyCard({
 
           <div className="sb-accordion-content">
             <div className="sb-accordion-content-inner">
-              <div className="flex flex-wrap gap-1.5 px-2.5 pb-2.5 pt-0.5">
+              <div className="px-2.5 pb-2.5 pt-0.5">
+                <p className="mb-2 text-xs font-bold leading-5 text-neutral-700">
+                  כל שיפור משתמש בשימוש אחד.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
                 <button
                   type="button"
                   onClick={() => onAdjust(index, 'softer')}
@@ -1217,6 +1368,7 @@ function ReplyCard({
                 >
                   ניסוח חדש
                 </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1483,6 +1635,202 @@ function CouponRedeemPanel({
   );
 }
 
+type AccountCenterPanelProps = {
+  accountEmail: string | null;
+  isRecoverableAccount: boolean;
+  authEmailInput: string;
+  onAuthEmailInputChange: (value: string) => void;
+  onStartEmailLink: (intent: AuthEmailIntent, plan?: CheckoutPlan | null) => void;
+  isSendingAuthEmail: boolean;
+  isCompletingEmailLink: boolean;
+  pendingEmailCompletion: boolean;
+  authEmailNotice: string | null;
+  authEmailError: string | null;
+  isSessionReady: boolean;
+  isBillingLoading: boolean;
+  accountStatusLine: string;
+  nextConsumptionSource: BillingSnapshot['nextConsumptionSource'];
+  dailyResetAt: string | null;
+  paidCredits: number;
+  hasUnlimitedAccess: boolean;
+  managedSubscription: ManagedSubscriptionState | null;
+  onRefreshBilling: () => void;
+  className?: string;
+  compact?: boolean;
+};
+
+function AccountCenterPanel({
+  accountEmail,
+  isRecoverableAccount,
+  authEmailInput,
+  onAuthEmailInputChange,
+  onStartEmailLink,
+  isSendingAuthEmail,
+  isCompletingEmailLink,
+  pendingEmailCompletion,
+  authEmailNotice,
+  authEmailError,
+  isSessionReady,
+  isBillingLoading,
+  accountStatusLine,
+  nextConsumptionSource,
+  dailyResetAt,
+  paidCredits,
+  hasUnlimitedAccess,
+  managedSubscription,
+  onRefreshBilling,
+  className = '',
+  compact = false,
+}: AccountCenterPanelProps) {
+  const emailInputId = useId();
+  const dailyResetLabel = formatShortDateTime(dailyResetAt);
+  const nextUseLabel = isBillingLoading
+    ? 'בודקים מאיפה יגיע השימוש הבא.'
+    : nextConsumptionSource === 'unlimited'
+      ? 'השימוש הבא יגיע מהמסלול החודשי.'
+      : nextConsumptionSource === 'credits'
+        ? 'השימוש הבא ירד מיתרת הקרדיטים.'
+        : nextConsumptionSource === 'initial_free'
+          ? 'השימוש הבא ירד משימושי ההיכרות.'
+          : nextConsumptionSource === 'daily_free'
+            ? 'השימוש הבא ירד מהחינם היומי.'
+            : 'אין כרגע שימושים זמינים.';
+  const subscriptionLabel = isBillingLoading
+    ? 'בודקים מצב חבילה ומנוי.'
+    : managedSubscription
+      ? managedSubscription.cancelAtPeriodEnd
+        ? 'החיוב הבא מבוטל, והמנוי פעיל עד סוף התקופה.'
+        : 'המנוי מתחדש אוטומטית.'
+      : hasUnlimitedAccess
+        ? 'מסלול ללא הגבלה פעיל.'
+        : paidCredits > 0
+          ? `נשארו ${paidCredits} שימושים בחבילה.`
+          : null;
+
+  return (
+    <section
+      className={[
+        'w-full min-w-0 rounded-[26px] border-2 border-black bg-white p-3.5 shadow-[0_8px_0_0_#111111]',
+        compact ? 'sm:p-4' : 'sm:p-5',
+        className,
+      ].join(' ').trim()}
+      aria-label="החשבון שלי"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8b2d10]">החשבון שלי</p>
+          <h2 className={compact ? 'mt-1 text-xl font-black text-black' : 'mt-1 text-2xl font-black text-black'}>
+            הגישה והתשלום במקום אחד
+          </h2>
+          <p className="mt-1 text-sm font-bold leading-6 text-neutral-700">{accountStatusLine}</p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {hasUnlimitedAccess || managedSubscription ? (
+            <a
+              href="#plans-section"
+              className={`inline-flex min-h-[42px] items-center rounded-full border-2 border-black bg-[#d7f9ff] px-3.5 py-2 text-xs font-black text-black transition hover:bg-[#b8f2ff] ${whiteSurfaceFocusClass}`}
+            >
+              ניהול מנוי
+            </a>
+          ) : null}
+          <button
+            type="button"
+            onClick={onRefreshBilling}
+            disabled={!isSessionReady || isBillingLoading}
+            className={`min-h-[42px] rounded-full border-2 border-black bg-[#fff6d8] px-3.5 py-2 text-xs font-black text-black transition hover:bg-[#fff2bf] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+          >
+            {isBillingLoading ? 'מרעננים...' : 'רענון מצב חשבון'}
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-2 md:grid-cols-3">
+        <div className="rounded-[18px] border-2 border-black bg-[#d7f9ff] px-3 py-2">
+          <p className="text-[0.68rem] font-black uppercase tracking-[0.12em] text-neutral-700">גישה</p>
+          <p className="mt-1 text-sm font-black text-black">{nextUseLabel}</p>
+          {dailyResetLabel && nextConsumptionSource === 'blocked' ? (
+            <p className="mt-1 text-xs font-bold text-neutral-700">החינם היומי יתחדש סביב {dailyResetLabel}.</p>
+          ) : null}
+        </div>
+        <div className="rounded-[18px] border-2 border-black bg-[#fff6d8] px-3 py-2">
+          <p className="text-[0.68rem] font-black uppercase tracking-[0.12em] text-neutral-700">שחזור גישה</p>
+          <p className="mt-1 text-sm font-black text-black">
+            {isRecoverableAccount && accountEmail ? accountEmail : 'עדיין לא נשמר אימייל לשחזור.'}
+          </p>
+        </div>
+        <div className="rounded-[18px] border-2 border-black bg-white px-3 py-2">
+          <p className="text-[0.68rem] font-black uppercase tracking-[0.12em] text-neutral-700">מנוי וחבילות</p>
+          <p className="mt-1 text-sm font-black text-black">{subscriptionLabel ?? 'אין חבילה או מנוי פעיל כרגע.'}</p>
+        </div>
+      </div>
+
+      {!isRecoverableAccount ? (
+        <form
+          className="mt-3 rounded-[20px] border-2 border-black bg-[#fff9ef] p-3"
+          onSubmit={(event: FormEvent<HTMLFormElement>) => {
+            event.preventDefault();
+            onStartEmailLink('checkout', null);
+          }}
+        >
+          <label htmlFor={emailInputId} className="text-sm font-black text-black">
+            שמירת גישה באימייל
+          </label>
+          <p className="mt-1 text-xs font-bold leading-5 text-neutral-700">
+            לפני תשלום שולחים קישור חד־פעמי לאימייל. כך הקרדיטים והמנוי נשמרים גם אם מחליפים מכשיר.
+          </p>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <input
+              id={emailInputId}
+              type="email"
+              dir="ltr"
+              inputMode="email"
+              autoComplete="email"
+              value={authEmailInput}
+              onChange={(event) => onAuthEmailInputChange(event.target.value)}
+              placeholder="name@example.com"
+              className={`min-h-[44px] w-full rounded-2xl border-2 border-black bg-white px-3 py-2 text-left text-sm font-bold text-black placeholder:text-neutral-400 ${whiteSurfaceFocusClass}`}
+            />
+            <button
+              type="submit"
+              disabled={isSendingAuthEmail || isCompletingEmailLink}
+              className={`min-h-[44px] shrink-0 rounded-2xl border-2 border-black bg-[#f7ff4f] px-4 py-2 text-sm font-black text-black transition disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+            >
+              {isCompletingEmailLink
+                ? 'מחברים...'
+                : pendingEmailCompletion
+                  ? 'השלמת חיבור'
+                  : isSendingAuthEmail
+                    ? 'שולחים...'
+                    : 'שליחת קישור'}
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => onStartEmailLink('recover', null)}
+            disabled={isSendingAuthEmail || isCompletingEmailLink}
+            className={`mt-2 min-h-[38px] rounded-full border-2 border-black bg-white px-3 py-1.5 text-xs font-black text-black transition hover:bg-[#fff6d8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+          >
+            כבר שילמת? התחבר/י לשחזור גישה
+          </button>
+        </form>
+      ) : null}
+
+      {authEmailNotice ? (
+        <p className="mt-2 rounded-2xl border-2 border-black bg-[#d7f9ff] px-3 py-2 text-sm font-bold text-black">
+          {authEmailNotice}
+        </p>
+      ) : null}
+
+      {authEmailError ? (
+        <p className="mt-2 rounded-2xl border-2 border-black bg-[#ffd6ce] px-3 py-2 text-sm font-bold text-black">
+          {authEmailError}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 function PaywallModal({
   open,
   onClose,
@@ -1507,6 +1855,23 @@ function PaywallModal({
   isSessionReady,
   couponError,
   couponNotice,
+  resumePlan,
+  onResumeCheckout,
+  accountEmail,
+  isRecoverableAccount,
+  authEmailInput,
+  onAuthEmailInputChange,
+  onStartEmailLink,
+  isSendingAuthEmail,
+  isCompletingEmailLink,
+  pendingEmailCompletion,
+  authEmailNotice,
+  authEmailError,
+  accountStatusLine,
+  nextConsumptionSource,
+  dailyResetAt,
+  managedSubscription,
+  onRefreshBilling,
 }: {
   open: boolean;
   onClose: () => void;
@@ -1531,6 +1896,23 @@ function PaywallModal({
   isSessionReady: boolean;
   couponError: string | null;
   couponNotice: string | null;
+  resumePlan: CheckoutPlan | null;
+  onResumeCheckout: (plan: CheckoutPlan) => void;
+  accountEmail: string | null;
+  isRecoverableAccount: boolean;
+  authEmailInput: string;
+  onAuthEmailInputChange: (value: string) => void;
+  onStartEmailLink: (intent: AuthEmailIntent, plan?: CheckoutPlan | null) => void;
+  isSendingAuthEmail: boolean;
+  isCompletingEmailLink: boolean;
+  pendingEmailCompletion: boolean;
+  authEmailNotice: string | null;
+  authEmailError: string | null;
+  accountStatusLine: string;
+  nextConsumptionSource: BillingSnapshot['nextConsumptionSource'];
+  dailyResetAt: string | null;
+  managedSubscription: ManagedSubscriptionState | null;
+  onRefreshBilling: () => void;
 }) {
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -1540,6 +1922,7 @@ function PaywallModal({
       : UNLIMITED_PLAN_COPY
     : null;
   const shouldShowUnlimitedPlanOption = !hasUnlimitedAccess;
+  const canStartCheckout = isSessionReady && isRecoverableAccount && !isSendingAuthEmail && !isCompletingEmailLink;
 
   useEffect(() => {
     if (!open) {
@@ -1626,7 +2009,11 @@ function PaywallModal({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.2em] text-[#9a2f10]">
-              {checkoutSession ? 'שלב 2 מתוך 2' : 'שלב 1 מתוך 2'}
+              {!isRecoverableAccount
+                ? 'שלב 1 מתוך 3'
+                : checkoutSession
+                  ? 'שלב 3 מתוך 3'
+                  : 'שלב 2 מתוך 3'}
             </p>
             <h2 id="paywall-title" className="mt-2 text-2xl font-black text-black sm:text-3xl">
               {PAYWALL_TITLE}
@@ -1637,6 +2024,10 @@ function PaywallModal({
             {checkoutSession ? (
               <p className="mt-1 text-xs font-bold text-neutral-600">
                 בוחרים את דרך התשלום שנוחה לכם וממשיכים מיד.
+              </p>
+            ) : !isRecoverableAccount ? (
+              <p className="mt-1 text-xs font-bold text-neutral-600">
+                קודם שומרים גישה עם אימייל, ואז אפשר לבחור מסלול ולשלם.
               </p>
             ) : null}
           </div>
@@ -1651,6 +2042,30 @@ function PaywallModal({
         </div>
 
         <div className="mt-6 space-y-3">
+          <AccountCenterPanel
+            accountEmail={accountEmail}
+            isRecoverableAccount={isRecoverableAccount}
+            authEmailInput={authEmailInput}
+            onAuthEmailInputChange={onAuthEmailInputChange}
+            onStartEmailLink={onStartEmailLink}
+            isSendingAuthEmail={isSendingAuthEmail}
+            isCompletingEmailLink={isCompletingEmailLink}
+            pendingEmailCompletion={pendingEmailCompletion}
+            authEmailNotice={authEmailNotice}
+            authEmailError={authEmailError}
+            isSessionReady={isSessionReady}
+            isBillingLoading={false}
+            accountStatusLine={accountStatusLine}
+            nextConsumptionSource={nextConsumptionSource}
+            dailyResetAt={dailyResetAt}
+            paidCredits={paidCredits}
+            hasUnlimitedAccess={hasUnlimitedAccess}
+            managedSubscription={managedSubscription}
+            onRefreshBilling={onRefreshBilling}
+            compact
+            className="shadow-none"
+          />
+
           <BillingSnapshotPanel
             freeRemaining={freeRemaining}
             freeLimit={freeLimit}
@@ -1733,6 +2148,32 @@ function PaywallModal({
             </>
           ) : (
             <>
+              {resumePlan ? (
+                <div className="rounded-[22px] border-2 border-black bg-[#d7f9ff] p-3">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8b2d10]">תשלום פתוח</p>
+                  <p className="mt-1 text-sm font-bold leading-6 text-black">
+                    אפשר להמשיך את התשלום האחרון, לבחור מסלול אחר, או לרענן את מצב החשבון אם כבר שילמתם.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onResumeCheckout(resumePlan)}
+                      disabled={isCheckoutLoading || !canStartCheckout}
+                      className={`min-h-[42px] rounded-full border-2 border-black bg-[#f7ff4f] px-3.5 py-2 text-sm font-black text-black transition disabled:cursor-not-allowed disabled:opacity-70 ${lightSurfaceFocusClass}`}
+                    >
+                      להמשיך תשלום
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onResetCheckout}
+                      className={`min-h-[42px] rounded-full border-2 border-black bg-white px-3.5 py-2 text-sm font-black text-black transition hover:bg-[#fff6d8] ${whiteSurfaceFocusClass}`}
+                    >
+                      לבחור מסלול אחר
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
               <div className="rounded-[24px] border-2 border-black bg-white p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -1748,10 +2189,14 @@ function PaywallModal({
                 <button
                   type="button"
                   onClick={() => onSelectPlan('credits_50')}
-                  disabled={isCheckoutLoading}
+                  disabled={isCheckoutLoading || !canStartCheckout}
                   className={`mt-4 min-h-[48px] w-full rounded-2xl border-2 border-black bg-[#f7ff4f] px-4 py-3 text-sm font-black text-black transition disabled:cursor-not-allowed disabled:opacity-70 ${lightSurfaceFocusClass}`}
                 >
-                  {checkoutPlan === 'credits_50' ? 'טוען טופס תשלום...' : CREDIT_PLAN_COPY.cta}
+                  {!isRecoverableAccount
+                    ? 'קודם שומרים גישה באימייל'
+                    : checkoutPlan === 'credits_50'
+                      ? 'טוען טופס תשלום...'
+                      : CREDIT_PLAN_COPY.cta}
                 </button>
               </div>
 
@@ -1771,12 +2216,14 @@ function PaywallModal({
                   <button
                     type="button"
                     onClick={() => onSelectPlan('unlimited_monthly')}
-                    disabled={isCheckoutLoading}
+                    disabled={isCheckoutLoading || !canStartCheckout}
                     className={`mt-4 min-h-[48px] w-full rounded-2xl border-2 border-white bg-[#ff623d] px-4 py-3 text-sm font-black text-black transition disabled:cursor-not-allowed disabled:opacity-70 ${darkSurfaceFocusClass}`}
                   >
-                    {checkoutPlan === 'unlimited_monthly'
-                      ? 'טוען טופס תשלום...'
-                      : UNLIMITED_PLAN_COPY.cta}
+                    {!isRecoverableAccount
+                      ? 'קודם שומרים גישה באימייל'
+                      : checkoutPlan === 'unlimited_monthly'
+                        ? 'טוען טופס תשלום...'
+                        : UNLIMITED_PLAN_COPY.cta}
                   </button>
                 </div>
               ) : null}
@@ -1800,8 +2247,10 @@ function PaywallModal({
 
 export default function Home({
   mode = 'full',
+  initialBillingBypassEnabled = false,
 }: {
   mode?: HomePageClientMode;
+  initialBillingBypassEnabled?: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -1836,10 +2285,12 @@ export default function Home({
   const [isLoading, setIsLoading] = useState(false);
   const [busyReplyIndex, setBusyReplyIndex] = useState<number | null>(null);
   const [copiedReplyIndex, setCopiedReplyIndex] = useState<number | null>(null);
+  const [hasCopiedAllReplies, setHasCopiedAllReplies] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [paidPlan, setPaidPlan] = useState<PaidPlan>(null);
   const [paidCredits, setPaidCredits] = useState(0);
   const [checkoutPlan, setCheckoutPlan] = useState<CheckoutPlan | null>(null);
+  const [checkoutResumePlan, setCheckoutResumePlan] = useState<CheckoutPlan | null>(null);
   const [checkoutSession, setCheckoutSession] = useState<CheckoutSessionState | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState('');
@@ -1853,19 +2304,33 @@ export default function Home({
   const [isSubscriptionActionLoading, setIsSubscriptionActionLoading] = useState(false);
   const [subscriptionActionError, setSubscriptionActionError] = useState<string | null>(null);
   const [subscriptionActionNotice, setSubscriptionActionNotice] = useState<string | null>(null);
+  const [accountEmail, setAccountEmail] = useState<string | null>(null);
+  const [isRecoverableAccount, setIsRecoverableAccount] = useState(false);
+  const [nextConsumptionSource, setNextConsumptionSource] =
+    useState<BillingSnapshot['nextConsumptionSource']>(
+      initialBillingBypassEnabled ? 'unlimited' : 'initial_free',
+    );
+  const [dailyResetAt, setDailyResetAt] = useState<string | null>(null);
+  const [authEmailInput, setAuthEmailInput] = useState('');
+  const [authEmailNotice, setAuthEmailNotice] = useState<string | null>(null);
+  const [authEmailError, setAuthEmailError] = useState<string | null>(null);
+  const [isSendingAuthEmail, setIsSendingAuthEmail] = useState(false);
+  const [isCompletingEmailLink, setIsCompletingEmailLink] = useState(false);
+  const [pendingEmailCompletion, setPendingEmailCompletion] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isBillingLoading, setIsBillingLoading] = useState(true);
-  const [billingBypassEnabled, setBillingBypassEnabled] = useState(
-    BILLING_BYPASS_FALLBACK_ENABLED,
-  );
+  const [billingBypassEnabled, setBillingBypassEnabled] = useState(initialBillingBypassEnabled);
   const authRecoveryPromiseRef = useRef<Promise<void> | null>(null);
   const authTokenPromiseRef = useRef<Promise<string> | null>(null);
   const hasHydrated = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const isGeneratorPrimaryMode = mode === 'generator';
 
   const hasUnlimitedAccess = billingBypassEnabled || paidPlan === 'unlimited_monthly';
-  const isConversationBackgroundLocked = !isBillingLoading && !hasUnlimitedAccess;
+  const hasMonthlyFeatureAccess = paidPlan === 'unlimited_monthly' && !billingBypassEnabled;
+  const shouldShowMonthlyFeatureOptions = !hasUnlimitedAccess || hasMonthlyFeatureAccess;
+  const shouldShowConversationBackground = !hasUnlimitedAccess || hasMonthlyFeatureAccess;
+  const isConversationBackgroundLocked = !isBillingLoading && !hasMonthlyFeatureAccess;
   const hasCreditBalance = paidCredits > 0;
   const isSessionReady = isAuthReady && Boolean(authToken) && !isBillingLoading;
   const totalFreeRemaining = useMemo(
@@ -1883,8 +2348,8 @@ export default function Home({
   const generateButtonLabel = isLoading
     ? 'מכינים 3 תשובות...'
     : isNoReplyMode
-      ? 'קבלו פולו-אפ לשליחה'
-      : 'קבלו מה לענות עכשיו';
+      ? 'קבלו 3 פולו-אפים לשליחה'
+      : 'קבלו 3 תשובות עכשיו';
   const heroGenerateCtaLabel = 'יאללה, מתחילים לענות';
   const heroStartUsingCtaLabel = 'התחילו להשתמש עכשיו';
   const mobileComposeHelper = useMemo(() => {
@@ -1956,9 +2421,10 @@ export default function Home({
     freeRemaining === 0 &&
     dailyFreeRemaining === 0 &&
     dailyFreeLimit > 0;
+  const canShowMobileResults = Boolean(result) || isGenerating;
 
   useEffect(() => {
-    if (isBillingLoading) {
+    if (isBillingLoading || hasMonthlyFeatureAccess) {
       return;
     }
 
@@ -1969,15 +2435,15 @@ export default function Home({
     if (monthlyOnlyToneOptions.includes(tone)) {
       setTone(toneOptions[0]);
     }
-  }, [context, isBillingLoading, tone]);
+  }, [context, hasMonthlyFeatureAccess, isBillingLoading, tone]);
 
   useEffect(() => {
-    if (isBillingLoading || !hasUnlimitedAccess || conversationBackground.length === 0) {
+    if (isBillingLoading || hasMonthlyFeatureAccess || conversationBackground.length === 0) {
       return;
     }
 
     setConversationBackground('');
-  }, [conversationBackground, hasUnlimitedAccess, isBillingLoading]);
+  }, [conversationBackground, hasMonthlyFeatureAccess, isBillingLoading]);
 
   useEffect(() => {
     trackEvent('page_view_home');
@@ -2128,8 +2594,7 @@ export default function Home({
   }, [scrollToComposeSection]);
 
   const applyBillingSnapshot = useCallback((billing: BillingSnapshot) => {
-    const hasBillingBypass =
-      billing.billingBypassEnabled === true || BILLING_BYPASS_FALLBACK_ENABLED;
+    const hasBillingBypass = billing.billingBypassEnabled === true || initialBillingBypassEnabled;
 
     setFreeUsed(Math.max(0, Math.floor(billing.freeUsed)));
     setInitialFreeLimit(Math.max(0, Math.floor(billing.freeLimit)));
@@ -2139,6 +2604,15 @@ export default function Home({
     setPaidCredits(Math.max(0, Math.floor(billing.credits)));
     setSubscriptionStatus(billing.subscriptionStatus);
     setBillingBypassEnabled(hasBillingBypass);
+    setAccountEmail(billing.accountEmail?.trim() || null);
+    setIsRecoverableAccount(Boolean(billing.isRecoverableAccount || billing.accountEmail));
+    setNextConsumptionSource(
+      billing.nextConsumptionSource ?? (billing.accessState === 'blocked' ? 'blocked' : 'initial_free'),
+    );
+    setDailyResetAt(billing.dailyResetAt ?? null);
+    if (billing.accountEmail) {
+      setAuthEmailInput((currentValue) => currentValue || billing.accountEmail?.trim() || '');
+    }
 
     if (!billing.subscriptionStatus) {
       setManagedSubscription(null);
@@ -2166,7 +2640,7 @@ export default function Home({
     }
 
     setPaidPlan(null);
-  }, []);
+  }, [initialBillingBypassEnabled]);
 
   const syncAuthState = useCallback((nextToken: string | null) => {
     setAuthToken((currentToken) => currentToken === nextToken ? currentToken : nextToken);
@@ -2331,6 +2805,192 @@ export default function Home({
     }
   }, [applyBillingSnapshot, fetchWithAuth, isAuthReady]);
 
+  const completeEmailLinkFromUrl = useCallback(async (emailOverride?: string) => {
+    const [{ EmailAuthProvider, isSignInWithEmailLink, linkWithCredential, signInWithEmailLink }, { auth }] =
+      await Promise.all([
+        import('firebase/auth'),
+        getClientFirebaseAuth(),
+      ]);
+    const currentUrl = window.location.href;
+
+    if (!isSignInWithEmailLink(auth, currentUrl)) {
+      return false;
+    }
+
+    const storedEmail = window.localStorage.getItem(AUTH_EMAIL_STORAGE_KEY);
+    const normalizedEmail = normalizeEmailInput(emailOverride ?? storedEmail ?? authEmailInput);
+
+    if (!isValidEmail(normalizedEmail)) {
+      setPendingEmailCompletion(true);
+      setAuthEmailNotice('זיהינו קישור אימייל. כדי להשלים את החיבור, הזינו את אותו אימייל שאליו נשלח הקישור.');
+      setAuthEmailError(null);
+      return false;
+    }
+
+    setIsCompletingEmailLink(true);
+    setAuthEmailError(null);
+
+    try {
+      await auth.authStateReady();
+      const intent = getAuthLinkIntentFromUrl();
+      const planFromUrl = getAuthLinkPlanFromUrl();
+      const storedPlan = window.localStorage.getItem(AUTH_EMAIL_PLAN_STORAGE_KEY);
+      const pendingPlan = planFromUrl ?? (isCheckoutPlan(storedPlan) ? storedPlan : null);
+      const credential = EmailAuthProvider.credentialWithLink(normalizedEmail, currentUrl);
+      const currentUser = auth.currentUser;
+      const userCredential = intent === 'checkout' && currentUser
+        ? await linkWithCredential(currentUser, credential).catch(async (error) => {
+            const code = readFirebaseErrorCode(error);
+
+            if (
+              code === 'auth/credential-already-in-use' ||
+              code === 'auth/email-already-in-use' ||
+              code === 'auth/provider-already-linked'
+            ) {
+              return signInWithEmailLink(auth, normalizedEmail, currentUrl);
+            }
+
+            throw error;
+          })
+        : await signInWithEmailLink(auth, normalizedEmail, currentUrl);
+      const nextToken = await userCredential.user.getIdToken(true);
+
+      syncAuthState(nextToken);
+      setAccountEmail(normalizedEmail);
+      setIsRecoverableAccount(true);
+      setAuthEmailInput(normalizedEmail);
+      setPendingEmailCompletion(false);
+      setAuthEmailNotice(
+        intent === 'checkout'
+          ? pendingPlan
+            ? 'האימייל חובר לחשבון. אפשר להמשיך לתשלום שבחרתם.'
+            : 'האימייל חובר לחשבון. עכשיו אפשר לבחור מסלול ולשלם.'
+          : 'התחברתם עם האימייל. מצב החשבון יתעדכן מיד.',
+      );
+      trackEvent('email_link_complete', {
+        intent,
+        plan: pendingPlan ?? 'none',
+      });
+      if (intent === 'recover') {
+        trackEvent('recovery_sign_in', {
+          plan: pendingPlan ?? 'none',
+        });
+      }
+
+      window.localStorage.setItem(AUTH_EMAIL_STORAGE_KEY, normalizedEmail);
+      window.localStorage.removeItem(AUTH_EMAIL_INTENT_STORAGE_KEY);
+      window.localStorage.removeItem(AUTH_EMAIL_PLAN_STORAGE_KEY);
+      stripAuthLinkParamsFromUrl();
+
+      await refreshBillingStatus();
+
+      if (intent === 'checkout') {
+        setShowPaywall(true);
+      }
+
+      return true;
+    } catch (error) {
+      setAuthEmailNotice(null);
+      setAuthEmailError(
+        mapApiErrorMessage(error instanceof Error ? error.message : 'לא הצלחנו להשלים את חיבור האימייל.'),
+      );
+      trackEvent('email_link_error', {
+        intent: getAuthLinkIntentFromUrl(),
+        reason: readFirebaseErrorCode(error) ?? 'unknown',
+      });
+      return false;
+    } finally {
+      setIsCompletingEmailLink(false);
+    }
+  }, [authEmailInput, getClientFirebaseAuth, refreshBillingStatus, syncAuthState]);
+
+  const handleAuthEmailInputChange = useCallback((value: string) => {
+    setAuthEmailInput(value);
+    setAuthEmailError(null);
+    if (!pendingEmailCompletion) {
+      setAuthEmailNotice(null);
+    }
+  }, [pendingEmailCompletion]);
+
+  const startAuthEmailLink = useCallback(async (intent: AuthEmailIntent, plan: CheckoutPlan | null = null) => {
+    const normalizedEmail = normalizeEmailInput(authEmailInput);
+
+    if (!isValidEmail(normalizedEmail)) {
+      setAuthEmailError('צריך להזין אימייל תקין לשחזור הגישה.');
+      setAuthEmailNotice(null);
+      return;
+    }
+
+    if (pendingEmailCompletion) {
+      await completeEmailLinkFromUrl(normalizedEmail);
+      return;
+    }
+
+    setIsSendingAuthEmail(true);
+    setAuthEmailError(null);
+    setAuthEmailNotice(null);
+
+    try {
+      const [{ sendSignInLinkToEmail }, { auth }] = await Promise.all([
+        import('firebase/auth'),
+        getClientFirebaseAuth(),
+      ]);
+
+      if (intent === 'checkout') {
+        await ensureAuthenticatedUser(true);
+      }
+
+      const params = new URLSearchParams();
+      params.set('sb_auth_intent', intent);
+
+      if (plan) {
+        params.set('sb_auth_plan', plan);
+      }
+
+      const actionUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+
+      await sendSignInLinkToEmail(auth, normalizedEmail, {
+        url: actionUrl,
+        handleCodeInApp: true,
+      });
+
+      window.localStorage.setItem(AUTH_EMAIL_STORAGE_KEY, normalizedEmail);
+      window.localStorage.setItem(AUTH_EMAIL_INTENT_STORAGE_KEY, intent);
+      if (plan) {
+        window.localStorage.setItem(AUTH_EMAIL_PLAN_STORAGE_KEY, plan);
+      } else {
+        window.localStorage.removeItem(AUTH_EMAIL_PLAN_STORAGE_KEY);
+      }
+
+      setAuthEmailNotice(
+        intent === 'checkout'
+          ? 'שלחנו קישור לאימייל. פתחו אותו כדי לשמור את הגישה לפני התשלום.'
+          : 'שלחנו קישור התחברות. פתחו אותו כדי לשחזר את הקרדיטים או המנוי.',
+      );
+      trackEvent('email_link_start', {
+        intent,
+        plan: plan ?? 'none',
+      });
+    } catch (error) {
+      setAuthEmailError(
+        mapApiErrorMessage(error instanceof Error ? error.message : 'לא הצלחנו לשלוח קישור אימייל.'),
+      );
+      trackEvent('email_link_error', {
+        intent,
+        plan: plan ?? 'none',
+        reason: readFirebaseErrorCode(error) ?? 'unknown',
+      });
+    } finally {
+      setIsSendingAuthEmail(false);
+    }
+  }, [
+    authEmailInput,
+    completeEmailLinkFromUrl,
+    ensureAuthenticatedUser,
+    getClientFirebaseAuth,
+    pendingEmailCompletion,
+  ]);
+
   const refreshManagedSubscription = useCallback(async () => {
     if (!isSessionReady || !subscriptionStatus) {
       setManagedSubscription(null);
@@ -2370,6 +3030,16 @@ export default function Home({
     }
   }, [applyBillingSnapshot, fetchWithAuth, isSessionReady, subscriptionStatus]);
 
+  const handleManualBillingRefresh = useCallback(() => {
+    trackEvent('billing_refresh_click', {
+      access_state: accessState,
+    });
+    void refreshBillingStatus();
+    if (subscriptionStatus) {
+      void refreshManagedSubscription();
+    }
+  }, [accessState, refreshBillingStatus, refreshManagedSubscription, subscriptionStatus]);
+
   useEffect(() => {
     let isCancelled = false;
     let unsubscribe: (() => void) | null = null;
@@ -2403,6 +3073,11 @@ export default function Home({
           return;
         }
 
+        setAccountEmail(user.email?.trim() || null);
+        setIsRecoverableAccount(Boolean(user.email));
+        if (user.email) {
+          setAuthEmailInput((currentValue) => currentValue || user.email || '');
+        }
         void syncUserToken();
       });
 
@@ -2436,6 +3111,14 @@ export default function Home({
 
     void refreshBillingStatus();
   }, [authToken, isAuthReady, refreshBillingStatus]);
+
+  useEffect(() => {
+    if (!isAuthReady) {
+      return;
+    }
+
+    void completeEmailLinkFromUrl();
+  }, [completeEmailLinkFromUrl, isAuthReady]);
 
   useEffect(() => {
     if (!isSessionReady) {
@@ -2538,7 +3221,14 @@ export default function Home({
       }
 
       if (data.session.status === 'open') {
-        setPaymentNotice('התשלום עוד לא הושלם. אפשר לנסות שוב כאן באתר.');
+        setShowPaywall(true);
+        setCheckoutSession(null);
+        setCheckoutResumePlan(resolvedPlan && isCheckoutPlan(resolvedPlan) ? resolvedPlan : null);
+        setCheckoutError('התשלום עוד לא הושלם. אפשר להמשיך תשלום או לבחור מסלול אחר.');
+        setPaymentNotice('התשלום עוד לא הושלם. פתחנו לך את אפשרויות התשלום כאן.');
+        trackEvent('checkout_return_open', {
+          plan: resolvedPlan ?? 'unknown',
+        });
         return;
       }
 
@@ -2585,7 +3275,12 @@ export default function Home({
       setPaymentNotice('התשלום נקלט. מאמתים ומעדכנים את החשבון שלך...');
       trackEvent('checkout_success', { plan: planFromCheckout });
     } else if (checkoutStatus === 'cancelled') {
+      setShowPaywall(true);
+      setCheckoutResumePlan(isCheckoutPlan(planFromCheckout) ? planFromCheckout : null);
       setPaymentNotice('התשלום בוטל, אפשר לנסות שוב בכל רגע.');
+      trackEvent('checkout_return_cancelled', {
+        plan: isCheckoutPlan(planFromCheckout) ? planFromCheckout : 'unknown',
+      });
     }
 
     if (checkoutStatus) {
@@ -2604,6 +3299,18 @@ export default function Home({
 
     return () => window.clearTimeout(timeoutId);
   }, [copiedReplyIndex]);
+
+  useEffect(() => {
+    if (!hasCopiedAllReplies) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setHasCopiedAllReplies(false);
+    }, 1500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [hasCopiedAllReplies]);
 
   useEffect(() => {
     if (!showPaywall) {
@@ -2639,11 +3346,13 @@ export default function Home({
     setShowPaywall(false);
     setCheckoutPlan(null);
     setCheckoutSession(null);
+    setCheckoutResumePlan(null);
     setCheckoutError(null);
   }
 
   function resetCheckoutSelection() {
     setCheckoutSession(null);
+    setCheckoutResumePlan(null);
     setCheckoutError(null);
   }
 
@@ -2654,6 +3363,7 @@ export default function Home({
 
     setShowPaywall(true);
     setCheckoutSession(null);
+    setCheckoutResumePlan(null);
     setCheckoutError(null);
   }
 
@@ -2715,6 +3425,11 @@ export default function Home({
         setCouponCode('');
       }
 
+      trackEvent('coupon_redeem_success', {
+        status: data.redemption.status ?? 'unknown',
+        granted_uses: data.redemption.grantedUses ?? 0,
+      });
+
       const hasAccessAfterRedeem =
         data.billing.hasUnlimited ||
         data.billing.credits > 0 ||
@@ -2731,6 +3446,9 @@ export default function Home({
           error instanceof Error ? error.message : 'לא הצלחנו לממש את הקופון. נסה שוב בעוד רגע.',
         ),
       );
+      trackEvent('coupon_redeem_error', {
+        reason: error instanceof Error ? error.message.slice(0, 120) : 'unknown',
+      });
     } finally {
       setIsRedeemingCoupon(false);
     }
@@ -2779,6 +3497,10 @@ export default function Home({
 
       setSubscriptionActionNotice(message);
       setPaymentNotice(message);
+      trackEvent('subscription_action', {
+        action,
+        status: data.subscription?.status ?? 'unknown',
+      });
     } catch (error) {
       setSubscriptionActionError(
         mapApiErrorMessage(
@@ -2787,6 +3509,10 @@ export default function Home({
             : 'לא הצלחנו לעדכן את הגדרות המנוי. נסה שוב בעוד רגע.',
         ),
       );
+      trackEvent('subscription_action', {
+        action,
+        status: 'error',
+      });
     } finally {
       setIsSubscriptionActionLoading(false);
     }
@@ -2808,10 +3534,19 @@ export default function Home({
       return;
     }
 
+    if (!isRecoverableAccount) {
+      setShowPaywall(true);
+      setCheckoutSession(null);
+      setCheckoutError('לפני תשלום צריך לשמור גישה עם אימייל, כדי שהרכישה לא תאבד.');
+      await startAuthEmailLink('checkout', plan);
+      return;
+    }
+
     setShowPaywall(true);
 
     setCheckoutPlan(plan);
     setCheckoutSession(null);
+    setCheckoutResumePlan(null);
     setCheckoutError(null);
     setPaymentNotice(null);
 
@@ -2848,6 +3583,10 @@ export default function Home({
         error instanceof Error ? error.message : 'משהו השתבש בחיבור לתשלום.',
       );
       setCheckoutError(message);
+      trackEvent('checkout_failed', {
+        plan,
+        reason: error instanceof Error ? error.message.slice(0, 120) : 'unknown',
+      });
     } finally {
       setCheckoutPlan(null);
     }
@@ -2859,6 +3598,11 @@ export default function Home({
     }
 
     await handleReturnedCheckout(checkoutSession.sessionId, checkoutSession.plan);
+  }
+
+  async function handleResumeCheckout(plan: CheckoutPlan) {
+    trackEvent('checkout_resume', { plan });
+    await handleCheckout(plan);
   }
 
   async function runGeneration(
@@ -2937,7 +3681,7 @@ export default function Home({
           )
         : [];
 
-      if (!nextIntent || nextReplies.length === 0) {
+      if (!nextIntent || nextReplies.length !== 3) {
         throw new Error('לא קיבלתי תשובות תקינות. נסה שוב.');
       }
 
@@ -3043,7 +3787,9 @@ export default function Home({
     const trimmedLastOutgoingMessage = lastOutgoingMessage
       .trim()
       .slice(0, MAX_LAST_OUTGOING_MESSAGE_LENGTH);
-    const allowedConversationBackground = '';
+    const allowedConversationBackground = hasMonthlyFeatureAccess
+      ? conversationBackground.trim().slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH)
+      : '';
     const parsedNoReplyDuration = Number.parseInt(noReplyDurationValue, 10);
     const effectiveContinuePreference = isNoReplyMode ? null : continuePreference;
 
@@ -3128,7 +3874,9 @@ export default function Home({
     const trimmedLastOutgoingMessage = lastOutgoingMessage
       .trim()
       .slice(0, MAX_LAST_OUTGOING_MESSAGE_LENGTH);
-    const allowedConversationBackground = '';
+    const allowedConversationBackground = hasMonthlyFeatureAccess
+      ? conversationBackground.trim().slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH)
+      : '';
     const parsedNoReplyDuration = Number.parseInt(noReplyDurationValue, 10);
 
     trackEvent('refine_click', {
@@ -3231,10 +3979,107 @@ export default function Home({
     try {
       await navigator.clipboard.writeText(reply);
       setCopiedReplyIndex(index);
+      setHasCopiedAllReplies(false);
       trackEvent('reply_copy', { index, context, tone });
     } catch {
       setRequestError('ההעתקה נכשלה. נסה שוב.');
     }
+  }
+
+  async function handleShare(reply: string, index: number) {
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({ text: reply });
+        trackEvent('reply_share', { index, method: 'native' });
+        return;
+      }
+
+      await navigator.clipboard.writeText(reply);
+      setCopiedReplyIndex(index);
+      setHasCopiedAllReplies(false);
+      trackEvent('reply_share', { index, method: 'clipboard_fallback' });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
+
+      setRequestError('השיתוף לא הצליח. אפשר להעתיק את התשובה ידנית.');
+    }
+  }
+
+  function handleReplyEdit(reply: string, index: number) {
+    const normalizedReply = reply.trim();
+
+    if (!normalizedReply) {
+      setRequestError('אי אפשר לשמור תשובה ריקה.');
+      return;
+    }
+
+    setResult((currentResult) => {
+      if (!currentResult || !currentResult.replies[index]) {
+        return currentResult;
+      }
+
+      const replies = [...currentResult.replies];
+      replies[index] = normalizedReply;
+
+      return {
+        ...currentResult,
+        replies,
+      };
+    });
+    setRequestError(null);
+    trackEvent('reply_edit', {
+      index,
+      length: normalizedReply.length,
+    });
+  }
+
+  async function handleCopyAllReplies() {
+    if (!result || result.replies.length !== 3) {
+      return;
+    }
+
+    try {
+      const replyText = result.replies.map((reply, index) => `${index + 1}. ${reply}`).join('\n');
+      await navigator.clipboard.writeText(replyText);
+      setCopiedReplyIndex(null);
+      setHasCopiedAllReplies(true);
+      trackEvent('reply_copy_all', {
+        reply_count: result.replies.length,
+      });
+    } catch {
+      setRequestError('העתקת כל התשובות נכשלה. נסה שוב.');
+    }
+  }
+
+  async function handleGenerateMoreReplies() {
+    trackEvent('generate_more_click', {
+      compose_mode: composeMode,
+      access_state: accessState,
+    });
+    await handleMainSubmit();
+  }
+
+  function handleNewMessage() {
+    trackEvent('result_new_message', {
+      compose_mode: composeMode,
+    });
+    setResult(null);
+    setRequestError(null);
+    setImageError(null);
+    setImageBase64(null);
+    setImageName(null);
+    setMessage('');
+    setLastOutgoingMessage('');
+    setNoReplyDurationValue('');
+    setNoReplyDurationUnit('hours');
+    setConversationBackground('');
+    setContinuePreference(null);
+    setCopiedReplyIndex(null);
+    setHasCopiedAllReplies(false);
+    setMobilePrimaryView('compose');
+    scrollToComposeSection();
   }
 
   function applyExample(scenario: ExampleScenario) {
@@ -3447,16 +4292,21 @@ export default function Home({
               </button>
               <button
                 type="button"
-                onClick={() => setMobilePrimaryView('results')}
+                onClick={() => {
+                  if (canShowMobileResults) {
+                    setMobilePrimaryView('results');
+                  }
+                }}
                 aria-pressed={mobilePrimaryView === 'results'}
+                disabled={!canShowMobileResults}
                 className={[
-                  `min-h-[42px] flex-1 rounded-[14px] border-2 border-black px-3 py-2 text-sm font-black transition ${lightSurfaceFocusClass}`,
+                  `min-h-[42px] flex-1 rounded-[14px] border-2 border-black px-3 py-2 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${lightSurfaceFocusClass}`,
                   mobilePrimaryView === 'results'
                     ? 'bg-[#111111] text-[#f7ff4f]'
                     : 'bg-[#d7f9ff] text-black',
                 ].join(' ')}
               >
-                שלב 2: תשובות
+                {canShowMobileResults ? 'שלב 2: תשובות' : 'תשובות אחרי יצירה'}
               </button>
             </div>
           ) : null}
@@ -3699,7 +4549,7 @@ export default function Home({
                 </div>
               )}
 
-              {!hasUnlimitedAccess ? (
+              {shouldShowConversationBackground ? (
                 <details className="group rounded-[22px] border-2 border-dashed border-black bg-[#fff6d8] transition-colors duration-200 open:bg-[#fff2bf]">
                   <summary
                     className={`flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-black text-black marker:content-none ${lightSurfaceFocusClass}`}
@@ -3721,7 +4571,7 @@ export default function Home({
                           <p className="text-xs font-bold text-neutral-700">
                             בודקים את מצב המנוי כדי לפתוח את ההרחבה הזאת...
                           </p>
-                        ) : hasUnlimitedAccess ? (
+                        ) : hasMonthlyFeatureAccess ? (
                           <>
                             <p className="text-xs font-bold text-neutral-700">
                               פרטים קצרים שיעזרו לדייק את הניסוח (למשל: מה היה לפני כן בשיחה).
@@ -3782,7 +4632,7 @@ export default function Home({
                 title="מה המצב?"
                 description="נבין את הסיטואציה כדי לנסח תשובה שמתאימה לך."
                 headerAlign="right"
-                options={hasUnlimitedAccess ? freeContextOptions : contextOptions}
+                options={shouldShowMonthlyFeatureOptions ? contextOptions : freeContextOptions}
                 primaryVisibleCount={CONTEXT_PRIMARY_VISIBLE_COUNT}
                 moreOptionsLabel="עוד סיטואציות"
                 lockedOptions={hasUnlimitedAccess ? [] : monthlyOnlyContextOptions}
@@ -3806,7 +4656,7 @@ export default function Home({
                 title="איך תרצו לענות?"
                 description="בחרו את הווייב שתרצו לשדר בתשובה."
                 headerAlign="right"
-                options={hasUnlimitedAccess ? freeToneOptions : toneOptions}
+                options={shouldShowMonthlyFeatureOptions ? toneOptions : freeToneOptions}
                 primaryVisibleCount={TONE_PRIMARY_VISIBLE_COUNT}
                 moreOptionsLabel="עוד וייבים"
                 lockedOptions={hasUnlimitedAccess ? [] : monthlyOnlyToneOptions}
@@ -3828,8 +4678,8 @@ export default function Home({
 
               {!isNoReplyMode ? (
                 <ChipGroup
-                  title="להמשיך באותו כיוון?"
-                  description="אופציונלי: עוזר לנו לדייק אם לזרום עם המסר או לעצור."
+                  title="להמשיך את השיחה?"
+                  description="כן = לפתוח המשך שיחה. לא = לענות ולסגור או להציב גבול."
                   headerAlign="right"
                   options={continuePreferenceOptions}
                   value={continuePreference}
@@ -3839,7 +4689,9 @@ export default function Home({
                   }}
                   helperText={
                     continuePreference
-                      ? 'מעולה, שמרנו את הבחירה שלך. אפשר לשנות בכל רגע.'
+                      ? continuePreference === 'כן'
+                        ? 'ננסח תשובות שמחזירות את השיחה קדימה.'
+                        : 'ננסח תשובות שסוגרות בנימוס או מציבות גבול.'
                       : 'אופציונלי לגמרי, אפשר להמשיך גם בלי לבחור.'
                   }
                   optional
@@ -3917,13 +4769,44 @@ export default function Home({
               {result && !isLoading ? (
                 <div className="w-full min-w-0 space-y-3">
                 <div className="w-full min-w-0 rounded-[26px] border-2 border-black bg-[#fff6d8] p-4 shadow-[0_8px_0_0_#111111]">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-600">
-                      מה הם כנראה מנסים להגיד
-                    </p>
-                    <span className={readOnlyBadgeClass}>לקריאה</span>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-600">
+                          {isNoReplyMode ? 'מה הפולו-אפ צריך לשדר' : 'מה הם כנראה מנסים להגיד'}
+                        </p>
+                        <span className={readOnlyBadgeClass}>לקריאה</span>
+                      </div>
+                      <p className="mt-2 text-base font-bold leading-7 text-black">{result.intent}</p>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        onClick={handleCopyAllReplies}
+                        className={`min-h-[40px] rounded-full border-2 border-black bg-white px-3 py-1.5 text-xs font-black text-black transition hover:bg-[#f5f5f5] ${whiteSurfaceFocusClass}`}
+                      >
+                        {hasCopiedAllReplies ? 'הכל הועתק' : 'העתק הכל'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleGenerateMoreReplies}
+                        disabled={isGenerating}
+                        className={`min-h-[40px] rounded-full border-2 border-black bg-[#f7ff4f] px-3 py-1.5 text-xs font-black text-black transition disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                      >
+                        ליצור 3 נוספות
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleNewMessage}
+                        className={`min-h-[40px] rounded-full border-2 border-black bg-[#d7f9ff] px-3 py-1.5 text-xs font-black text-black transition hover:bg-[#b8f2ff] ${whiteSurfaceFocusClass}`}
+                      >
+                        הודעה חדשה
+                      </button>
+                    </div>
                   </div>
-                  <p className="mt-2 text-base font-bold leading-7 text-black">{result.intent}</p>
+                  <p className="mt-3 text-xs font-bold leading-5 text-neutral-700">
+                    יצירת 3 נוספות או שיפור ניסוח משתמשים בשימוש אחד.
+                  </p>
                 </div>
 
                 <div className="w-full min-w-0 space-y-3">
@@ -3936,7 +4819,9 @@ export default function Home({
                       isUpdating={busyReplyIndex === index}
                       copied={copiedReplyIndex === index}
                       onCopy={handleCopy}
+                      onShare={handleShare}
                       onAdjust={handleReplyAction}
+                      onEdit={handleReplyEdit}
                     />
                   ))}
                 </div>
@@ -3979,6 +4864,152 @@ export default function Home({
           </div>
         </section>
 
+        {!billingBypassEnabled ? (
+          <section
+            ref={plansSectionRef}
+            id="plans-section"
+            className="mobile-section-anchor w-full min-w-0 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]"
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8b2d10]">חשבון ותשלום</p>
+                <h2 className="mt-2 text-2xl font-black text-black sm:text-3xl">ממשיכים מכאן כשצריך</h2>
+              </div>
+              <p className="max-w-xl text-sm font-bold leading-6 text-neutral-700">
+                אחרי שמילאתם הודעה, כאן רואים מה נשאר בחשבון, שומרים גישה באימייל ופותחים עוד תשובות.
+              </p>
+            </div>
+
+            <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+              <AccountCenterPanel
+                accountEmail={accountEmail}
+                isRecoverableAccount={isRecoverableAccount}
+                authEmailInput={authEmailInput}
+                onAuthEmailInputChange={handleAuthEmailInputChange}
+                onStartEmailLink={startAuthEmailLink}
+                isSendingAuthEmail={isSendingAuthEmail}
+                isCompletingEmailLink={isCompletingEmailLink}
+                pendingEmailCompletion={pendingEmailCompletion}
+                authEmailNotice={authEmailNotice}
+                authEmailError={authEmailError}
+                isSessionReady={isSessionReady}
+                isBillingLoading={isBillingLoading}
+                accountStatusLine={accountStatusLine}
+                nextConsumptionSource={nextConsumptionSource}
+                dailyResetAt={dailyResetAt}
+                paidCredits={paidCredits}
+                hasUnlimitedAccess={hasUnlimitedAccess}
+                managedSubscription={managedSubscription}
+                onRefreshBilling={handleManualBillingRefresh}
+                compact
+                className="h-full shadow-none"
+              />
+
+              <div className="min-w-0 space-y-3">
+                <div className="grid gap-3 lg:grid-cols-2">
+                  <BillingSnapshotPanel
+                    freeRemaining={freeRemaining}
+                    freeLimit={initialFreeLimit}
+                    dailyFreeRemaining={dailyFreeRemaining}
+                    dailyLimit={dailyFreeLimit}
+                    paidCredits={paidCredits}
+                    hasUnlimitedAccess={hasUnlimitedAccess}
+                    showDailyFreeExhaustedHelper={isBlockedOnlyByDailyFreeExhausted}
+                    className="bg-white"
+                  />
+
+                  <CouponRedeemPanel
+                    couponCode={couponCode}
+                    onCouponCodeChange={handleCouponCodeChange}
+                    onRedeemCoupon={handleRedeemCoupon}
+                    isRedeemingCoupon={isRedeemingCoupon}
+                    isSessionReady={isSessionReady}
+                    couponError={couponError}
+                    couponNotice={couponNotice}
+                    className="bg-white"
+                  />
+                </div>
+
+                <SubscriptionManagementPanel
+                  subscription={managedSubscription}
+                  isLoading={isSubscriptionLoading || isSubscriptionActionLoading}
+                  isSessionReady={isSessionReady}
+                  onAction={handleSubscriptionAction}
+                  actionError={subscriptionActionError}
+                  actionNotice={subscriptionActionNotice}
+                />
+
+                <div
+                  className={[
+                    'grid gap-3',
+                    hasUnlimitedAccess ? 'md:grid-cols-1' : 'md:grid-cols-2',
+                  ].join(' ')}
+                >
+                  <div className="rounded-[22px] border-2 border-black bg-white p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <span className="rounded-full border border-black bg-[#f7ff4f] px-3 py-1 text-xs font-black text-black">
+                          {CREDIT_PLAN_COPY.badge}
+                        </span>
+                        <h3 className="mt-3 text-lg font-black text-black">{CREDIT_PLAN_COPY.title}</h3>
+                        <p className="mt-1.5 text-sm font-black text-neutral-700">{CREDIT_PLAN_COPY.helper}</p>
+                        <p className="mt-1 text-sm font-bold text-neutral-700">{CREDIT_PLAN_COPY.body}</p>
+                      </div>
+                      <p className="shrink-0 text-2xl font-black text-black">{CREDIT_PLAN_COPY.price}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCheckout('credits_50')}
+                      disabled={checkoutPlan !== null || !isSessionReady}
+                      className={`mt-3 min-h-[46px] w-full rounded-2xl border-2 border-black bg-[#f7ff4f] px-4 py-2.5 text-sm font-black text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 ${lightSurfaceFocusClass}`}
+                    >
+                      {!isRecoverableAccount
+                        ? 'שמירת גישה ואז תשלום'
+                        : checkoutPlan === 'credits_50'
+                          ? 'טוען טופס תשלום...'
+                          : CREDIT_PLAN_COPY.cta}
+                    </button>
+                  </div>
+
+                  {!hasUnlimitedAccess ? (
+                    <div className="rounded-[22px] border-2 border-black bg-[#111111] p-4 text-white">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-black">
+                            {UNLIMITED_PLAN_COPY.badge}
+                          </span>
+                          <h3 className="mt-3 text-lg font-black">{UNLIMITED_PLAN_COPY.title}</h3>
+                          <p className="mt-1.5 text-sm font-black text-white/80">{UNLIMITED_PLAN_COPY.helper}</p>
+                          <p className="mt-1 text-sm font-bold text-white/80">{UNLIMITED_PLAN_COPY.body}</p>
+                        </div>
+                        <p className="shrink-0 text-2xl font-black">{UNLIMITED_PLAN_COPY.price}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCheckout('unlimited_monthly')}
+                        disabled={checkoutPlan !== null || !isSessionReady}
+                        className={`mt-3 min-h-[46px] w-full rounded-2xl border-2 border-white bg-[#ff623d] px-4 py-2.5 text-sm font-black text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 ${darkSurfaceFocusClass}`}
+                      >
+                        {!isRecoverableAccount
+                          ? 'שמירת גישה ואז תשלום'
+                          : checkoutPlan === 'unlimited_monthly'
+                            ? 'טוען טופס תשלום...'
+                            : UNLIMITED_PLAN_COPY.cta}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+
+                {checkoutError ? (
+                  <p className="rounded-2xl border-2 border-black bg-[#ffd6ce] px-4 py-3 text-sm font-bold text-black">
+                    {checkoutError}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         {!isGeneratorPrimaryMode ? (
           <section
             ref={examplesSectionRef}
@@ -4007,109 +5038,6 @@ export default function Home({
                 />
               ))}
             </div>
-          </section>
-        ) : null}
-
-        {!billingBypassEnabled ? (
-          <section
-            ref={plansSectionRef}
-            id="plans-section"
-            className="mobile-section-anchor w-full min-w-0 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]"
-          >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8b2d10]">תשלום</p>
-              <h2 className="mt-2 text-2xl font-black text-black sm:text-3xl">פותחים עוד תשובות</h2>
-            </div>
-            <p className="max-w-xl text-sm font-bold leading-6 text-neutral-700">
-              התשלום נעשה כאן באתר בצורה בטוחה, קצרה וברורה.
-            </p>
-          </div>
-
-          <BillingSnapshotPanel
-            freeRemaining={freeRemaining}
-            freeLimit={initialFreeLimit}
-            dailyFreeRemaining={dailyFreeRemaining}
-            dailyLimit={dailyFreeLimit}
-            paidCredits={paidCredits}
-            hasUnlimitedAccess={hasUnlimitedAccess}
-            showDailyFreeExhaustedHelper={isBlockedOnlyByDailyFreeExhausted}
-            className="mt-5"
-          />
-
-          <SubscriptionManagementPanel
-            subscription={managedSubscription}
-            isLoading={isSubscriptionLoading || isSubscriptionActionLoading}
-            isSessionReady={isSessionReady}
-            onAction={handleSubscriptionAction}
-            actionError={subscriptionActionError}
-            actionNotice={subscriptionActionNotice}
-            className="mt-4"
-          />
-
-          <CouponRedeemPanel
-            couponCode={couponCode}
-            onCouponCodeChange={handleCouponCodeChange}
-            onRedeemCoupon={handleRedeemCoupon}
-            isRedeemingCoupon={isRedeemingCoupon}
-            isSessionReady={isSessionReady}
-            couponError={couponError}
-            couponNotice={couponNotice}
-            className="mt-4"
-          />
-
-          <div
-            className={[
-              'mt-4 grid gap-4',
-              hasUnlimitedAccess ? 'md:grid-cols-1' : 'md:grid-cols-2',
-            ].join(' ')}
-          >
-            <div className="rounded-[24px] border-2 border-black bg-white p-5">
-              <span className="rounded-full border border-black bg-[#f7ff4f] px-3 py-1 text-xs font-black text-black">
-                {CREDIT_PLAN_COPY.badge}
-              </span>
-              <h3 className="mt-3 text-xl font-black text-black">{CREDIT_PLAN_COPY.title}</h3>
-              <p className="mt-2 text-sm font-black text-neutral-700">{CREDIT_PLAN_COPY.helper}</p>
-              <p className="mt-1 text-sm font-bold text-neutral-700">{CREDIT_PLAN_COPY.body}</p>
-              <p className="mt-4 text-3xl font-black text-black">{CREDIT_PLAN_COPY.price}</p>
-              <button
-                type="button"
-                onClick={() => handleCheckout('credits_50')}
-                disabled={checkoutPlan !== null || !isSessionReady}
-                className={`mt-4 min-h-[48px] w-full rounded-2xl border-2 border-black bg-[#f7ff4f] px-4 py-3 text-sm font-black text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 ${lightSurfaceFocusClass}`}
-              >
-                {checkoutPlan === 'credits_50' ? 'טוען טופס תשלום...' : CREDIT_PLAN_COPY.cta}
-              </button>
-            </div>
-
-            {!hasUnlimitedAccess ? (
-              <div className="rounded-[24px] border-2 border-black bg-[#111111] p-5 text-white">
-                <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-black">
-                  {UNLIMITED_PLAN_COPY.badge}
-                </span>
-                <h3 className="mt-3 text-xl font-black">{UNLIMITED_PLAN_COPY.title}</h3>
-                <p className="mt-2 text-sm font-black text-white/80">{UNLIMITED_PLAN_COPY.helper}</p>
-                <p className="mt-1 text-sm font-bold text-white/80">{UNLIMITED_PLAN_COPY.body}</p>
-                <p className="mt-4 text-3xl font-black">{UNLIMITED_PLAN_COPY.price}</p>
-                <button
-                  type="button"
-                  onClick={() => handleCheckout('unlimited_monthly')}
-                  disabled={checkoutPlan !== null || !isSessionReady}
-                  className={`mt-4 min-h-[48px] w-full rounded-2xl border-2 border-white bg-[#ff623d] px-4 py-3 text-sm font-black text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 ${darkSurfaceFocusClass}`}
-                >
-                  {checkoutPlan === 'unlimited_monthly'
-                    ? 'טוען טופס תשלום...'
-                    : UNLIMITED_PLAN_COPY.cta}
-                </button>
-              </div>
-            ) : null}
-          </div>
-
-          {checkoutError ? (
-            <p className="mt-4 rounded-2xl border-2 border-black bg-[#ffd6ce] px-4 py-3 text-sm font-bold text-black">
-              {checkoutError}
-            </p>
-          ) : null}
           </section>
         ) : null}
 
@@ -4201,6 +5129,23 @@ export default function Home({
           isSessionReady={isSessionReady}
           couponError={couponError}
           couponNotice={couponNotice}
+          resumePlan={checkoutResumePlan}
+          onResumeCheckout={handleResumeCheckout}
+          accountEmail={accountEmail}
+          isRecoverableAccount={isRecoverableAccount}
+          authEmailInput={authEmailInput}
+          onAuthEmailInputChange={handleAuthEmailInputChange}
+          onStartEmailLink={startAuthEmailLink}
+          isSendingAuthEmail={isSendingAuthEmail}
+          isCompletingEmailLink={isCompletingEmailLink}
+          pendingEmailCompletion={pendingEmailCompletion}
+          authEmailNotice={authEmailNotice}
+          authEmailError={authEmailError}
+          accountStatusLine={accountStatusLine}
+          nextConsumptionSource={nextConsumptionSource}
+          dailyResetAt={dailyResetAt}
+          managedSubscription={managedSubscription}
+          onRefreshBilling={handleManualBillingRefresh}
         />
       ) : null}
     </main>

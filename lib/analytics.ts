@@ -23,6 +23,26 @@ export type AnalyticsEventName =
   | "checkout_start"
   | "checkout_session_loaded"
   | "checkout_success"
+  | "checkout_resume"
+  | "checkout_return_open"
+  | "checkout_return_cancelled"
+  | "email_link_start"
+  | "email_link_complete"
+  | "email_link_error"
+  | "recovery_sign_in"
+  | "coupon_redeem_success"
+  | "coupon_redeem_error"
+  | "subscription_action"
+  | "billing_refresh_click"
+  | "reply_share"
+  | "reply_edit"
+  | "reply_copy_all"
+  | "result_new_message"
+  | "generate_more_click"
+  | "answers_search"
+  | "answers_category_select"
+  | "answer_hub_conversion"
+  | "answer_detail_cta_click"
   | "billing_status_view"
   | "quota_badge_view"
   // Compatibility aliases used by existing page instrumentation.
@@ -69,6 +89,26 @@ type AnalyticsPayloadMap = {
   checkout_success: AnalyticsPayload & {
     plan?: CheckoutPlan;
   };
+  checkout_resume: AnalyticsPayload;
+  checkout_return_open: AnalyticsPayload;
+  checkout_return_cancelled: AnalyticsPayload;
+  email_link_start: AnalyticsPayload;
+  email_link_complete: AnalyticsPayload;
+  email_link_error: AnalyticsPayload;
+  recovery_sign_in: AnalyticsPayload;
+  coupon_redeem_success: AnalyticsPayload;
+  coupon_redeem_error: AnalyticsPayload;
+  subscription_action: AnalyticsPayload;
+  billing_refresh_click: AnalyticsPayload;
+  reply_share: AnalyticsPayload;
+  reply_edit: AnalyticsPayload;
+  reply_copy_all: AnalyticsPayload;
+  result_new_message: AnalyticsPayload;
+  generate_more_click: AnalyticsPayload;
+  answers_search: AnalyticsPayload;
+  answers_category_select: AnalyticsPayload;
+  answer_hub_conversion: AnalyticsPayload;
+  answer_detail_cta_click: AnalyticsPayload;
   billing_status_view: AnalyticsPayload;
   quota_badge_view: AnalyticsPayload;
   generate: AnalyticsPayload;
