@@ -8,6 +8,7 @@ import {
   seoAnswerPages,
 } from "@/lib/seo-answer-pages";
 import { createMarketingMetadata } from "@/lib/seo";
+import { AnswerDetailCtaLink } from "./answer-detail-cta-link";
 
 type RouteParams = {
   slug: string;
@@ -156,18 +157,22 @@ export default async function SeoAnswerDetailPage({
           <h2 className="text-2xl font-black text-black">{page.ctaTitle}</h2>
           <p className="mt-2 text-sm font-bold leading-6 text-neutral-700">{page.ctaDescription}</p>
           <div className="mt-4 flex flex-wrap gap-2.5">
-            <Link
+            <AnswerDetailCtaLink
               href={generatorHref}
+              source="detail_prefill_cta"
+              slug={page.slug}
               className="inline-flex min-h-[44px] items-center justify-center rounded-full border-2 border-black bg-[#f7ff4f] px-4 py-2 text-sm font-black text-black transition hover:-translate-y-0.5"
             >
               לפתוח את כלי התשובות עם הפרטים האלה
-            </Link>
-            <Link
+            </AnswerDetailCtaLink>
+            <AnswerDetailCtaLink
               href="/#compose-section"
+              source="detail_blank_cta"
+              slug={page.slug}
               className="inline-flex min-h-[44px] items-center justify-center rounded-full border-2 border-black bg-white px-4 py-2 text-sm font-black text-black transition hover:-translate-y-0.5"
             >
               מעבר לכלי תשובות ריק
-            </Link>
+            </AnswerDetailCtaLink>
           </div>
         </section>
 

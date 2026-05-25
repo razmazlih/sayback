@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require('fs');
 const path = require('path');
 
@@ -301,7 +302,7 @@ const html = `<!doctype html>
     document.getElementById('title').textContent = data.title;
     document.getElementById('subtitle').textContent = data.subtitle;
     document.getElementById('cta').textContent = data.cta;
-    document.getElementById('serial').textContent = `סטורי ${data.id}/5`;
+    document.getElementById('serial').textContent = 'סטורי ' + data.id + '/5';
 
     const chipsContainer = document.getElementById('chips');
     for (const chip of data.chips) {

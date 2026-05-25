@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { trackEvent } from '@/lib/analytics';
 
 type HubCategory = {
   id: string;
@@ -31,6 +32,22 @@ export function AnswersHubClient({
   const [activeCategory, setActiveCategory] = useState<string>('all');
 
   const normalizedSearchTerm = normalizeSearchValue(searchTerm);
+
+  function handleSearchChange(value: string) {
+    setSearchTerm(value);
+    const normalizedValue = normalizeSearchValue(value);
+
+    trackEvent('answers_search', {
+      query_length: normalizedValue.length,
+    });
+  }
+
+  function handleCategorySelect(categoryId: string) {
+    setActiveCategory(categoryId);
+    trackEvent('answers_category_select', {
+      category: categoryId,
+    });
+  }
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -72,6 +89,7 @@ export function AnswersHubClient({
           </div>
           <Link
             href="/#compose-section"
+            onClick={() => trackEvent('answer_hub_conversion', { source: 'hub_top_cta' })}
             className="inline-flex min-h-[44px] items-center justify-center rounded-full border-2 border-black bg-[#f7ff4f] px-4 py-2 text-sm font-black text-black transition hover:-translate-y-0.5"
           >
             לפתוח את כלי התשובות
@@ -86,7 +104,7 @@ export function AnswersHubClient({
             id="answers-search"
             type="search"
             value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
+            onChange={(event) => handleSearchChange(event.target.value)}
             placeholder='למשל: "צריך לדבר", לקוח, אקס'
             className="min-h-[48px] w-full rounded-[18px] border-2 border-black bg-[#fffdf7] px-4 py-2 text-base font-bold text-black outline-none transition focus:bg-white"
           />
@@ -95,7 +113,7 @@ export function AnswersHubClient({
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => setActiveCategory('all')}
+            onClick={() => handleCategorySelect('all')}
             className={[
               'min-h-[38px] rounded-full border-2 border-black px-3 py-1.5 text-xs font-black transition',
               activeCategory === 'all' ? 'bg-black text-[#f7ff4f]' : 'bg-white text-black',
@@ -108,7 +126,7 @@ export function AnswersHubClient({
             <button
               key={category.id}
               type="button"
-              onClick={() => setActiveCategory(category.id)}
+              onClick={() => handleCategorySelect(category.id)}
               className={[
                 'min-h-[38px] rounded-full border-2 border-black px-3 py-1.5 text-xs font-black transition',
                 activeCategory === category.id ? 'bg-black text-[#f7ff4f]' : 'bg-white text-black',

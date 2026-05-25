@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LegalReturnLink } from "@/components/legal-return-link";
 
 export const metadata: Metadata = {
   title: "תנאי שימוש",
@@ -265,7 +266,13 @@ const TERMS_SECTIONS: TermsSection[] = [
 
 export default function TermsPage() {
   return (
-    <main dir="rtl" className="min-h-screen bg-[#fff7e6] px-4 py-8 text-right text-[#19130f] sm:px-6">
+    <main dir="rtl" className="min-h-screen bg-[#fff7e6] px-4 py-6 text-right text-[#19130f] sm:px-6 sm:py-8">
+      <div className="sticky top-0 z-20 -mx-4 mb-4 bg-[#fff7e6]/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+        <div className="mx-auto flex w-full max-w-3xl justify-start">
+          <LegalReturnLink />
+        </div>
+      </div>
+
       <div className="mx-auto w-full max-w-3xl space-y-6 rounded-[28px] border-2 border-black bg-white p-6 shadow-[0_10px_0_0_#111111]">
         <h1 className="text-3xl font-black text-black">תנאי שימוש</h1>
         <p className="text-sm font-bold text-neutral-700">עודכן לאחרונה: 7 באפריל 2026</p>
