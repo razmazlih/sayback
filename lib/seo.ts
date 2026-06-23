@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const SITE_NAME = "SayBack";
 export const SITE_LOCALE = "he_IL";
 export const SITE_LANGUAGE = "he-IL";
-export const DEFAULT_OG_IMAGE_ALT = "SayBack - תשובות מהירות להודעות";
+export const DEFAULT_OG_IMAGE_ALT = "SayBack - מה לענות עכשיו, 3 תשובות בעברית";
 export const DEFAULT_OG_IMAGE_PATH = "/opengraph-image";
 export const DEFAULT_TWITTER_IMAGE_PATH = "/twitter-image";
 

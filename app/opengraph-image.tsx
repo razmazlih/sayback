@@ -11,7 +11,7 @@ export const contentType = OG_IMAGE_CONTENT_TYPE;
 
 export default function OpenGraphImage() {
   return createSayBackOgImage({
-    title: "תשובות מהירות להודעות",
-    subtitle: "וואטסאפ · אינסטגרם · דייטינג · לקוחות",
+    title: "מה לענות עכשיו",
+    subtitle: "מדביקים הודעה ומקבלים 3 תשובות קצרות וטבעיות בעברית",
   });
 }
