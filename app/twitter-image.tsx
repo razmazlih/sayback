@@ -12,6 +12,6 @@ export const contentType = OG_IMAGE_CONTENT_TYPE;
 export default function TwitterImage() {
   return createSayBackOgImage({
     title: "מה לענות עכשיו",
-    subtitle: "מדביקים הודעה ומקבלים 3 תשובות קצרות וטבעיות בעברית",
+    subtitle: "הופכים כל הודעה לשלוש תשובות קצרות וטבעיות בעברית",
   });
 }

@@ -6,11 +6,15 @@ export const OG_IMAGE_SIZE = {
 } as const;
 
 export const OG_IMAGE_CONTENT_TYPE = "image/png";
-export const OG_IMAGE_ALT = "SayBack - מה לענות עכשיו, 3 תשובות בעברית";
+export const OG_IMAGE_ALT = "SayBack - לא יודעים מה לענות, 3 תשובות בעברית";
 
 function toVisualRtl(text: string) {
   return [...text].reverse().join("");
 }
+
+const platformLabels = ["וואטסאפ", "אינסטגרם", "דייטינג", "לקוחות"];
+const steps = ["מדביקים הודעה", "בוחרים וייב", "מקבלים 3 תשובות"];
+const replies = ["בטח, אני פה", "ברור, מה קרה", "אפשר לדבר בערב"];
 
 type SayBackOgImageInput = {
   title: string;
@@ -23,7 +27,7 @@ export function createSayBackOgImage({
   title,
   subtitle,
   badge = "SayBack",
-  cta = "תשובות בקליק",
+  cta = "נסו עכשיו בחינם",
 }: SayBackOgImageInput) {
   return new ImageResponse(
     (
@@ -56,7 +60,7 @@ export function createSayBackOgImage({
             position: "absolute",
             top: 18,
             right: 0,
-            width: 330,
+            width: 360,
             height: "100%",
             background: "#ff5a2a",
             opacity: 0.06,
@@ -66,21 +70,37 @@ export function createSayBackOgImage({
         />
         <div
           style={{
+            position: "absolute",
+            top: 18,
+            left: 0,
+            width: 430,
+            height: "100%",
+            background: "#20d6c7",
+            opacity: 0.06,
+            transform: "skewX(10deg)",
+            transformOrigin: "top left",
+          }}
+        />
+
+        <div
+          style={{
             position: "relative",
             width: "100%",
+            height: "100%",
             display: "flex",
             flexDirection: "row-reverse",
-            justifyContent: "space-between",
             alignItems: "stretch",
-            gap: 46,
-            padding: "62px 64px 54px",
+            justifyContent: "space-between",
+            gap: 50,
+            padding: "58px 64px 46px",
           }}
         >
           <div
             style={{
-              width: 610,
+              width: 600,
               display: "flex",
               flexDirection: "column",
+              alignItems: "flex-end",
               justifyContent: "space-between",
             }}
           >
@@ -88,7 +108,8 @@ export function createSayBackOgImage({
               style={{
                 display: "flex",
                 flexDirection: "column",
-                gap: 38,
+                alignItems: "flex-end",
+                gap: 32,
               }}
             >
               <div
@@ -96,21 +117,20 @@ export function createSayBackOgImage({
                   display: "flex",
                   flexDirection: "row-reverse",
                   alignItems: "center",
-                  justifyContent: "flex-start",
                   gap: 18,
                 }}
               >
                 <div
                   style={{
-                    width: 88,
-                    height: 88,
-                    borderRadius: 26,
+                    width: 92,
+                    height: 92,
+                    borderRadius: 28,
                     background: "#181411",
                     color: "#b7f36a",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: 46,
+                    fontSize: 50,
                     fontWeight: 900,
                     boxShadow: "0 8px 0 #ff5a2a",
                   }}
@@ -122,28 +142,33 @@ export function createSayBackOgImage({
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "flex-end",
-                    gap: 5,
+                    gap: 6,
                   }}
                 >
-                  <span
+                  <div
                     style={{
-                      fontSize: 48,
+                      fontSize: 52,
                       fontWeight: 900,
                       lineHeight: 1,
                       color: "#181411",
                     }}
                   >
                     {badge}
-                  </span>
-                  <span
+                  </div>
+                  <div
                     style={{
-                      fontSize: 25,
-                      fontWeight: 700,
-                      color: "#5b4d42",
+                      display: "flex",
+                      borderRadius: 999,
+                      border: "2px solid #b8e7df",
+                      background: "#e3fbf7",
+                      color: "#123a36",
+                      padding: "7px 14px",
+                      fontSize: 21,
+                      fontWeight: 900,
                     }}
                   >
-                    {toVisualRtl("עונים מהר ונשמעים טבעי")}
-                  </span>
+                    {toVisualRtl("תשובות קצרות בעברית")}
+                  </div>
                 </div>
               </div>
 
@@ -157,7 +182,8 @@ export function createSayBackOgImage({
               >
                 <div
                   style={{
-                    fontSize: 80,
+                    maxWidth: 590,
+                  fontSize: 82,
                     fontWeight: 900,
                     lineHeight: 1.02,
                     color: "#181411",
@@ -168,12 +194,12 @@ export function createSayBackOgImage({
                 </div>
                 <div
                   style={{
+                    maxWidth: 575,
                     fontSize: 34,
-                    fontWeight: 700,
+                    fontWeight: 800,
                     lineHeight: 1.28,
-                    color: "#463b33",
+                    color: "#5b4d42",
                     textAlign: "right",
-                    maxWidth: 580,
                   }}
                 >
                   {toVisualRtl(subtitle)}
@@ -186,7 +212,7 @@ export function createSayBackOgImage({
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "flex-end",
-                gap: 18,
+                gap: 20,
               }}
             >
               <div
@@ -197,7 +223,7 @@ export function createSayBackOgImage({
                   gap: 12,
                 }}
               >
-                {["וואטסאפ", "אינסטגרם", "דייטינג", "לקוחות"].map((label) => (
+                {platformLabels.map((label) => (
                   <div
                     key={label}
                     style={{
@@ -217,20 +243,21 @@ export function createSayBackOgImage({
                   </div>
                 ))}
               </div>
+
               <div
                 style={{
                   display: "flex",
                   flexDirection: "row-reverse",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 12,
+                  gap: 14,
                   borderRadius: 999,
                   background: "#ff5a2a",
                   color: "#fffdfa",
-                  padding: "13px 22px",
-                  fontSize: 29,
+                  padding: "15px 24px",
+                  fontSize: 31,
                   fontWeight: 900,
-                  boxShadow: "0 10px 0 rgba(255, 90, 42, 0.24)",
+                  boxShadow: "0 12px 0 rgba(255, 90, 42, 0.22)",
                 }}
               >
                 <span
@@ -238,12 +265,12 @@ export function createSayBackOgImage({
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    width: 40,
-                    height: 40,
+                    width: 42,
+                    height: 42,
                     borderRadius: 999,
                     background: "#fffdfa",
                     color: "#ff5a2a",
-                    fontSize: 28,
+                    fontSize: 29,
                     fontWeight: 900,
                   }}
                 >
@@ -256,7 +283,7 @@ export function createSayBackOgImage({
 
           <div
             style={{
-              width: 420,
+              width: 430,
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
@@ -280,11 +307,11 @@ export function createSayBackOgImage({
             >
               <span
                 style={{
-                  fontSize: 26,
+                  fontSize: 27,
                   fontWeight: 900,
                 }}
               >
-                {toVisualRtl("תצוגה מהירה")}
+                {toVisualRtl("מה מקבלים")}
               </span>
               <span
                 style={{
@@ -299,7 +326,7 @@ export function createSayBackOgImage({
                   fontWeight: 900,
                 }}
               >
-                LIVE
+                {toVisualRtl("ברור")}
               </span>
             </div>
 
@@ -307,9 +334,8 @@ export function createSayBackOgImage({
               style={{
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "stretch",
-                gap: 18,
-                padding: "24px 24px 28px",
+                gap: 12,
+                padding: "18px 24px 20px",
                 background: "#f8f3eb",
                 height: "100%",
               }}
@@ -318,78 +344,22 @@ export function createSayBackOgImage({
                 style={{
                   display: "flex",
                   flexDirection: "column",
-                  alignItems: "flex-end",
                   gap: 8,
                 }}
               >
-                <span
-                  style={{
-                    color: "#7a6e64",
-                    fontSize: 18,
-                    fontWeight: 800,
-                  }}
-                >
-                  {toVisualRtl("הודעה נכנסת")}
-                </span>
-                <div
-                  style={{
-                    maxWidth: 310,
-                    display: "flex",
-                    borderRadius: "22px 22px 6px 22px",
-                    background: "#fffdfa",
-                    border: "2px solid #ded2c3",
-                    padding: "16px 18px",
-                    color: "#241d18",
-                    fontSize: 25,
-                    fontWeight: 800,
-                    lineHeight: 1.25,
-                    textAlign: "right",
-                  }}
-                >
-                  {toVisualRtl("היי אפשר לדבר רגע")}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "stretch",
-                  gap: 10,
-                }}
-              >
-                <span
-                  style={{
-                    color: "#a45334",
-                    fontSize: 18,
-                    fontWeight: 900,
-                    textAlign: "right",
-                  }}
-                >
-                  {toVisualRtl("הצעות מוכנות")}
-                </span>
-                {[
-                  "ברור, מה קרה",
-                  "כן, אני פה",
-                  "בטח, דבר איתי",
-                ].map((reply, index) => (
+                {steps.map((step, index) => (
                   <div
-                    key={reply}
+                    key={step}
                     style={{
                       display: "flex",
                       flexDirection: "row-reverse",
                       alignItems: "center",
-                      gap: 10,
+                      justifyContent: "flex-start",
+                      gap: 12,
                       borderRadius: 18,
-                      background:
-                        index === 1
-                          ? "#e3fbf7"
-                          : index === 2
-                            ? "#fff0ea"
-                            : "#fffdfa",
-                      border: "2px solid #181411",
-                      padding: "12px 14px",
-                      boxShadow: "0 4px 0 rgba(24, 20, 17, 0.10)",
+                      border: "2px solid #e2d7c8",
+                      background: index === 1 ? "#e3fbf7" : "#fffdfa",
+                      padding: "9px 14px",
                     }}
                   >
                     <span
@@ -410,13 +380,12 @@ export function createSayBackOgImage({
                     </span>
                     <span
                       style={{
-                        color: "#241d18",
-                        fontSize: 22,
+                        fontSize: 20,
                         fontWeight: 900,
-                        lineHeight: 1.18,
+                        color: "#241d18",
                       }}
                     >
-                      {toVisualRtl(reply)}
+                      {toVisualRtl(step)}
                     </span>
                   </div>
                 ))}
@@ -425,20 +394,70 @@ export function createSayBackOgImage({
               <div
                 style={{
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 12,
-                  borderRadius: 999,
-                  border: "2px solid #b8e7df",
-                  background: "#e3fbf7",
-                  color: "#123a36",
-                  padding: "11px 16px",
-                  fontSize: 22,
-                  fontWeight: 900,
-                  marginTop: 2,
+                  flexDirection: "column",
+                  alignItems: "stretch",
+                  gap: 10,
                 }}
               >
-                {toVisualRtl("קצר טבעי ומוכן לשליחה")}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    color: "#a45334",
+                    fontSize: 17,
+                    fontWeight: 900,
+                  }}
+                >
+                  {toVisualRtl("דוגמה לתוצאה")}
+                </div>
+                {replies.map((reply, index) => (
+                  <div
+                    key={reply}
+                    style={{
+                      display: "flex",
+                      flexDirection: "row-reverse",
+                      alignItems: "center",
+                      gap: 10,
+                      borderRadius: 18,
+                      background:
+                        index === 0
+                          ? "#fffdfa"
+                          : index === 1
+                            ? "#fff0ea"
+                            : "#e3fbf7",
+                      border: "2px solid #181411",
+                      padding: "9px 14px",
+                      boxShadow: "0 4px 0 rgba(24, 20, 17, 0.10)",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 28,
+                        height: 28,
+                        borderRadius: 999,
+                        background: "#ff5a2a",
+                        color: "#fffdfa",
+                        fontSize: 17,
+                        fontWeight: 900,
+                      }}
+                    >
+                      {index + 1}
+                    </span>
+                    <span
+                      style={{
+                        color: "#241d18",
+                        fontSize: 19,
+                        fontWeight: 900,
+                        lineHeight: 1.18,
+                      }}
+                    >
+                      {toVisualRtl(reply)}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -452,7 +471,6 @@ export function createSayBackOgImage({
             left: 0,
             height: 10,
             background: "#181411",
-            opacity: 0.96,
           }}
         />
       </div>
