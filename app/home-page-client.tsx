@@ -15,7 +15,6 @@ import {
   type SetStateAction,
 } from 'react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
 import { trackEvent } from '@/lib/analytics';
 import { buildHomeDeepLink } from '@/lib/home-deeplink';
 import {
@@ -5079,6 +5078,14 @@ export default function Home({
           couponCode={couponCode}
           onCouponCodeChange={handleCouponCodeChange}
           onRedeemCoupon={handleRedeemCoupon}
+          isRedeemingCoupon={isRedeemingCoupon}
+          isSessionReady={isSessionReady}
+          couponError={couponError}
+          couponNotice={couponNotice}
+          resumePlan={checkoutResumePlan}
+          onResumeCheckout={handleResumeCheckout}
+          accountEmail={accountEmail}
+          isRecoverableAccount={isRecoverableAccount}
           authEmailInput={authEmailInput}
           onAuthEmailInputChange={handleAuthEmailInputChange}
           onStartEmailLink={startAuthEmailLink}
