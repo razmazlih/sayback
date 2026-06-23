@@ -145,17 +145,21 @@ export async function POST(request: Request) {
     localUsageLogId = startLocalUsageLog({
       uid: authenticatedUserUid,
       messageLength: readOptionalTextLength(body.message),
+      messageText: body.message,
       hasImage: typeof body.imageBase64 === "string" && body.imageBase64.length > 0,
       context: body.context,
       tone: body.tone,
       continuePreference: body.continuePreference ?? null,
       conversationBackgroundLength: readOptionalTextLength(body.conversationBackground),
+      conversationBackgroundText: body.conversationBackground,
       noReplyMode: body.noReplyMode,
       noReplyDurationValue: body.noReplyDurationValue,
       noReplyDurationUnit: body.noReplyDurationUnit,
       lastOutgoingMessageLength: readOptionalTextLength(body.lastOutgoingMessage),
+      lastOutgoingMessageText: body.lastOutgoingMessage,
       action: body.action,
       sourceReplyLength: readOptionalTextLength(body.sourceReply),
+      sourceReplyText: body.sourceReply,
     });
     persistedUsageLogBase = {
       uid: authenticatedUserUid,
@@ -350,7 +354,9 @@ function buildOutputLogMetadata(intent: string, replies: [string, string, string
 
   return {
     intentLength,
+    intentText: intent,
     replyCount: replies.length,
+    repliesText: replies,
     schemaValid:
       intentLength !== null &&
       replies.length === 3 &&
