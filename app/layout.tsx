@@ -34,6 +34,9 @@ export const metadata: Metadata = {
     "שירות לקוחות",
     "עברית",
   ],
+  icons: {
+    icon: "/favicon.svg",
+  },
   openGraph: {
     siteName: SITE_NAME,
     locale: SITE_LOCALE,

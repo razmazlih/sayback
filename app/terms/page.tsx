@@ -87,7 +87,7 @@ const TERMS_SECTIONS: TermsSection[] = [
     title: "שימוש אסור",
     paragraphs: [
       "אסור להשתמש בשירות לצורך הטרדה, איומים, התחזות, הונאה, פישינג, סחיטה, פגיעה בפרטיות, פגיעה בקטינים, הסתה, אפליה, או כל פעולה בלתי חוקית אחרת.",
-      "אסור להשתמש בשירות כדי לעקוף מגבלות פלטפורמות, לבצע ספאם, להפעיל אוטומציה לא מורשית, או לשבש מערכות.",
+      "אסור להשתמש בשירות כדי לעקוף מגבלות פלטפורמות, לבצע ספאם, להפעיל אוטומציה לא מורשית, או להפריע למערכות.",
       "אסור להזין קוד זדוני, לבצע ניסיון חדירה, הנדסה לאחור, סריקה אגרסיבית, או כל שימוש שעלול לפגוע בשירות או במשתמשים אחרים.",
       "הפרה של סעיף זה עשויה להוביל להגבלת גישה, השעיה, סיום שירות ולנקיטת צעדים משפטיים.",
     ],
@@ -137,7 +137,7 @@ const TERMS_SECTIONS: TermsSection[] = [
       "התשלומים בשירות מבוצעים באמצעות Stripe, לרבות Checkout Sessions בממשק Elements.",
       "אישור תשלום, סטטוס עסקה, חיוב חוזר, ביטול, chargeback ומחלוקות חיוב כפופים גם למדיניות ולמערכות Stripe.",
       "הקצאת קרדיטים או הפעלת מנוי כפופה לאימות תשלום ופיוס נתונים בין מערכות השירות לבין נתוני הסליקה.",
-      "השירות רשאי לעכב הקצאה, לתקן הקצאה או לבטל הקצאה שניתנה בטעות עקב כשל סליקה או אי-התאמה.",
+      "השירות רשאי להחזיק הקצאה, לתקן הקצאה או לבטל הקצאה שניתנה בטעות עקב כשל סליקה או אי-התאמה.",
     ],
   },
   {
@@ -266,33 +266,46 @@ const TERMS_SECTIONS: TermsSection[] = [
 
 export default function TermsPage() {
   return (
-    <main dir="rtl" className="min-h-screen bg-[#fff7e6] px-4 py-6 text-right text-[#19130f] sm:px-6 sm:py-8">
-      <div className="sticky top-0 z-20 -mx-4 mb-4 bg-[#fff7e6]/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
-        <div className="mx-auto flex w-full max-w-3xl justify-start">
-          <LegalReturnLink />
+    <main
+      dir="rtl"
+      className="min-h-screen overflow-x-clip bg-[#f7f3ec] px-3 pb-8 pt-3 text-right text-[#181411] sm:px-6 sm:py-6 sm:pb-8"
+    >
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+        <div className="sticky top-0 z-20 -mx-3 mb-2 bg-[#f7f3ec]/95 px-3 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+          <div className="mx-auto flex w-full max-w-5xl justify-start">
+            <LegalReturnLink />
+          </div>
         </div>
-      </div>
 
-      <div className="mx-auto w-full max-w-3xl space-y-6 rounded-[28px] border-2 border-black bg-white p-6 shadow-[0_10px_0_0_#111111]">
-        <h1 className="text-3xl font-black text-black">תנאי שימוש</h1>
-        <p className="text-sm font-bold text-neutral-700">עודכן לאחרונה: 7 באפריל 2026</p>
-        <p className="rounded-2xl border-2 border-black/70 bg-[#fff3c4] px-4 py-3 text-sm leading-7 font-bold text-neutral-900">
-          מסמך זה הוא נוסח תנאי שימוש מפורט למוצר SayBack ואינו מהווה ייעוץ משפטי פרטני.
-          מומלץ להיוועץ בעורך דין לפני פרסום מסחרי סופי.
-        </p>
+        <section className="w-full rounded-[28px] border border-[#e2d7c8] bg-[#fffdfa] p-4 shadow-[0_20px_55px_rgba(49,23,13,0.1)] sm:rounded-[32px] sm:p-6">
+          <p className="inline-flex min-h-[32px] items-center rounded-full border border-[#b8e7df] bg-[#e3fbf7] px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-[#123a36]">
+            תנאים והגבלות
+          </p>
+          <h1 className="mt-2 text-3xl font-black text-[#181411]">תנאי שימוש</h1>
+          <p className="mt-1 text-sm font-bold text-[#6d6259]">עודכן לאחרונה: 7 באפריל 2026</p>
+          <p className="mt-4 rounded-2xl border border-[#ffd17b] bg-[#fff3c4] px-4 py-3 text-sm leading-7 font-bold text-[#6a3f02]">
+            מסמך זה הוא נוסח תנאי שימוש מפורט למוצר SayBack ואינו מהווה ייעוץ משפטי פרטני.
+            מומלץ להיוועץ בעורך דין לפני פרסום מסחרי סופי.
+          </p>
+        </section>
 
-        {TERMS_SECTIONS.map((section) => (
-          <section key={section.id} className="space-y-2">
-            <h2 className="text-xl font-black text-black">
-              {section.id}. {section.title}
-            </h2>
-            {section.paragraphs.map((paragraph, index) => (
-              <p key={`${section.id}-${index}`} className="text-sm leading-7 font-bold text-neutral-800">
-                {paragraph}
-              </p>
-            ))}
-          </section>
-        ))}
+        <div className="w-full space-y-4">
+          {TERMS_SECTIONS.map((section) => (
+            <section
+              key={section.id}
+              className="space-y-3 rounded-[24px] border border-[#e2d7c8] bg-white p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:p-5"
+            >
+              <h2 className="text-xl font-black text-[#181411]">
+                {section.id}. {section.title}
+              </h2>
+              {section.paragraphs.map((paragraph, index) => (
+                <p key={`${section.id}-${index}`} className="text-sm leading-7 font-bold text-[#241d18]">
+                  {paragraph}
+                </p>
+              ))}
+            </section>
+          ))}
+        </div>
       </div>
     </main>
   );

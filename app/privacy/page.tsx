@@ -139,7 +139,7 @@ const PRIVACY_SECTIONS: PrivacySection[] = [
     id: 12,
     title: "לוגים תפעוליים ואבחון תקלות",
     paragraphs: [
-      "במצבי פיתוח/אדמין מקומי עשויים להיווצר לוגים תפעוליים לצורך דיבוג.",
+      "במצבי פיתוח/אדמין מקומיים עשויים להיווצר לוגים תפעוליים לצורך דיבוג.",
       "בנוסף קיימת אפשרות תצורתית לשמירת לוגים מתמשכים (Persisted Usage Logs) הכוללים שדות טקסט מקוצרים, בהתאם להגדרות המערכת של מפעיל השירות.",
       "שמירה כזו, אם מופעלת, נועדה לאיתור תקלות, בקרה תפעולית ושיפור איכות השירות, ולא לפרסום או מסחור תוכן אישי.",
     ],
@@ -149,7 +149,7 @@ const PRIVACY_SECTIONS: PrivacySection[] = [
     title: "מקורות מידע נוספים",
     paragraphs: [
       "חלק מהמידע מתקבל מצדדים שלישיים כחלק בלתי נפרד מתפעול המערכת: Firebase (אימות), Stripe (תשלום/מנוי), ספקי אנליטיקה (אם הופעלו), וספק AI (במצב API).",
-      "בנוסף מתקבל מידע טכני מהבקשה עצמה כגון כותרות רשת, מזהי סשן, אינדיקציית מכשיר או פרוטוקול, במידה הנדרשת לאבטחה ותפעול.",
+      "בנוסף מתקבל מידע טכני מהבקשה עצמה כגון כותרות רשת, מזהי סשן, אינדיקטור מכשיר או פרוטוקול, במידה הנדרשת לאבטחה ותפעול.",
     ],
   },
   {
@@ -293,56 +293,69 @@ const LEGAL_REFERENCES = [
 
 export default function PrivacyPage() {
   return (
-    <main dir="rtl" className="min-h-screen bg-[#fff7e6] px-4 py-6 text-right text-[#19130f] sm:px-6 sm:py-8">
-      <div className="sticky top-0 z-20 -mx-4 mb-4 bg-[#fff7e6]/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
-        <div className="mx-auto flex w-full max-w-3xl justify-start">
-          <LegalReturnLink />
+    <main
+      dir="rtl"
+      className="min-h-screen overflow-x-clip bg-[#f7f3ec] px-3 pb-8 pt-3 text-right text-[#181411] sm:px-6 sm:py-6 sm:pb-8"
+    >
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+        <div className="sticky top-0 z-20 -mx-3 mb-2 bg-[#f7f3ec]/95 px-3 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+          <div className="mx-auto flex w-full max-w-5xl justify-start">
+            <LegalReturnLink />
+          </div>
         </div>
-      </div>
 
-      <div className="mx-auto w-full max-w-3xl space-y-6 rounded-[28px] border-2 border-black bg-white p-6 shadow-[0_10px_0_0_#111111]">
-        <h1 className="text-3xl font-black text-black">מדיניות פרטיות</h1>
-        <p className="text-sm font-bold text-neutral-700">עודכן לאחרונה: {LAST_UPDATED}</p>
-
-        {PRIVACY_SECTIONS.map((section) => (
-          <section key={section.id} className="space-y-3">
-            <h2 className="text-xl font-black text-black">{section.id}. {section.title}</h2>
-            {section.paragraphs.map((paragraph, paragraphIndex) => (
-              <p key={`${section.id}-${paragraphIndex}`} className="text-sm leading-7 font-bold text-neutral-800">
-                {paragraph}
-              </p>
-            ))}
-            {section.bullets ? (
-              <ul className="list-disc space-y-1 pr-6 text-sm leading-7 font-bold text-neutral-800">
-                {section.bullets.map((bullet, bulletIndex) => (
-                  <li key={`${section.id}-bullet-${bulletIndex}`}>{bullet}</li>
-                ))}
-              </ul>
-            ) : null}
-          </section>
-        ))}
-
-        <section className="space-y-3 border-t-2 border-dashed border-black/25 pt-4">
-          <h2 className="text-xl font-black text-black">נספח א&apos;: מקורות נורמטיביים מרכזיים</h2>
-          <p className="text-sm leading-7 font-bold text-neutral-800">
-            לצורך ניסוח המדיניות הסתמכנו על מקורות רגולטוריים וציבוריים מרכזיים. במקרה של סתירה בין מסמך זה
-            לבין הדין המחייב, הוראות הדין גוברות.
+        <section className="w-full rounded-[28px] border border-[#e2d7c8] bg-[#fffdfa] p-4 shadow-[0_20px_55px_rgba(49,23,13,0.1)] sm:rounded-[32px] sm:p-6">
+          <p className="inline-flex min-h-[32px] items-center rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-[#8f371e]">
+            מידע, פרטיות וזכויות
           </p>
-          <ul className="list-disc space-y-1 pr-6 text-sm leading-7 font-bold text-neutral-800">
-            {LEGAL_REFERENCES.map((reference) => (
-              <li key={reference.href}>
-                <a
-                  href={reference.href}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="underline decoration-2 underline-offset-2"
-                >
-                  {reference.label}
-                </a>
-              </li>
-            ))}
-          </ul>
+          <h1 className="mt-2 text-3xl font-black text-[#181411]">מדיניות פרטיות</h1>
+          <p className="mt-1 text-sm font-bold text-[#6d6259]">עודכן לאחרונה: {LAST_UPDATED}</p>
         </section>
+
+        <div className="w-full space-y-4">
+          {PRIVACY_SECTIONS.map((section) => (
+            <section
+              key={section.id}
+              className="space-y-3 rounded-[24px] border border-[#e2d7c8] bg-white p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:p-5"
+            >
+              <h2 className="text-xl font-black text-[#181411]">{section.id}. {section.title}</h2>
+              {section.paragraphs.map((paragraph, paragraphIndex) => (
+                <p key={`${section.id}-${paragraphIndex}`} className="text-sm leading-7 font-bold text-[#241d18]">
+                  {paragraph}
+                </p>
+              ))}
+              {section.bullets ? (
+                <ul className="list-disc space-y-1 pr-6 text-sm leading-7 font-bold text-[#241d18]">
+                  {section.bullets.map((bullet, bulletIndex) => (
+                    <li key={`${section.id}-bullet-${bulletIndex}`}>{bullet}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </section>
+          ))}
+
+          <section className="space-y-3 rounded-[24px] border border-[#e2d7c8] bg-[#fffdfa] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] sm:p-5">
+            <h2 className="text-xl font-black text-[#181411]">נספח א&apos;: מקורות נורמטיביים מרכזיים</h2>
+            <p className="text-sm leading-7 font-bold text-[#241d18]">
+              לצורך ניסוח המדיניות הסתמכנו על מקורות רגולטוריים וציבוריים מרכזיים. במקרה של סתירה בין מסמך זה
+              לבין הדין המחייב, הוראות הדין גוברות.
+            </p>
+            <ul className="list-disc space-y-1 pr-6 text-sm leading-7 font-bold text-[#241d18]">
+              {LEGAL_REFERENCES.map((reference) => (
+                <li key={reference.href}>
+                  <a
+                    href={reference.href}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="underline decoration-2 underline-offset-2 hover:text-[#b33c1f]"
+                  >
+                    {reference.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
       </div>
     </main>
   );

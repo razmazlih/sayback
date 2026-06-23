@@ -425,38 +425,6 @@ const examples: ExampleScenario[] = [
   },
 ];
 
-const answerHubHighlights = [
-  {
-    slug: 'crush-suddenly-texted',
-    query: 'מה לענות לקראש שפתאום נזכר',
-    teaser: 'איך להישאר זורמים בלי להיראות זמינים מדי.',
-  },
-  {
-    slug: 'ex-checking-in',
-    query: 'מה לענות לאקס שבודק דופק',
-    teaser: 'לענות ברור, בלי לפתוח שוב את אותה לולאה.',
-  },
-  {
-    slug: 'client-asks-discount',
-    query: 'מה לענות ללקוח שמבקש הנחה',
-    teaser: 'להגן על המחיר ועדיין לשמור על שיחה מקצועית.',
-  },
-  {
-    slug: 'boss-messages-at-night',
-    query: 'מה לענות לבוס ששולח בערב',
-    teaser: 'לשמור על מקצועיות וגבולות בריאים.',
-  },
-  {
-    slug: 'yad2-last-price',
-    query: 'מה לענות ביד2 על \"אחרון כמה\"',
-    teaser: 'לנהל מו\"מ קצר שמתקדם לסגירה.',
-  },
-  {
-    slug: 'need-to-talk-message',
-    query: 'מה לענות ל\"צריך לדבר\"',
-    teaser: 'להוריד לחץ ולהיכנס לשיחה עם שליטה.',
-  },
-] as const;
 const exampleIds = new Set<ExampleId>(examples.map((scenario) => scenario.id));
 const contextAliases: Record<string, ContextOption> = {
   קראש: 'קראש',
@@ -5071,50 +5039,6 @@ export default function Home({
           </section>
         ) : null}
 
-        {!isGeneratorPrimaryMode ? (
-          <section className="w-full min-w-0 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8b2d10]">מדריכי תשובות</p>
-                <h2 className="mt-2 text-2xl font-black text-black sm:text-3xl">מה לענות ל...</h2>
-              </div>
-              <p className="max-w-xl text-sm font-bold leading-6 text-neutral-700">
-                דפי דוגמה קצרים למצבים אמיתיים: מה לכתוב, למה זה עובד, ו־3 תשובות מוכנות שאפשר לקחת מיד.
-              </p>
-            </div>
-
-            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {answerHubHighlights.map((item) => (
-                <Link
-                  key={item.slug}
-                  href={`/answers/${item.slug}`}
-                  className={`block cursor-pointer rounded-[22px] border-2 border-black bg-white p-4 shadow-[0_6px_0_0_#111111] transition hover:-translate-y-0.5 ${lightSurfaceFocusClass}`}
-                >
-                  <span className={interactiveBadgeClass}>לחיץ</span>
-                  <p className="text-sm font-black leading-6 text-black">{item.query}</p>
-                  <p className="mt-2 text-sm font-bold leading-6 text-neutral-700">{item.teaser}</p>
-                  <span className="mt-3 inline-block text-xs font-black text-[#9a2f10]">לעמוד המלא</span>
-                </Link>
-              ))}
-            </div>
-
-            <div className="mt-5 flex flex-wrap items-center gap-2.5">
-              <Link
-                href="/answers"
-                className={`inline-flex min-h-[44px] items-center justify-center rounded-full border-2 border-black bg-[#f7ff4f] px-4 py-2 text-sm font-black text-black transition hover:-translate-y-0.5 ${lightSurfaceFocusClass}`}
-              >
-                לכל דפי &quot;מה לענות ל...&quot;
-              </Link>
-              <Link
-                href="/#compose-section"
-                className={`inline-flex min-h-[44px] items-center justify-center rounded-full border-2 border-black bg-white px-4 py-2 text-sm font-black text-black transition hover:-translate-y-0.5 ${lightSurfaceFocusClass}`}
-              >
-                לפתוח את כלי התשובות
-              </Link>
-            </div>
-          </section>
-        ) : null}
-
         <footer className="w-full min-w-0 rounded-[24px] border border-[#e2d7c8] bg-[#fbf7f1] px-4 py-4 text-sm font-bold text-[#5b4d42]">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p>
@@ -5122,13 +5046,13 @@ export default function Home({
                 ? 'כרגע SayBack פתוח לשימוש ללא הגבלה.'
                 : 'התשלום מאובטח, ואנחנו לא שומרים אצלנו פרטי אשראי.'}
             </p>
-            <div className="flex items-center gap-3">
-              <Link href="/privacy" className={`${lightSurfaceFocusClass} rounded-full px-2 py-1 underline`}>
+            <div className="flex flex-wrap items-center justify-start gap-3 text-sm">
+              <a className="underline decoration-2 underline-offset-2 hover:text-black" href="/privacy">
                 מדיניות פרטיות
-              </Link>
-              <Link href="/terms" className={`${lightSurfaceFocusClass} rounded-full px-2 py-1 underline`}>
+              </a>
+              <a className="underline decoration-2 underline-offset-2 hover:text-black" href="/terms">
                 תנאי שימוש
-              </Link>
+              </a>
             </div>
           </div>
         </footer>
@@ -5155,14 +5079,6 @@ export default function Home({
           couponCode={couponCode}
           onCouponCodeChange={handleCouponCodeChange}
           onRedeemCoupon={handleRedeemCoupon}
-          isRedeemingCoupon={isRedeemingCoupon}
-          isSessionReady={isSessionReady}
-          couponError={couponError}
-          couponNotice={couponNotice}
-          resumePlan={checkoutResumePlan}
-          onResumeCheckout={handleResumeCheckout}
-          accountEmail={accountEmail}
-          isRecoverableAccount={isRecoverableAccount}
           authEmailInput={authEmailInput}
           onAuthEmailInputChange={handleAuthEmailInputChange}
           onStartEmailLink={startAuthEmailLink}
