@@ -1,14 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fff7e6;
-  --foreground: #19130f;
-  --surface: #fffdf8;
-  --surface-strong: #fff1cf;
-  --brand: #ff4d00;
-  --brand-ink: #2d1200;
-  --accent: #ffd400;
-  --danger: #d7263d;
+  --background: #f7f3ec;
+  --foreground: #181411;
+  --surface: #fffdfa;
+  --surface-strong: #f0e8dc;
+  --surface-muted: #ebe2d6;
+  --brand: #ff5a2a;
+  --brand-ink: #31170d;
+  --accent: #20d6c7;
+  --success: #b7f36a;
+  --danger: #d9402e;
+  --border-soft: #ded2c3;
+  --shadow-soft: 0 24px 70px rgb(49 23 13 / 0.12);
+  --shadow-panel: 0 12px 34px rgb(49 23 13 / 0.1);
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -21,6 +26,7 @@
   --color-brand: var(--brand);
   --color-brand-ink: var(--brand-ink);
   --color-accent: var(--accent);
+  --color-success: var(--success);
   --color-danger: var(--danger);
   --font-sans: var(--font-rubik);
 }
@@ -28,11 +34,32 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  background-image:
-    radial-gradient(circle at 12% 8%, #ffe38a 0%, #ffe38a00 40%),
-    radial-gradient(circle at 88% 0%, #ff8f5a 0%, #ff8f5a00 34%),
-    linear-gradient(180deg, #fff8e8 0%, #fff4db 100%);
+  background-image: linear-gradient(180deg, #fffdfa 0%, #f7f3ec 44%, #eee5d8 100%);
   font-family: var(--font-rubik), sans-serif;
+}
+
+.sb-hero-title {
+  font-size: 3.75rem;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+@media (max-width: 360px) {
+  .sb-hero-title {
+    font-size: 3.25rem;
+  }
+}
+
+@media (min-width: 640px) {
+  .sb-hero-title {
+    font-size: 4.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sb-hero-title {
+    font-size: 5.5rem;
+  }
 }
 
 html,

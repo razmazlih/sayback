@@ -10,7 +10,9 @@ import {
   useSyncExternalStore,
   type ChangeEvent,
   type ClipboardEvent,
+  type Dispatch,
   type FormEvent,
+  type SetStateAction,
 } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -518,14 +520,14 @@ const continuePreferenceAliases: Record<string, ContinuePreference> = {
 };
 
 const focusRingBaseClass =
-  'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#6ce8ff] focus-visible:ring-offset-2';
-const lightSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-[#fff9ef]`;
+  'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#20d6c7]/40 focus-visible:ring-offset-2';
+const lightSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-[#f7f3ec]`;
 const whiteSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-white`;
-const darkSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-[#111111]`;
+const darkSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-[#181411]`;
 const interactiveBadgeClass =
-  'inline-flex min-h-[28px] items-center rounded-full border-2 border-black bg-[#111111] px-2.5 py-1 text-[0.62rem] font-black uppercase tracking-[0.12em] text-[#f7ff4f]';
+  'inline-flex min-h-[28px] items-center rounded-full border border-[#d8cab9] bg-[#181411] px-2.5 py-1 text-[0.62rem] font-black uppercase tracking-[0.12em] text-[#fffdfa]';
 const readOnlyBadgeClass =
-  'inline-flex min-h-[28px] items-center rounded-full border-2 border-black bg-[#fff6d8] px-2.5 py-1 text-[0.62rem] font-black uppercase tracking-[0.12em] text-black';
+  'inline-flex min-h-[28px] items-center rounded-full border border-[#ded2c3] bg-[#f4eee6] px-2.5 py-1 text-[0.62rem] font-black uppercase tracking-[0.12em] text-[#463b33]';
 const focusableSelector =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), details summary, [tabindex]:not([tabindex="-1"])';
 
@@ -976,15 +978,15 @@ function ChipGroup<T extends string>({
           }
         }}
         className={[
-          `w-full rounded-full border-2 px-3.5 py-2 text-center font-bold transition duration-150 touch-manipulation ${whiteSurfaceFocusClass}`,
+          `w-full rounded-full border px-3.5 py-2 text-center font-bold transition duration-150 touch-manipulation ${whiteSurfaceFocusClass}`,
           mode === 'dialog'
             ? 'min-h-[44px] text-sm sm:w-auto'
             : 'min-h-[40px] text-sm sm:min-h-[42px]',
           isLockedOption
-            ? 'border-[#1d1608] bg-gradient-to-l from-[#241a08] via-[#3b2b0e] to-[#5d4416] text-[#f7e2ab] shadow-[0_5px_0_0_#0c0904] hover:-translate-y-0.5 hover:brightness-110'
+            ? 'border-[#4a3320] bg-[#2b211a] text-[#f7e2ab] hover:-translate-y-0.5 hover:brightness-110'
             : isSelected
-            ? 'border-black bg-[#111111] text-[#f7ff4f] shadow-[0_6px_0_0_#ff623d]'
-            : 'border-black bg-[#fffdf8] text-black hover:-translate-y-0.5 hover:bg-[#fff8da]',
+            ? 'border-[#181411] bg-[#181411] text-white shadow-[0_10px_20px_rgba(24,20,17,0.14)]'
+            : 'border-[#ded2c3] bg-[#fffdfa] text-[#241d18] hover:-translate-y-0.5 hover:bg-[#f8f3eb]',
         ].join(' ')}
       >
         <span
@@ -1005,7 +1007,7 @@ function ChipGroup<T extends string>({
   };
 
   return (
-    <section className="w-full min-w-0 rounded-[22px] border-2 border-black bg-white p-3 shadow-[0_4px_0_0_#111111] sm:p-3.5">
+    <section className="w-full min-w-0 rounded-[22px] border border-[#e2d7c8] bg-white p-3 shadow-[0_10px_26px_rgba(49,23,13,0.06)] sm:p-3.5">
       <div
         className={[
           'flex items-center gap-2',
@@ -1018,11 +1020,11 @@ function ChipGroup<T extends string>({
             isHeaderRightAligned ? 'justify-start text-right' : 'justify-center text-center',
           ].join(' ')}
         >
-          <p className="text-[0.92rem] font-black text-neutral-900 sm:text-[0.95rem]">{title}</p>
+          <p className="text-[0.92rem] font-black text-[#241d18] sm:text-[0.95rem]">{title}</p>
           <span
             className={[
-              'rounded-full border border-black px-2 py-0.5 text-[0.62rem] font-black uppercase tracking-[0.12em]',
-              optional ? 'bg-[#fff6d8] text-neutral-800' : 'bg-[#d7f9ff] text-black',
+              'rounded-full border px-2 py-0.5 text-[0.62rem] font-black uppercase tracking-[0.12em]',
+              optional ? 'border-[#e4d8c8] bg-[#f8f3eb] text-[#5b4d42]' : 'border-[#b8e7df] bg-[#e3fbf7] text-[#123a36]',
             ].join(' ')}
           >
             {optional ? 'אופציונלי' : 'לבחירה'}
@@ -1033,7 +1035,7 @@ function ChipGroup<T extends string>({
           <button
             type="button"
             onClick={() => onChange(null)}
-            className={`min-h-[32px] rounded-full border-2 border-black bg-[#f8f4ed] px-2.5 py-1 text-[0.68rem] font-black text-neutral-800 transition hover:bg-[#efe8dd] ${whiteSurfaceFocusClass}`}
+            className={`min-h-[32px] rounded-full border border-[#ded2c3] bg-[#f8f3eb] px-2.5 py-1 text-[0.68rem] font-black text-[#5b4d42] transition hover:bg-[#efe5d8] ${whiteSurfaceFocusClass}`}
           >
             נקה
           </button>
@@ -1041,7 +1043,7 @@ function ChipGroup<T extends string>({
       </div>
 
       {description ? (
-        <p className="mt-1 hidden text-xs font-bold leading-5 text-neutral-700 md:block">{description}</p>
+        <p className="mt-1 hidden text-xs font-bold leading-5 text-[#6d6259] md:block">{description}</p>
       ) : null}
 
       <div className="mt-2 space-y-2">
@@ -1050,21 +1052,21 @@ function ChipGroup<T extends string>({
         </div>
 
         {hasMoreOptions ? (
-          <div className="overflow-hidden rounded-[18px] border-2 border-black bg-gradient-to-l from-[#d7f9ff] via-[#fff6d8] to-[#fff2bf] p-2 shadow-[0_3px_0_0_#111111]">
+          <div className="overflow-hidden rounded-[18px] border border-[#e2d7c8] bg-[#f8f3eb] p-2">
             <div className="flex flex-wrap items-center justify-between gap-2.5">
               <button
                 type="button"
                 onClick={openMoreOptionsDialog}
-                className={`inline-flex min-h-[36px] items-center gap-2 rounded-full border-2 border-black bg-[#111111] px-3.5 py-1.5 text-xs font-black text-[#f7ff4f] shadow-[0_4px_0_0_#ff623d] transition hover:-translate-y-0.5 ${whiteSurfaceFocusClass}`}
+                className={`inline-flex min-h-[36px] items-center gap-2 rounded-full bg-[#181411] px-3.5 py-1.5 text-xs font-black text-white transition hover:-translate-y-0.5 ${whiteSurfaceFocusClass}`}
               >
                 <span>{moreOptionsLabel}</span>
-                <span className="rounded-full border border-black bg-white px-1.5 py-0.5 text-[0.62rem] text-black">
+                <span className="rounded-full bg-white px-1.5 py-0.5 text-[0.62rem] text-[#181411]">
                   +{extraOptions.length}
                 </span>
               </button>
 
               {selectedFromMoreOptions && value ? (
-                <span className="rounded-full border-2 border-black bg-white px-2.5 py-1 text-xs font-black text-black">
+                <span className="rounded-full border border-[#ded2c3] bg-white px-2.5 py-1 text-xs font-black text-[#241d18]">
                   נבחר מתוך עוד: {value}
                 </span>
               ) : hasLockedOptions && lockedExtraOptionsCount > 0 ? (
@@ -1072,7 +1074,7 @@ function ChipGroup<T extends string>({
                   עוד {lockedExtraOptionsCount} אפשרויות פרימיום למנוי חודשי
                 </span>
               ) : (
-                <span className="text-xs font-black text-neutral-800">
+                <span className="text-xs font-black text-[#5b4d42]">
                   עוד {extraOptions.length} אפשרויות זמינות בלחיצה
                 </span>
               )}
@@ -1082,11 +1084,11 @@ function ChipGroup<T extends string>({
       </div>
 
       {helperText ? (
-        <p className="mt-1 hidden text-xs font-bold leading-5 text-neutral-600 md:block">{helperText}</p>
+        <p className="mt-1 hidden text-xs font-bold leading-5 text-[#6d6259] md:block">{helperText}</p>
       ) : null}
 
       {hasLockedOptions && lockedOptionsHint ? (
-        <p className="mt-1 hidden text-xs font-bold leading-5 text-neutral-700 md:block">{lockedOptionsHint}</p>
+        <p className="mt-1 hidden text-xs font-bold leading-5 text-[#6d6259] md:block">{lockedOptionsHint}</p>
       ) : null}
 
       {hasMoreOptions && isMoreOptionsDialogOpen ? (
@@ -1208,6 +1210,97 @@ function ChipGroup<T extends string>({
   );
 }
 
+function HomeHero({
+  onStart,
+  ctaLabel,
+  accountStatusLine,
+}: {
+  onStart: () => void;
+  ctaLabel: string;
+  accountStatusLine: string;
+}) {
+  return (
+    <section className="relative overflow-hidden rounded-[28px] border border-[#e2d7c8] bg-[#fffdfa] px-4 py-4 shadow-[0_20px_60px_rgba(49,23,13,0.12)] sm:rounded-[34px] sm:px-6 sm:py-5">
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-l from-[#ff5a2a] via-[#ffb089] to-[#20d6c7]" aria-hidden="true" />
+      <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 space-y-3">
+          <div className="flex items-center justify-center lg:justify-start">
+            <span className="inline-flex min-h-[34px] items-center rounded-full bg-[#181411] px-4 py-1.5 text-xs font-black uppercase tracking-[0.18em] text-white shadow-[0_10px_22px_rgba(24,20,17,0.12)]">
+              SayBack
+            </span>
+          </div>
+          <div className="max-w-3xl text-center lg:text-right">
+            <h1 className="sb-hero-title font-black text-[#181411]">
+              מה לענות עכשיו?
+            </h1>
+            <p className="mx-auto mt-2 max-w-2xl text-base font-bold leading-7 text-[#5b4d42] sm:text-lg lg:mx-0">
+              מדביקים הודעה, בוחרים וייב, ומקבלים 3 תשובות קצרות בעברית.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex w-full flex-col gap-2 lg:w-auto lg:min-w-72">
+          <button
+            type="button"
+            onClick={onStart}
+            className={`inline-flex min-h-[52px] w-full items-center justify-center rounded-full bg-[#ff5a2a] px-6 py-3 text-base font-black text-white shadow-[0_14px_26px_rgba(255,90,42,0.26)] transition hover:-translate-y-0.5 hover:bg-[#f04d1f] active:translate-y-0 lg:w-auto ${lightSurfaceFocusClass}`}
+          >
+            {ctaLabel}
+          </button>
+          <p className="text-center text-xs font-bold leading-5 text-[#6d6259] lg:text-right">
+            {accountStatusLine}
+          </p>
+        </div>
+      </div>
+
+      <div className="relative mt-4 grid gap-2 sm:grid-cols-3">
+        {['3 שימושים חינם', 'לא שומרים הודעות', 'עברית טבעית'].map((item) => (
+          <div
+            key={item}
+            className="rounded-[18px] border border-[#e4d8c8] bg-[#f8f3eb] px-3 py-2.5 text-center text-sm font-black text-[#2c241f]"
+          >
+            {item}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function QuickStartStrip() {
+  return (
+    <section
+      aria-label="איך מתחילים בדקה"
+      className="w-full min-w-0 rounded-[26px] border border-[#e2d7c8] bg-[#fffdfa] p-4 shadow-[0_14px_38px_rgba(49,23,13,0.08)] sm:p-5"
+    >
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#a45334]">ברוכים הבאים</p>
+          <h2 className="mt-1 text-2xl font-black text-[#181411] sm:text-3xl">שלושה צעדים לתשובה מוכנה</h2>
+        </div>
+        <p className="max-w-xl text-sm font-bold leading-6 text-[#6d6259]">
+          קצר, ישיר, ובעיקר בנוי כדי להגיע לתשובה הראשונה מהר.
+        </p>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        {quickStartSteps.map((step) => (
+          <article
+            key={step.step}
+            className="rounded-[20px] border border-[#e4d8c8] bg-[#fbf7f1] p-3.5"
+          >
+            <p className="text-[0.68rem] font-black uppercase tracking-[0.16em] text-[#a45334]">
+              {step.step}
+            </p>
+            <h3 className="mt-2 text-base font-black text-[#181411]">{step.title}</h3>
+            <p className="mt-1.5 text-sm font-bold leading-6 text-[#6d6259]">{step.body}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function ExampleCard({
   scenario,
   onUse,
@@ -1241,6 +1334,130 @@ function ExampleCard({
   );
 }
 
+function ReplyRefineMenu({
+  index,
+  isBusy,
+  onAdjust,
+}: {
+  index: number;
+  isBusy: boolean;
+  onAdjust: (index: number, action: ReplyAction) => void;
+}) {
+  return (
+    <details className="group w-full min-w-0 rounded-[18px] border border-dashed border-[#d8cab9] bg-[#f8f3eb] transition-colors duration-200 open:bg-[#fff8ef] sm:w-auto sm:flex-1 sm:min-w-[11rem]">
+      <summary
+        className={`flex min-h-[42px] cursor-pointer list-none items-center justify-between gap-2 px-3.5 py-2 text-right text-sm font-black text-[#241d18] marker:content-none ${whiteSurfaceFocusClass}`}
+      >
+        <span>לשפר ניסוח</span>
+        <span className="text-xs transition-transform duration-200 group-open:rotate-180">⌄</span>
+      </summary>
+
+      <div className="sb-accordion-content">
+        <div className="sb-accordion-content-inner">
+          <div className="px-2.5 pb-2.5 pt-0.5">
+            <p className="mb-2 text-xs font-bold leading-5 text-[#6d6259]">
+              כל שיפור משתמש בשימוש אחד.
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => onAdjust(index, 'softer')}
+                disabled={isBusy}
+                className={`inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#b8e7df] bg-[#e3fbf7] px-3.5 py-2 leading-5 text-[#123a36] transition hover:bg-[#cef6ef] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+              >
+                עדין יותר
+              </button>
+              <button
+                type="button"
+                onClick={() => onAdjust(index, 'sharper')}
+                disabled={isBusy}
+                className={`inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3.5 py-2 leading-5 text-[#6f2414] transition hover:bg-[#ffe2d8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+              >
+                חד יותר
+              </button>
+              <button
+                type="button"
+                onClick={() => onAdjust(index, 'retry')}
+                disabled={isBusy}
+                className={`inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#ded2c3] bg-white px-3.5 py-2 leading-5 text-[#241d18] transition hover:bg-[#f8f3eb] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+              >
+                ניסוח חדש
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </details>
+  );
+}
+
+function ReplyActions({
+  index,
+  copied,
+  displayedReply,
+  isEditing,
+  draftReply,
+  setIsEditing,
+  onCopy,
+  onShare,
+  onEdit,
+}: {
+  index: number;
+  copied: boolean;
+  displayedReply: string;
+  isEditing: boolean;
+  draftReply: string;
+  setIsEditing: Dispatch<SetStateAction<boolean>>;
+  onCopy: (reply: string, index: number) => void;
+  onShare: (reply: string, index: number) => void;
+  onEdit: (reply: string, index: number) => void;
+}) {
+  const whatsappHref = `https://wa.me/?text=${encodeURIComponent(displayedReply)}`;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => onCopy(displayedReply, index)}
+        className={`inline-flex min-h-[42px] items-center justify-center rounded-full bg-[#181411] px-4 py-2 leading-5 text-white shadow-[0_10px_20px_rgba(24,20,17,0.16)] transition hover:-translate-y-0.5 hover:bg-[#2c241f] ${whiteSurfaceFocusClass}`}
+      >
+        {copied ? 'הועתק' : 'העתק'}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => {
+          if (isEditing) {
+            onEdit(draftReply, index);
+          }
+          setIsEditing((current) => !current);
+        }}
+        className={`inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#b8e7df] bg-[#e3fbf7] px-3.5 py-2 leading-5 text-[#123a36] transition hover:bg-[#cef6ef] ${whiteSurfaceFocusClass}`}
+      >
+        {isEditing ? 'שמור עריכה' : 'ערוך'}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => onShare(displayedReply, index)}
+        className={`inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#ded2c3] bg-white px-3.5 py-2 leading-5 text-[#241d18] transition hover:bg-[#f8f3eb] ${whiteSurfaceFocusClass}`}
+      >
+        שתף
+      </button>
+
+      <a
+        href={whatsappHref}
+        target="_blank"
+        rel="noreferrer"
+        onClick={() => trackEvent('reply_share', { index, method: 'whatsapp' })}
+        className={`inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#ded2c3] bg-[#f8f3eb] px-3.5 py-2 leading-5 text-[#241d18] transition hover:bg-[#efe5d8] ${whiteSurfaceFocusClass}`}
+      >
+        וואטסאפ
+      </a>
+    </>
+  );
+}
+
 function ReplyCard({
   reply,
   index,
@@ -1266,16 +1483,15 @@ function ReplyCard({
   const [draftReply, setDraftReply] = useState(reply);
 
   const displayedReply = isEditing ? draftReply : reply;
-  const whatsappHref = `https://wa.me/?text=${encodeURIComponent(displayedReply)}`;
 
   return (
-    <article className="relative w-full min-w-0 overflow-hidden rounded-[26px] border-2 border-black bg-white p-3.5 shadow-[0_8px_0_0_#111111] sm:rounded-[28px] sm:p-4 sm:shadow-[0_10px_0_0_#111111]">
+    <article className="relative w-full min-w-0 overflow-hidden rounded-[24px] border border-[#ded2c3] bg-white p-3.5 shadow-[0_16px_40px_rgba(49,23,13,0.09)] sm:p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <span className="rounded-full border border-black bg-[#f7ff4f] px-3 py-1 text-xs font-black text-black">
+        <span className="rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1 text-xs font-black text-[#7a2d19]">
           אפשרות {index + 1}
         </span>
         {isUpdating ? (
-          <span className="text-xs font-bold text-neutral-700">מעדכן...</span>
+          <span className="rounded-full bg-[#e3fbf7] px-2.5 py-1 text-xs font-bold text-[#123a36]">מעדכן...</span>
         ) : null}
       </div>
 
@@ -1283,96 +1499,25 @@ function ReplyCard({
         <textarea
           value={draftReply}
           onChange={(event) => setDraftReply(event.target.value)}
-          className={`min-h-28 w-full resize-none rounded-[20px] border-2 border-black bg-[#fffdf8] px-3 py-3 text-base font-bold leading-7 text-neutral-900 outline-none ${whiteSurfaceFocusClass}`}
+          className={`min-h-28 w-full resize-none rounded-[20px] border border-[#ded2c3] bg-[#fffdfa] px-3 py-3 text-base font-bold leading-7 text-[#241d18] outline-none ${whiteSurfaceFocusClass}`}
         />
       ) : (
-        <p className="text-base leading-7 font-bold text-neutral-900">{reply}</p>
+        <p className="text-base leading-7 font-bold text-[#241d18]">{reply}</p>
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5 text-sm font-bold">
-        <button
-          type="button"
-          onClick={() => onCopy(displayedReply, index)}
-          className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-[#111111] px-3.5 py-2 leading-5 text-[#f7ff4f] transition hover:bg-[#222222] ${whiteSurfaceFocusClass}`}
-        >
-          {copied ? 'הועתק' : 'העתק'}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            if (isEditing) {
-              onEdit(draftReply, index);
-            }
-            setIsEditing((current) => !current);
-          }}
-          className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-[#d7f9ff] px-3.5 py-2 leading-5 text-black transition hover:bg-[#b8f2ff] ${whiteSurfaceFocusClass}`}
-        >
-          {isEditing ? 'שמור עריכה' : 'ערוך לפני העתקה'}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onShare(displayedReply, index)}
-          className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-white px-3.5 py-2 leading-5 text-black transition hover:bg-[#f5f5f5] ${whiteSurfaceFocusClass}`}
-        >
-          שתף
-        </button>
-
-        <a
-          href={whatsappHref}
-          target="_blank"
-          rel="noreferrer"
-          onClick={() => trackEvent('reply_share', { index, method: 'whatsapp' })}
-          className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-[#fff6d8] px-3.5 py-2 leading-5 text-black transition hover:bg-[#fff2bf] ${whiteSurfaceFocusClass}`}
-        >
-          וואטסאפ
-        </a>
-
-        <details className="group min-w-0 flex-1 rounded-[20px] border-2 border-dashed border-black bg-[#fff6d8] transition-colors duration-200 open:bg-[#fff2bf] sm:min-w-[11rem]">
-          <summary
-            className={`flex min-h-[42px] cursor-pointer list-none items-center justify-between gap-2 px-3.5 py-2 text-right text-sm font-black text-black marker:content-none ${whiteSurfaceFocusClass}`}
-          >
-            <span>לשפר את הניסוח</span>
-            <span className="text-xs transition-transform duration-200 group-open:rotate-180">⌄</span>
-          </summary>
-
-          <div className="sb-accordion-content">
-            <div className="sb-accordion-content-inner">
-              <div className="px-2.5 pb-2.5 pt-0.5">
-                <p className="mb-2 text-xs font-bold leading-5 text-neutral-700">
-                  כל שיפור משתמש בשימוש אחד.
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => onAdjust(index, 'softer')}
-                  disabled={isBusy}
-                  className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-[#d7f9ff] px-3.5 py-2 leading-5 text-black transition hover:bg-[#b8f2ff] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
-                >
-                  עדין יותר
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onAdjust(index, 'sharper')}
-                  disabled={isBusy}
-                  className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-[#ffd6ce] px-3.5 py-2 leading-5 text-black transition hover:bg-[#ffc5b8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
-                >
-                  חד יותר
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onAdjust(index, 'retry')}
-                  disabled={isBusy}
-                  className={`inline-flex min-h-[42px] items-center justify-center rounded-2xl border-2 border-black bg-white px-3.5 py-2 leading-5 text-black transition hover:bg-[#f5f5f5] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
-                >
-                  ניסוח חדש
-                </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </details>
+        <ReplyActions
+          index={index}
+          copied={copied}
+          displayedReply={displayedReply}
+          isEditing={isEditing}
+          draftReply={draftReply}
+          setIsEditing={setIsEditing}
+          onCopy={onCopy}
+          onShare={onShare}
+          onEdit={onEdit}
+        />
+        <ReplyRefineMenu index={index} isBusy={isBusy} onAdjust={onAdjust} />
       </div>
     </article>
   );
@@ -1449,24 +1594,24 @@ function BillingSnapshotPanel({
   }
 
   return (
-    <div className={`w-full min-w-0 rounded-[22px] border-2 border-black bg-[#fff6d8] p-3 ${className}`.trim()}>
-      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8b2d10]">מה נשאר לך בחשבון</p>
+    <div className={`w-full min-w-0 rounded-[22px] border border-[#e2d7c8] bg-[#f8f3eb] p-3 ${className}`.trim()}>
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#a45334]">מה נשאר לך בחשבון</p>
       <div className="mt-2 grid gap-2">
         {rows.map((row) => (
           <div
             key={`${row.label}-${row.value}`}
-            className={`rounded-2xl border-2 border-black px-3 py-2 ${row.bgClass}`}
+            className={`rounded-2xl border border-[#e2d7c8] px-3 py-2 ${row.bgClass}`}
           >
-            <p className="text-[0.68rem] font-black uppercase tracking-[0.12em] text-neutral-600">
+            <p className="text-[0.68rem] font-black uppercase tracking-[0.12em] text-[#7a6e64]">
               {row.label}
             </p>
-            <p className="mt-1 text-sm font-bold text-black">{row.value}</p>
+            <p className="mt-1 text-sm font-bold text-[#241d18]">{row.value}</p>
           </div>
         ))}
       </div>
 
       {showDailyFreeExhaustedHelper ? (
-        <p className="mt-2 rounded-2xl border-2 border-black bg-white px-3 py-2 text-sm font-bold text-black">
+        <p className="mt-2 rounded-2xl border border-[#e2d7c8] bg-white px-3 py-2 text-sm font-bold text-[#241d18]">
           {DAILY_FREE_EXHAUSTED_HELPER_TEXT}
         </p>
       ) : null}
@@ -1510,10 +1655,10 @@ function SubscriptionManagementPanel({
   const canSubmitAction = isSessionReady && !isLoading && Boolean(subscription);
 
   return (
-    <div className={`w-full min-w-0 rounded-[22px] border-2 border-black bg-white p-3 ${className}`.trim()}>
-      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8b2d10]">ניהול מנוי חודשי</p>
-      <p className="mt-1 text-sm font-bold text-black">{statusLine}</p>
-      <p className="mt-2 text-xs font-bold text-neutral-700">
+    <div className={`w-full min-w-0 rounded-[22px] border border-[#e2d7c8] bg-white p-3 ${className}`.trim()}>
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#a45334]">ניהול מנוי חודשי</p>
+      <p className="mt-1 text-sm font-bold text-[#241d18]">{statusLine}</p>
+      <p className="mt-2 text-xs font-bold text-[#6d6259]">
         אפשר לעצור רק את החיוב הבא, ועדיין להמשיך להשתמש עד סוף התקופה.
       </p>
 
@@ -1523,7 +1668,7 @@ function SubscriptionManagementPanel({
             type="button"
             onClick={() => onAction('cancel_next_charge')}
             disabled={!canSubmitAction}
-            className={`min-h-[42px] rounded-2xl border-2 border-black bg-[#ffd6ce] px-3.5 py-2 text-sm font-black text-black transition hover:bg-[#ffc5b8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+            className={`min-h-[42px] rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3.5 py-2 text-sm font-black text-[#7a2d19] transition hover:bg-[#ffe2d8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
           >
             {isLoading ? 'מעדכנים...' : 'לעצור את החיוב הבא'}
           </button>
@@ -1534,7 +1679,7 @@ function SubscriptionManagementPanel({
             type="button"
             onClick={() => onAction('resume_renewal')}
             disabled={!canSubmitAction}
-            className={`min-h-[42px] rounded-2xl border-2 border-black bg-[#d7f9ff] px-3.5 py-2 text-sm font-black text-black transition hover:bg-[#b8f2ff] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+            className={`min-h-[42px] rounded-full border border-[#b8e7df] bg-[#e3fbf7] px-3.5 py-2 text-sm font-black text-[#123a36] transition hover:bg-[#cef6ef] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
           >
             {isLoading ? 'מעדכנים...' : 'להפעיל חידוש אוטומטי'}
           </button>
@@ -1542,13 +1687,13 @@ function SubscriptionManagementPanel({
       </div>
 
       {actionNotice ? (
-        <p className="mt-2 rounded-2xl border-2 border-black bg-[#d7f9ff] px-3 py-2 text-sm font-bold text-black">
+        <p className="mt-2 rounded-2xl border border-[#b8e7df] bg-[#e3fbf7] px-3 py-2 text-sm font-bold text-[#123a36]">
           {actionNotice}
         </p>
       ) : null}
 
       {actionError ? (
-        <p className="mt-2 rounded-2xl border-2 border-black bg-[#ffd6ce] px-3 py-2 text-sm font-bold text-black">
+        <p className="mt-2 rounded-2xl border border-[#ffc4b5] bg-[#fff0ea] px-3 py-2 text-sm font-bold text-[#7a2d19]">
           {actionError}
         </p>
       ) : null}
@@ -1583,10 +1728,10 @@ function CouponRedeemPanel({
 
   return (
     <div
-      className={`w-full min-w-0 rounded-[22px] border-2 border-black bg-white p-3 ${className}`.trim()}
+      className={`w-full min-w-0 rounded-[22px] border border-[#e2d7c8] bg-white p-3 ${className}`.trim()}
     >
-      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8b2d10]">הזן קוד קופון</p>
-      <p className="mt-1 text-sm font-bold text-neutral-700">
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#a45334]">הזן קוד קופון</p>
+      <p className="mt-1 text-sm font-bold text-[#6d6259]">
         מזינים כאן קוד ומקבלים עוד שימושים לחשבון.
       </p>
 
@@ -1609,25 +1754,25 @@ function CouponRedeemPanel({
           spellCheck={false}
           autoCapitalize="characters"
           autoCorrect="off"
-          className={`min-h-[44px] w-full rounded-2xl border-2 border-black bg-white px-3 py-2 text-base font-black uppercase text-black placeholder:text-neutral-400 ${whiteSurfaceFocusClass}`}
+          className={`min-h-[44px] w-full rounded-2xl border border-[#ded2c3] bg-white px-3 py-2 text-base font-black uppercase text-[#241d18] placeholder:text-[#9b8f83] ${whiteSurfaceFocusClass}`}
         />
         <button
           type="submit"
           disabled={!canRedeem}
-          className={`min-h-[44px] shrink-0 rounded-2xl border-2 border-black bg-[#f7ff4f] px-4 py-2 text-sm font-black text-black transition disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+          className={`min-h-[44px] shrink-0 rounded-full bg-[#181411] px-4 py-2 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
         >
           {isRedeemingCoupon ? 'מממשים...' : 'לממש קופון'}
         </button>
       </form>
 
       {couponNotice ? (
-        <p className="mt-2 rounded-2xl border-2 border-black bg-[#d7f9ff] px-3 py-2 text-sm font-bold text-black">
+        <p className="mt-2 rounded-2xl border border-[#b8e7df] bg-[#e3fbf7] px-3 py-2 text-sm font-bold text-[#123a36]">
           {couponNotice}
         </p>
       ) : null}
 
       {couponError ? (
-        <p className="mt-2 rounded-2xl border-2 border-black bg-[#ffd6ce] px-3 py-2 text-sm font-bold text-black">
+        <p className="mt-2 rounded-2xl border border-[#ffc4b5] bg-[#fff0ea] px-3 py-2 text-sm font-bold text-[#7a2d19]">
           {couponError}
         </p>
       ) : null}
@@ -1710,7 +1855,7 @@ function AccountCenterPanel({
   return (
     <section
       className={[
-        'w-full min-w-0 rounded-[26px] border-2 border-black bg-white p-3.5 shadow-[0_8px_0_0_#111111]',
+        'w-full min-w-0 rounded-[24px] border border-[#e2d7c8] bg-white p-3.5 shadow-[0_12px_30px_rgba(49,23,13,0.06)]',
         compact ? 'sm:p-4' : 'sm:p-5',
         className,
       ].join(' ').trim()}
@@ -1718,18 +1863,18 @@ function AccountCenterPanel({
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8b2d10]">החשבון שלי</p>
-          <h2 className={compact ? 'mt-1 text-xl font-black text-black' : 'mt-1 text-2xl font-black text-black'}>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#a45334]">החשבון שלי</p>
+          <h2 className={compact ? 'mt-1 text-xl font-black text-[#181411]' : 'mt-1 text-2xl font-black text-[#181411]'}>
             הגישה והתשלום במקום אחד
           </h2>
-          <p className="mt-1 text-sm font-bold leading-6 text-neutral-700">{accountStatusLine}</p>
+          <p className="mt-1 text-sm font-bold leading-6 text-[#6d6259]">{accountStatusLine}</p>
         </div>
 
         <div className="flex flex-wrap gap-2">
           {hasUnlimitedAccess || managedSubscription ? (
             <a
               href="#plans-section"
-              className={`inline-flex min-h-[42px] items-center rounded-full border-2 border-black bg-[#d7f9ff] px-3.5 py-2 text-xs font-black text-black transition hover:bg-[#b8f2ff] ${whiteSurfaceFocusClass}`}
+              className={`inline-flex min-h-[42px] items-center rounded-full border border-[#b8e7df] bg-[#e3fbf7] px-3.5 py-2 text-xs font-black text-[#123a36] transition hover:bg-[#cef6ef] ${whiteSurfaceFocusClass}`}
             >
               ניהול מנוי
             </a>
@@ -1738,7 +1883,7 @@ function AccountCenterPanel({
             type="button"
             onClick={onRefreshBilling}
             disabled={!isSessionReady || isBillingLoading}
-            className={`min-h-[42px] rounded-full border-2 border-black bg-[#fff6d8] px-3.5 py-2 text-xs font-black text-black transition hover:bg-[#fff2bf] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+            className={`min-h-[42px] rounded-full border border-[#ded2c3] bg-[#f8f3eb] px-3.5 py-2 text-xs font-black text-[#241d18] transition hover:bg-[#efe5d8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
           >
             {isBillingLoading ? 'מרעננים...' : 'רענון מצב חשבון'}
           </button>
@@ -1746,37 +1891,37 @@ function AccountCenterPanel({
       </div>
 
       <div className="mt-3 grid gap-2 md:grid-cols-3">
-        <div className="rounded-[18px] border-2 border-black bg-[#d7f9ff] px-3 py-2">
-          <p className="text-[0.68rem] font-black uppercase tracking-[0.12em] text-neutral-700">גישה</p>
-          <p className="mt-1 text-sm font-black text-black">{nextUseLabel}</p>
+        <div className="rounded-[18px] border border-[#b8e7df] bg-[#e3fbf7] px-3 py-2">
+          <p className="text-[0.68rem] font-black uppercase tracking-[0.12em] text-[#4f6d68]">גישה</p>
+          <p className="mt-1 text-sm font-black text-[#123a36]">{nextUseLabel}</p>
           {dailyResetLabel && nextConsumptionSource === 'blocked' ? (
-            <p className="mt-1 text-xs font-bold text-neutral-700">החינם היומי יתחדש סביב {dailyResetLabel}.</p>
+            <p className="mt-1 text-xs font-bold text-[#4f6d68]">החינם היומי יתחדש סביב {dailyResetLabel}.</p>
           ) : null}
         </div>
-        <div className="rounded-[18px] border-2 border-black bg-[#fff6d8] px-3 py-2">
-          <p className="text-[0.68rem] font-black uppercase tracking-[0.12em] text-neutral-700">שחזור גישה</p>
-          <p className="mt-1 text-sm font-black text-black">
+        <div className="rounded-[18px] border border-[#e2d7c8] bg-[#f8f3eb] px-3 py-2">
+          <p className="text-[0.68rem] font-black uppercase tracking-[0.12em] text-[#7a6e64]">שחזור גישה</p>
+          <p className="mt-1 text-sm font-black text-[#241d18]">
             {isRecoverableAccount && accountEmail ? accountEmail : 'עדיין לא נשמר אימייל לשחזור.'}
           </p>
         </div>
-        <div className="rounded-[18px] border-2 border-black bg-white px-3 py-2">
-          <p className="text-[0.68rem] font-black uppercase tracking-[0.12em] text-neutral-700">מנוי וחבילות</p>
-          <p className="mt-1 text-sm font-black text-black">{subscriptionLabel ?? 'אין חבילה או מנוי פעיל כרגע.'}</p>
+        <div className="rounded-[18px] border border-[#e2d7c8] bg-white px-3 py-2">
+          <p className="text-[0.68rem] font-black uppercase tracking-[0.12em] text-[#7a6e64]">מנוי וחבילות</p>
+          <p className="mt-1 text-sm font-black text-[#241d18]">{subscriptionLabel ?? 'אין חבילה או מנוי פעיל כרגע.'}</p>
         </div>
       </div>
 
       {!isRecoverableAccount ? (
         <form
-          className="mt-3 rounded-[20px] border-2 border-black bg-[#fff9ef] p-3"
+          className="mt-3 rounded-[20px] border border-[#e2d7c8] bg-[#fbf7f1] p-3"
           onSubmit={(event: FormEvent<HTMLFormElement>) => {
             event.preventDefault();
             onStartEmailLink('checkout', null);
           }}
         >
-          <label htmlFor={emailInputId} className="text-sm font-black text-black">
+          <label htmlFor={emailInputId} className="text-sm font-black text-[#241d18]">
             שמירת גישה באימייל
           </label>
-          <p className="mt-1 text-xs font-bold leading-5 text-neutral-700">
+          <p className="mt-1 text-xs font-bold leading-5 text-[#6d6259]">
             לפני תשלום שולחים קישור חד־פעמי לאימייל. כך הקרדיטים והמנוי נשמרים גם אם מחליפים מכשיר.
           </p>
           <div className="mt-2 flex flex-col gap-2 sm:flex-row">
@@ -1789,12 +1934,12 @@ function AccountCenterPanel({
               value={authEmailInput}
               onChange={(event) => onAuthEmailInputChange(event.target.value)}
               placeholder="name@example.com"
-              className={`min-h-[44px] w-full rounded-2xl border-2 border-black bg-white px-3 py-2 text-left text-sm font-bold text-black placeholder:text-neutral-400 ${whiteSurfaceFocusClass}`}
+              className={`min-h-[44px] w-full rounded-2xl border border-[#ded2c3] bg-white px-3 py-2 text-left text-sm font-bold text-[#241d18] placeholder:text-[#9b8f83] ${whiteSurfaceFocusClass}`}
             />
             <button
               type="submit"
               disabled={isSendingAuthEmail || isCompletingEmailLink}
-              className={`min-h-[44px] shrink-0 rounded-2xl border-2 border-black bg-[#f7ff4f] px-4 py-2 text-sm font-black text-black transition disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+              className={`min-h-[44px] shrink-0 rounded-full bg-[#181411] px-4 py-2 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
             >
               {isCompletingEmailLink
                 ? 'מחברים...'
@@ -1809,7 +1954,7 @@ function AccountCenterPanel({
             type="button"
             onClick={() => onStartEmailLink('recover', null)}
             disabled={isSendingAuthEmail || isCompletingEmailLink}
-            className={`mt-2 min-h-[38px] rounded-full border-2 border-black bg-white px-3 py-1.5 text-xs font-black text-black transition hover:bg-[#fff6d8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+            className={`mt-2 min-h-[38px] rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-black text-[#241d18] transition hover:bg-[#f8f3eb] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
           >
             כבר שילמת? התחבר/י לשחזור גישה
           </button>
@@ -1817,13 +1962,13 @@ function AccountCenterPanel({
       ) : null}
 
       {authEmailNotice ? (
-        <p className="mt-2 rounded-2xl border-2 border-black bg-[#d7f9ff] px-3 py-2 text-sm font-bold text-black">
+        <p className="mt-2 rounded-2xl border border-[#b8e7df] bg-[#e3fbf7] px-3 py-2 text-sm font-bold text-[#123a36]">
           {authEmailNotice}
         </p>
       ) : null}
 
       {authEmailError ? (
-        <p className="mt-2 rounded-2xl border-2 border-black bg-[#ffd6ce] px-3 py-2 text-sm font-bold text-black">
+        <p className="mt-2 rounded-2xl border border-[#ffc4b5] bg-[#fff0ea] px-3 py-2 text-sm font-bold text-[#7a2d19]">
           {authEmailError}
         </p>
       ) : null}
@@ -1990,7 +2135,7 @@ function PaywallModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 motion-safe:animate-[sb-fade-in_220ms_ease-out] sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-[#181411]/60 p-3 motion-safe:animate-[sb-fade-in_220ms_ease-out] sm:items-center sm:p-4"
       onClick={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
@@ -2004,29 +2149,29 @@ function PaywallModal({
         aria-modal="true"
         aria-labelledby="paywall-title"
         aria-describedby="paywall-description"
-        className="max-h-[88svh] w-full max-w-md overflow-y-auto rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_10px_0_0_#111111] motion-safe:animate-[sb-paywall-in_260ms_ease-out] sm:rounded-[32px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]"
+        className="max-h-[88svh] w-full max-w-md overflow-y-auto rounded-[30px] border border-[#e2d7c8] bg-[#fffdfa] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_28px_80px_rgba(24,20,17,0.28)] motion-safe:animate-[sb-paywall-in_260ms_ease-out] sm:rounded-[32px] sm:p-6"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#9a2f10]">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#a45334]">
               {!isRecoverableAccount
                 ? 'שלב 1 מתוך 3'
                 : checkoutSession
                   ? 'שלב 3 מתוך 3'
                   : 'שלב 2 מתוך 3'}
             </p>
-            <h2 id="paywall-title" className="mt-2 text-2xl font-black text-black sm:text-3xl">
+            <h2 id="paywall-title" className="mt-2 text-2xl font-black text-[#181411] sm:text-3xl">
               {PAYWALL_TITLE}
             </h2>
-            <p id="paywall-description" className="mt-2 text-sm font-bold text-neutral-700">
+            <p id="paywall-description" className="mt-2 text-sm font-bold text-[#6d6259]">
               {PAYWALL_BODY}
             </p>
             {checkoutSession ? (
-              <p className="mt-1 text-xs font-bold text-neutral-600">
+              <p className="mt-1 text-xs font-bold text-[#6d6259]">
                 בוחרים את דרך התשלום שנוחה לכם וממשיכים מיד.
               </p>
             ) : !isRecoverableAccount ? (
-              <p className="mt-1 text-xs font-bold text-neutral-600">
+              <p className="mt-1 text-xs font-bold text-[#6d6259]">
                 קודם שומרים גישה עם אימייל, ואז אפשר לבחור מסלול ולשלם.
               </p>
             ) : null}
@@ -2035,7 +2180,7 @@ function PaywallModal({
             ref={closeButtonRef}
             type="button"
             onClick={onClose}
-            className={`min-h-[44px] rounded-full border-2 border-black bg-white px-3 py-2 text-sm font-bold text-black ${whiteSurfaceFocusClass}`}
+            className={`min-h-[44px] rounded-full border border-[#ded2c3] bg-white px-3 py-2 text-sm font-bold text-[#241d18] ${whiteSurfaceFocusClass}`}
           >
             סגור
           </button>
@@ -4138,154 +4283,35 @@ export default function Home({
   return (
     <main
       dir="rtl"
-      className="min-h-screen overflow-x-clip bg-[#111111] px-3 pb-0 pt-3 text-right text-black sm:px-6 sm:py-6 sm:pb-6"
+      className="min-h-screen overflow-x-clip bg-[#f7f3ec] px-3 pb-0 pt-3 text-right text-[#181411] sm:px-6 sm:py-6 sm:pb-6"
     >
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-5">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 sm:gap-5">
         {isGeneratorPrimaryMode ? (
-          <section className="overflow-hidden rounded-[30px] border-2 border-black bg-[#f7ff4f] shadow-[0_10px_0_0_#ff623d] sm:rounded-[36px] sm:shadow-[0_12px_0_0_#ff623d]">
-            <div className="relative px-4 py-5 sm:px-8 sm:py-8">
-              <div
-                aria-hidden="true"
-                className="absolute -left-10 top-0 h-36 w-36 rounded-full bg-[#ff623d] blur-3xl"
-              />
-              <div
-                aria-hidden="true"
-                className="absolute bottom-0 right-0 h-32 w-32 rounded-full bg-[#6ce8ff] blur-3xl"
-              />
-
-              <div className="relative max-w-3xl space-y-3 sm:space-y-4">
-                <p className="inline-flex min-h-[40px] items-center gap-2 rounded-full border-2 border-black bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-black">
-                  SayBack
-                </p>
-                <h1 className="text-[2rem] font-black leading-[1.08] tracking-tight text-black sm:text-5xl">
-                  מהודעה מלחיצה לתשובה בטוחה בתוך רגע
-                </h1>
-                <p className="max-w-2xl text-[0.98rem] font-bold leading-7 text-neutral-900 sm:text-lg">
-                  מדביקים את ההודעה שקיבלתם, בוחרים וייב, ותוך רגע קופצות 3 תשובות קצרות,
-                  טבעיות ובול לסיטואציה. רוצים עוד רעיונות? מחכה לכם עמוד עם דוגמאות אמיתיות.
-                </p>
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <button
-                    type="button"
-                    onClick={handleHeroStartUsingClick}
-                    className={`inline-flex min-h-[48px] items-center justify-center rounded-full border-2 border-black bg-gradient-to-b from-[#ff7a56] to-[#ff623d] px-5 py-2.5 text-sm font-black text-white shadow-[0_6px_0_0_#111111] transition hover:-translate-y-0.5 hover:shadow-[0_8px_0_0_#111111] active:translate-y-0 active:shadow-[0_4px_0_0_#111111] ${lightSurfaceFocusClass}`}
-                  >
-                    {heroStartUsingCtaLabel}
-                  </button>
-                  <Link
-                    href="/home"
-                    className={`inline-flex min-h-[44px] items-center justify-center rounded-full border-2 border-black bg-white px-4 py-2 text-sm font-black text-black transition hover:-translate-y-0.5 ${lightSurfaceFocusClass}`}
-                  >
-                    לעוד דוגמאות ורעיונות
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </section>
+          <HomeHero
+            onStart={handleHeroStartUsingClick}
+            ctaLabel={heroStartUsingCtaLabel}
+            accountStatusLine={accountStatusLine}
+          />
         ) : (
-          <>
-            <section className="overflow-hidden rounded-[30px] border-2 border-black bg-[#f7ff4f] shadow-[0_10px_0_0_#ff623d] sm:rounded-[36px] sm:shadow-[0_12px_0_0_#ff623d]">
-              <div className="relative px-4 py-5 sm:px-8 sm:py-8">
-                <div
-                  aria-hidden="true"
-                  className="absolute -left-10 top-0 h-36 w-36 rounded-full bg-[#ff623d] blur-3xl"
-                />
-                <div
-                  aria-hidden="true"
-                  className="absolute bottom-0 right-0 h-32 w-32 rounded-full bg-[#6ce8ff] blur-3xl"
-                />
-
-                <div className="relative max-w-3xl space-y-3 sm:space-y-4">
-                  <div className="inline-flex min-h-[40px] items-center gap-2 rounded-full border-2 border-black bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-black">
-                    SayBack
-                  </div>
-                  <div className="space-y-2.5 sm:space-y-3">
-                    <h1 className="text-[2.1rem] font-black leading-[1.06] tracking-tight text-black sm:text-6xl">
-                      תקועים על ניסוח? תוך רגע עולות 3 תשובות שנשמעות כמוכם
-                    </h1>
-                    <p className="max-w-2xl text-[0.98rem] font-bold leading-7 text-neutral-900 sm:text-lg">
-                      מדביקים הודעה או מעלים צילום מסך, בוחרים סיטואציה וסגנון, ותוך רגע נפתחות 3 תשובות קצרות, טבעיות ומוכנות להעתקה.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section
-              aria-label="למה זה עובד מהר"
-              className="rounded-[26px] border-2 border-black bg-[#fff9ef] p-3 shadow-[0_8px_0_0_#111111] sm:rounded-[30px] sm:p-4"
-            >
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#8b2d10]">מה חשוב לדעת</p>
-                <span className={readOnlyBadgeClass}>לקריאה</span>
-              </div>
-              <ul className="grid gap-2 sm:grid-cols-3">
-                {['3 שימושים חינם להתחלה', 'לא שומרים את ההודעות שלך', 'מוכן לשליחה תוך רגע'].map((item) => (
-                  <li
-                    key={item}
-                    className="rounded-2xl border-2 border-black bg-white px-3.5 py-2.5 text-center text-sm font-black text-black"
-                  >
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </section>
-
-            <section className="rounded-[26px] border-2 border-black bg-[#111111] p-3 shadow-[0_8px_0_0_#111111] sm:rounded-[30px] sm:p-4">
-              <button
-                type="button"
-                onClick={handleHeroStartUsingClick}
-                className={`inline-flex min-h-[56px] w-full items-center justify-center rounded-[22px] border-2 border-black bg-gradient-to-b from-[#ff7a56] to-[#ff623d] px-5 py-3 text-base font-black text-white shadow-[0_8px_0_0_#111111] transition hover:-translate-y-0.5 hover:shadow-[0_10px_0_0_#111111] active:translate-y-0 active:shadow-[0_5px_0_0_#111111] ${darkSurfaceFocusClass}`}
-              >
-                {heroGenerateCtaLabel}
-              </button>
-            </section>
-          </>
+          <HomeHero
+            onStart={handleHeroStartUsingClick}
+            ctaLabel={heroGenerateCtaLabel}
+            accountStatusLine={accountStatusLine}
+          />
         )}
-
-        <section
-          aria-label="איך מתחילים בדקה"
-          className="w-full min-w-0 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]"
-        >
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8b2d10]">ברוכים הבאים</p>
-              <h2 className="mt-2 text-2xl font-black text-black sm:text-3xl">מה עושים כאן עכשיו?</h2>
-            </div>
-            <p className="max-w-xl text-sm font-bold leading-6 text-neutral-700">
-              שלושה צעדים קצרים, ויש לך תשובה מוכנה לשליחה.
-            </p>
-          </div>
-
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            {quickStartSteps.map((step) => (
-              <article
-                key={step.step}
-                className="rounded-[22px] border-2 border-black bg-white p-3.5 shadow-[0_6px_0_0_#111111]"
-              >
-                <p className="text-[0.68rem] font-black uppercase tracking-[0.16em] text-[#8b2d10]">
-                  {step.step}
-                </p>
-                <h3 className="mt-2 text-base font-black text-black">{step.title}</h3>
-                <p className="mt-1.5 text-sm font-bold leading-6 text-neutral-700">{step.body}</p>
-              </article>
-            ))}
-          </div>
-
-        </section>
 
         <section className="grid w-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-5">
           {hasHydrated ? (
-            <div className="flex items-center justify-between gap-2 rounded-[20px] border-2 border-black bg-white p-2 lg:hidden">
+            <div className="flex items-center justify-between gap-2 rounded-[20px] border border-[#e2d7c8] bg-white p-1.5 shadow-[0_10px_28px_rgba(49,23,13,0.08)] lg:hidden">
               <button
                 type="button"
                 onClick={() => setMobilePrimaryView('compose')}
                 aria-pressed={mobilePrimaryView === 'compose'}
                 className={[
-                  `min-h-[42px] flex-1 rounded-[14px] border-2 border-black px-3 py-2 text-sm font-black transition ${lightSurfaceFocusClass}`,
+                  `min-h-[42px] flex-1 rounded-[14px] px-3 py-2 text-sm font-black transition ${lightSurfaceFocusClass}`,
                   mobilePrimaryView === 'compose'
-                    ? 'bg-[#111111] text-[#f7ff4f]'
-                    : 'bg-[#fff6d8] text-black',
+                    ? 'bg-[#181411] text-white shadow-[0_8px_18px_rgba(24,20,17,0.16)]'
+                    : 'bg-transparent text-[#5b4d42]',
                 ].join(' ')}
               >
                 שלב 1: מילוי
@@ -4300,10 +4326,10 @@ export default function Home({
                 aria-pressed={mobilePrimaryView === 'results'}
                 disabled={!canShowMobileResults}
                 className={[
-                  `min-h-[42px] flex-1 rounded-[14px] border-2 border-black px-3 py-2 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${lightSurfaceFocusClass}`,
+                  `min-h-[42px] flex-1 rounded-[14px] px-3 py-2 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${lightSurfaceFocusClass}`,
                   mobilePrimaryView === 'results'
-                    ? 'bg-[#111111] text-[#f7ff4f]'
-                    : 'bg-[#d7f9ff] text-black',
+                    ? 'bg-[#181411] text-white shadow-[0_8px_18px_rgba(24,20,17,0.16)]'
+                    : 'bg-transparent text-[#5b4d42]',
                 ].join(' ')}
               >
                 {canShowMobileResults ? 'שלב 2: תשובות' : 'תשובות אחרי יצירה'}
@@ -4315,46 +4341,48 @@ export default function Home({
             ref={composeSectionRef}
             id="compose-section"
             className={[
-              'mobile-section-anchor w-full min-w-0 space-y-4 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]',
+              'mobile-section-anchor w-full min-w-0 space-y-4 rounded-[28px] border border-[#e2d7c8] bg-[#fffdfa] p-4 shadow-[0_20px_55px_rgba(49,23,13,0.1)] sm:rounded-[32px] sm:p-5',
               mobilePrimaryView === 'compose' ? 'block' : 'hidden lg:block',
             ].join(' ')}
           >
             <div className="min-w-0 space-y-2">
-              <p className="inline-flex min-h-[32px] items-center rounded-full border-2 border-black bg-white px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-[#9a2f10] lg:hidden">
+              <p className="inline-flex min-h-[32px] items-center rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-[#8f371e] lg:hidden">
                 {mobileSectionNavItems[0].stepLabel}
               </p>
-              <h2 className="text-2xl font-black text-black sm:text-3xl">מדביקים הודעה. מקבלים ניסוח מוכן.</h2>
-              <p className="text-sm font-bold leading-6 text-neutral-700">
-                כאן מתחילים: מדביקים את ההודעה כמו שהיא, בוחרים איך לענות, ותוך שניות נפתחות 3 תשובות קצרות שאפשר לשלוח מיד.
+              <h2 className="text-2xl font-black text-[#181411] sm:text-3xl">מדביקים הודעה. מקבלים ניסוח מוכן.</h2>
+              <p className="text-sm font-bold leading-6 text-[#6d6259]">
+                מדביקים כמו שזה, בוחרים וייב, ומקבלים 3 תשובות קצרות לשליחה.
               </p>
             </div>
 
             <div
               className={[
-                'sm:hidden rounded-[20px] border-2 border-black px-3.5 py-3',
-                mobileComposeHelper.tone === 'ready' ? 'bg-[#d7f9ff]' : 'bg-[#fff6d8]',
+                'sm:hidden rounded-[20px] border px-3.5 py-3',
+                mobileComposeHelper.tone === 'ready'
+                  ? 'border-[#b8e7df] bg-[#e3fbf7]'
+                  : 'border-[#ffc4b5] bg-[#fff0ea]',
               ].join(' ')}
             >
-              <p className="text-sm font-black text-black">{mobileComposeHelper.title}</p>
-              <p className="mt-1 text-xs font-bold leading-5 text-neutral-800">{mobileComposeHelper.body}</p>
+              <p className="text-sm font-black text-[#241d18]">{mobileComposeHelper.title}</p>
+              <p className="mt-1 text-xs font-bold leading-5 text-[#5b4d42]">{mobileComposeHelper.body}</p>
             </div>
 
             {showDeepLinkPrefillBanner ? (
-              <div className="flex w-full min-w-0 flex-col gap-2 rounded-[22px] border-2 border-black bg-[#d7f9ff] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm font-black text-black">{DEEP_LINK_PREFILL_BANNER_TEXT}</p>
+              <div className="flex w-full min-w-0 flex-col gap-2 rounded-[22px] border border-[#b8e7df] bg-[#e3fbf7] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm font-black text-[#123a36]">{DEEP_LINK_PREFILL_BANNER_TEXT}</p>
                 <button
                   type="button"
                   onClick={() => setShowDeepLinkPrefillBanner(false)}
-                  className={`min-h-[38px] rounded-full border-2 border-black bg-white px-3 py-1 text-xs font-black text-black ${lightSurfaceFocusClass}`}
+                  className={`min-h-[38px] rounded-full border border-[#b8e7df] bg-white px-3 py-1 text-xs font-black text-[#123a36] ${lightSurfaceFocusClass}`}
                 >
                   סגור
                 </button>
               </div>
             ) : null}
 
-            <div className="w-full min-w-0 space-y-2 rounded-[24px] border-2 border-black bg-[#fff6d8] p-3 sm:hidden">
-              <p className="text-sm font-black text-black">להתחיל מדוגמה מוכנה</p>
-              <p className="text-xs font-bold leading-5 text-neutral-700">
+            <div className="w-full min-w-0 space-y-2 rounded-[22px] border border-[#e2d7c8] bg-[#f8f3eb] p-3 sm:hidden">
+              <p className="text-sm font-black text-[#241d18]">להתחיל מדוגמה מוכנה</p>
+              <p className="text-xs font-bold leading-5 text-[#6d6259]">
                 בחרו אחת מהדוגמאות ונמלא את הטופס אוטומטית.
               </p>
               <div className="snap-x scrollbar-none flex gap-2 overflow-x-auto pb-1">
@@ -4363,7 +4391,7 @@ export default function Home({
                     key={`mobile-example-${scenario.title}`}
                     type="button"
                     onClick={() => applyExample(scenario)}
-                    className={`snap-start whitespace-nowrap rounded-full border-2 border-black bg-white px-3 py-1.5 text-xs font-black text-black ${lightSurfaceFocusClass}`}
+                    className={`snap-start whitespace-nowrap rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-black text-[#241d18] ${lightSurfaceFocusClass}`}
                   >
                     {scenario.title}
                   </button>
@@ -4371,10 +4399,10 @@ export default function Home({
               </div>
             </div>
 
-            <div className="w-full min-w-0 space-y-4 rounded-[28px] border-2 border-black bg-white p-4 sm:p-5">
-              <div className="rounded-[22px] border-2 border-black bg-[#fff6d8] p-3">
-                <p className="text-sm font-black text-black">איך ממשיכים מכאן?</p>
-                <p className="mt-1 text-xs font-bold leading-5 text-neutral-700">
+            <div className="w-full min-w-0 space-y-4 rounded-[24px] border border-[#e2d7c8] bg-white p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:p-5">
+              <div className="rounded-[20px] border border-[#e4d8c8] bg-[#f8f3eb] p-3">
+                <p className="text-sm font-black text-[#241d18]">איך ממשיכים מכאן?</p>
+                <p className="mt-1 text-xs font-bold leading-5 text-[#6d6259]">
                   בחרו מצב כתיבה כדי לראות רק את מה שצריך עכשיו.
                 </p>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -4388,17 +4416,17 @@ export default function Home({
                         aria-pressed={isSelected}
                         onClick={() => setComposeMode(option.value)}
                         className={[
-                          `min-h-[48px] rounded-2xl border-2 px-3 py-2 text-right transition ${lightSurfaceFocusClass}`,
+                          `min-h-[48px] rounded-2xl border px-3 py-2 text-right transition ${lightSurfaceFocusClass}`,
                           isSelected
-                            ? 'border-black bg-[#111111] text-[#f7ff4f]'
-                            : 'border-black bg-white text-black hover:-translate-y-0.5',
+                            ? 'border-[#181411] bg-[#181411] text-white shadow-[0_10px_20px_rgba(24,20,17,0.14)]'
+                            : 'border-[#ded2c3] bg-white text-[#241d18] hover:-translate-y-0.5 hover:bg-[#fffdfa]',
                         ].join(' ')}
                       >
                         <span className="block text-sm font-black">{option.label}</span>
                         <span
                           className={[
                             'mt-1 block text-xs font-bold leading-5',
-                            isSelected ? 'text-[#fffcc2]' : 'text-neutral-700',
+                            isSelected ? 'text-[#f8f3eb]' : 'text-[#6d6259]',
                           ].join(' ')}
                         >
                           {option.description}
@@ -4410,12 +4438,12 @@ export default function Home({
               </div>
 
               {isNoReplyMode ? (
-                <div className="space-y-4 rounded-[24px] border-2 border-black bg-[#f8f4ed] p-4 motion-safe:animate-[sb-paywall-in_220ms_ease-out]">
+                <div className="space-y-4 rounded-[22px] border border-[#e2d7c8] bg-[#fbf7f1] p-4 motion-safe:animate-[sb-paywall-in_220ms_ease-out]">
                   <div>
-                    <label htmlFor="last-outgoing-message" className="text-sm font-black text-neutral-900">
+                    <label htmlFor="last-outgoing-message" className="text-sm font-black text-[#241d18]">
                       מה כתבתי בהודעה האחרונה?
                     </label>
-                    <p className="text-xs font-bold text-neutral-700">
+                    <p className="text-xs font-bold text-[#6d6259]">
                       זה הטקסט האחרון ששלחת לפני שהצד השני הפסיק לענות.
                     </p>
                   </div>
@@ -4432,21 +4460,21 @@ export default function Home({
                     onPaste={handleMessagePaste}
                     placeholder='למשל: "היי, רק בודק/ת אם זה עדיין רלוונטי לך"'
                     maxLength={MAX_LAST_OUTGOING_MESSAGE_LENGTH}
-                    className={`min-h-32 w-full rounded-[22px] border-2 border-black bg-white px-4 py-4 text-base leading-7 font-medium text-black outline-none transition placeholder:text-neutral-400 focus:-translate-y-0.5 focus:bg-[#fffdf6] ${lightSurfaceFocusClass}`}
+                    className={`min-h-32 w-full rounded-[22px] border border-[#ded2c3] bg-white px-4 py-4 text-base leading-7 font-medium text-[#241d18] outline-none transition placeholder:text-[#9b8f83] focus:-translate-y-0.5 focus:bg-[#fffdfa] ${lightSurfaceFocusClass}`}
                   />
-                  <p className="text-xs font-bold text-neutral-700">
+                  <p className="text-xs font-bold text-[#6d6259]">
                     עד {MAX_LAST_OUTGOING_MESSAGE_LENGTH} תווים ({lastOutgoingMessageLength}/
                     {MAX_LAST_OUTGOING_MESSAGE_LENGTH}).
                   </p>
 
-                  <div className="rounded-2xl border-2 border-black bg-white p-3">
+                  <div className="rounded-2xl border border-[#e2d7c8] bg-white p-3">
                     <label
                       htmlFor="no-reply-duration-value"
-                      className="text-sm font-black text-neutral-900"
+                      className="text-sm font-black text-[#241d18]"
                     >
                       כמה זמן לא ענו?
                     </label>
-                    <p className="mt-1 text-xs font-bold text-neutral-700">
+                    <p className="mt-1 text-xs font-bold text-[#6d6259]">
                       בוחרים מספר ויחידת זמן: דקות, שעות או ימים.
                     </p>
                     <div className="mt-2 grid grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] gap-2">
@@ -4465,7 +4493,7 @@ export default function Home({
                           )
                         }
                         placeholder="למשל 3"
-                        className={`min-h-[44px] w-full rounded-xl border-2 border-black bg-white px-3 py-2 text-sm font-bold text-black outline-none transition focus:bg-[#fffdf6] ${lightSurfaceFocusClass}`}
+                        className={`min-h-[44px] w-full rounded-xl border border-[#ded2c3] bg-white px-3 py-2 text-sm font-bold text-[#241d18] outline-none transition focus:bg-[#fffdfa] ${lightSurfaceFocusClass}`}
                       />
                       <select
                         id="no-reply-duration-unit"
@@ -4473,7 +4501,7 @@ export default function Home({
                         onChange={(event) =>
                           setNoReplyDurationUnit(event.target.value as NoReplyDurationUnit)
                         }
-                        className={`min-h-[44px] w-full rounded-xl border-2 border-black bg-white px-3 py-2 text-sm font-black text-black outline-none transition focus:bg-[#fffdf6] ${lightSurfaceFocusClass}`}
+                        className={`min-h-[44px] w-full rounded-xl border border-[#ded2c3] bg-white px-3 py-2 text-sm font-black text-[#241d18] outline-none transition focus:bg-[#fffdfa] ${lightSurfaceFocusClass}`}
                       >
                         {noReplyDurationUnitOptions.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -4485,20 +4513,20 @@ export default function Home({
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4 rounded-[24px] border-2 border-black bg-[#f8f4ed] p-4 motion-safe:animate-[sb-paywall-in_220ms_ease-out]">
+                <div className="space-y-4 rounded-[22px] border border-[#e2d7c8] bg-[#fbf7f1] p-4 motion-safe:animate-[sb-paywall-in_220ms_ease-out]">
                   <div className="flex flex-col items-start justify-between gap-3 min-[430px]:flex-row min-[430px]:items-center">
                     <div>
-                      <label htmlFor="incoming-message" className="text-sm font-black text-neutral-900">
+                      <label htmlFor="incoming-message" className="text-sm font-black text-[#241d18]">
                         מה כתבו לך?
                       </label>
-                      <p className="text-xs font-bold text-neutral-700">
+                      <p className="text-xs font-bold text-[#6d6259]">
                         אפשר להדביק כאן את ההודעה כמו שהיא, או לצרף צילום מסך של השיחה.
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className={`min-h-[44px] rounded-full border-2 border-black bg-[#fff6d8] px-4 py-2 text-sm font-black text-black ${lightSurfaceFocusClass}`}
+                      className={`min-h-[44px] rounded-full border border-[#ded2c3] bg-white px-4 py-2 text-sm font-black text-[#241d18] transition hover:bg-[#f8f3eb] ${lightSurfaceFocusClass}`}
                     >
                       לצרף צילום מסך
                     </button>
@@ -4514,9 +4542,9 @@ export default function Home({
                     onPaste={handleMessagePaste}
                     placeholder='למשל: "היי, מתאים לך שנדבר בערב?"'
                     maxLength={MAX_INCOMING_MESSAGE_LENGTH}
-                    className={`min-h-36 w-full resize-none rounded-[26px] rounded-bl-[14px] border-2 border-black bg-white px-4 py-4 text-base leading-7 font-medium text-black outline-none transition placeholder:text-neutral-500 focus:bg-[#fffdf6] sm:min-h-40 sm:rounded-[28px] sm:rounded-bl-[16px] ${lightSurfaceFocusClass}`}
+                    className={`min-h-36 w-full resize-none rounded-[24px] rounded-bl-[14px] border border-[#ded2c3] bg-white px-4 py-4 text-base leading-7 font-medium text-[#241d18] outline-none transition placeholder:text-[#9b8f83] focus:bg-[#fffdfa] sm:min-h-40 ${lightSurfaceFocusClass}`}
                   />
-                  <p className="text-xs font-bold text-neutral-700">
+                  <p className="text-xs font-bold text-[#6d6259]">
                     עד {MAX_INCOMING_MESSAGE_LENGTH} תווים להודעה ({messageLength}/
                     {MAX_INCOMING_MESSAGE_LENGTH}).
                   </p>
@@ -4530,15 +4558,15 @@ export default function Home({
                   />
 
                   {imageName ? (
-                    <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border-2 border-black bg-[#fff6d8] px-4 py-3 min-[430px]:flex-row min-[430px]:items-center">
+                    <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-[#e2d7c8] bg-[#f8f3eb] px-4 py-3 min-[430px]:flex-row min-[430px]:items-center">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-black text-black">{imageName}</p>
-                        <p className="text-xs font-bold text-neutral-700">הצילום נוסף לטופס ומוכן ליצירה</p>
+                        <p className="truncate text-sm font-black text-[#241d18]">{imageName}</p>
+                        <p className="text-xs font-bold text-[#6d6259]">הצילום נוסף לטופס ומוכן ליצירה</p>
                       </div>
                       <button
                         type="button"
                         onClick={clearImage}
-                        className={`min-h-[44px] rounded-full border-2 border-black bg-[#111111] px-3 py-2 text-xs font-black text-white ${lightSurfaceFocusClass}`}
+                        className={`min-h-[44px] rounded-full bg-[#181411] px-3 py-2 text-xs font-black text-white ${lightSurfaceFocusClass}`}
                       >
                         להסיר
                       </button>
@@ -4550,14 +4578,14 @@ export default function Home({
               )}
 
               {shouldShowConversationBackground ? (
-                <details className="group rounded-[22px] border-2 border-dashed border-black bg-[#fff6d8] transition-colors duration-200 open:bg-[#fff2bf]">
+                <details className="group rounded-[22px] border border-dashed border-[#d8cab9] bg-[#f8f3eb] transition-colors duration-200 open:bg-[#fff8ef]">
                   <summary
-                    className={`flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-black text-black marker:content-none ${lightSurfaceFocusClass}`}
+                    className={`flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-black text-[#241d18] marker:content-none ${lightSurfaceFocusClass}`}
                   >
                     <span className="flex items-center gap-2">
                       <span>רקע שיחה נוסף (אופציונלי)</span>
                       {isConversationBackgroundLocked ? (
-                        <span className="rounded-full border border-black bg-[#ffefbf] px-2 py-0.5 text-[10px] font-black text-black">
+                        <span className="rounded-full border border-[#d8cab9] bg-[#fff0ea] px-2 py-0.5 text-[10px] font-black text-[#8f371e]">
                           חודשי
                         </span>
                       ) : null}
@@ -4568,12 +4596,12 @@ export default function Home({
                     <div className="sb-accordion-content-inner">
                       <div className="space-y-2 px-3 pb-3 pt-0.5">
                         {isBillingLoading ? (
-                          <p className="text-xs font-bold text-neutral-700">
+                          <p className="text-xs font-bold text-[#6d6259]">
                             בודקים את מצב המנוי כדי לפתוח את ההרחבה הזאת...
                           </p>
                         ) : hasMonthlyFeatureAccess ? (
                           <>
-                            <p className="text-xs font-bold text-neutral-700">
+                            <p className="text-xs font-bold text-[#6d6259]">
                               פרטים קצרים שיעזרו לדייק את הניסוח (למשל: מה היה לפני כן בשיחה).
                             </p>
                             <textarea
@@ -4586,9 +4614,9 @@ export default function Home({
                               }
                               placeholder='למשל: "דיברנו כמה ימים ואז השיחה נעצרה"'
                               maxLength={MAX_CONVERSATION_BACKGROUND_LENGTH}
-                              className={`min-h-24 w-full rounded-[18px] border-2 border-black bg-white px-3 py-3 text-sm font-medium leading-6 text-black outline-none transition placeholder:text-neutral-400 focus:bg-[#fffdf6] ${lightSurfaceFocusClass}`}
+                              className={`min-h-24 w-full rounded-[18px] border border-[#ded2c3] bg-white px-3 py-3 text-sm font-medium leading-6 text-[#241d18] outline-none transition placeholder:text-[#9b8f83] focus:bg-[#fffdfa] ${lightSurfaceFocusClass}`}
                             />
-                            <p className="text-xs font-bold text-neutral-700">
+                            <p className="text-xs font-bold text-[#6d6259]">
                               עד {MAX_CONVERSATION_BACKGROUND_LENGTH} תווים ({conversationBackgroundLength}/
                               {MAX_CONVERSATION_BACKGROUND_LENGTH}).
                             </p>
@@ -4615,7 +4643,7 @@ export default function Home({
                                 </button>
                               </div>
                             </div>
-                            <p className="text-[11px] font-bold text-neutral-700">
+                            <p className="text-[11px] font-bold text-[#6d6259]">
                               ברגע שמפעילים מנוי חודשי, ההרחבה נפתחת מיד.
                             </p>
                           </div>
@@ -4705,14 +4733,14 @@ export default function Home({
                 type="button"
                 onClick={handleMainSubmit}
                 disabled={isGenerating || !isSessionReady}
-                className={`inline-flex min-h-[56px] items-center justify-center gap-2 rounded-[26px] border-2 border-black bg-gradient-to-b from-[#ff7a56] to-[#ff623d] px-6 py-3 text-base font-black text-white shadow-[0_8px_0_0_#111111] transition duration-150 hover:-translate-y-0.5 hover:shadow-[0_10px_0_0_#111111] active:translate-y-0 active:shadow-[0_5px_0_0_#111111] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto ${lightSurfaceFocusClass}`}
+                className={`inline-flex min-h-[56px] items-center justify-center gap-2 rounded-full bg-[#ff5a2a] px-6 py-3 text-base font-black text-white shadow-[0_14px_26px_rgba(255,90,42,0.26)] transition duration-150 hover:-translate-y-0.5 hover:bg-[#f04d1f] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto ${lightSurfaceFocusClass}`}
               >
-                <span className="rounded-full border-2 border-black bg-[#f7ff4f] px-2 py-0.5 text-[0.64rem] font-black uppercase tracking-[0.12em] text-black">
+                <span className="rounded-full bg-white/20 px-2 py-0.5 text-[0.64rem] font-black uppercase tracking-[0.12em] text-white">
                   פעולה
                 </span>
                 {generateButtonLabel}
               </button>
-              <div className="flex flex-wrap items-center justify-end gap-3 text-sm font-bold text-neutral-700">
+              <div className="flex flex-wrap items-center justify-end gap-3 text-sm font-bold text-[#6d6259]">
                 <p>{accountStatusLine}</p>
               </div>
             </div>
@@ -4722,24 +4750,24 @@ export default function Home({
                 type="button"
                 onClick={handleMainSubmit}
                 disabled={isGenerating || !isSessionReady}
-                className={`inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-[26px] border-2 border-black bg-gradient-to-b from-[#ff7a56] to-[#ff623d] px-5 py-3 text-base font-black text-white shadow-[0_8px_0_0_#111111] transition duration-150 active:translate-y-0 active:shadow-[0_5px_0_0_#111111] disabled:cursor-not-allowed disabled:opacity-60 ${lightSurfaceFocusClass}`}
+                className={`inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-[#ff5a2a] px-5 py-3 text-base font-black text-white shadow-[0_14px_26px_rgba(255,90,42,0.24)] transition duration-150 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 ${lightSurfaceFocusClass}`}
               >
-                <span className="rounded-full border-2 border-black bg-[#f7ff4f] px-2 py-0.5 text-[0.64rem] font-black uppercase tracking-[0.12em] text-black">
+                <span className="rounded-full bg-white/20 px-2 py-0.5 text-[0.64rem] font-black uppercase tracking-[0.12em] text-white">
                   פעולה
                 </span>
                 {generateButtonLabel}
               </button>
-              <p className="text-xs font-black text-neutral-700">{accountStatusLine}</p>
+              <p className="text-xs font-black text-[#6d6259]">{accountStatusLine}</p>
             </div>
 
             {paymentNotice ? (
-              <p className="rounded-2xl border-2 border-black bg-[#d7f9ff] px-4 py-3 text-sm font-black text-black">
+              <p className="rounded-2xl border border-[#b8e7df] bg-[#e3fbf7] px-4 py-3 text-sm font-black text-[#123a36]">
                 {paymentNotice}
               </p>
             ) : null}
 
             {requestError ? (
-              <p className="rounded-2xl border-2 border-black bg-[#ffd6ce] px-4 py-3 text-sm font-bold text-black">
+              <p className="rounded-2xl border border-[#ffc4b5] bg-[#fff0ea] px-4 py-3 text-sm font-bold text-[#7a2d19]">
                 {requestError}
               </p>
             ) : null}
@@ -4749,18 +4777,18 @@ export default function Home({
             ref={resultsSectionRef}
             id="results-section"
             className={[
-              'mobile-section-anchor w-full min-w-0 space-y-4 rounded-[30px] border-2 border-black bg-white p-3.5 shadow-[0_10px_0_0_#6ce8ff] sm:rounded-[36px] sm:p-5 sm:shadow-[0_12px_0_0_#6ce8ff]',
+              'mobile-section-anchor w-full min-w-0 space-y-4 rounded-[28px] border border-[#d3e4df] bg-white p-3.5 shadow-[0_20px_55px_rgba(18,58,54,0.1)] sm:rounded-[32px] sm:p-5',
               mobilePrimaryView === 'results' ? 'block' : 'hidden lg:block',
             ].join(' ')}
           >
             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
               <div className="min-w-0">
-                <p className="inline-flex min-h-[32px] items-center rounded-full border-2 border-black bg-[#d7f9ff] px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-black lg:hidden">
+                <p className="inline-flex min-h-[32px] items-center rounded-full border border-[#b8e7df] bg-[#e3fbf7] px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-[#123a36] lg:hidden">
                   {mobileSectionNavItems[1].stepLabel}
                 </p>
-                <h2 className="text-2xl font-black text-black sm:text-3xl">הנה מה שאפשר לשלוח</h2>
-                <p className="mt-1.5 text-sm font-bold leading-6 text-neutral-700">
-                  הסבר קצר ואז תשובות שמוכנות להעתקה.
+                <h2 className="text-2xl font-black text-[#181411] sm:text-3xl">התשובות שלך</h2>
+                <p className="mt-1.5 text-sm font-bold leading-6 text-[#6d6259]">
+                  הסבר קצר ואז 3 תשובות מוכנות להעתקה.
                 </p>
               </div>
             </div>
@@ -4768,22 +4796,22 @@ export default function Home({
             <div aria-live="polite" aria-busy={isGenerating} className="space-y-3">
               {result && !isLoading ? (
                 <div className="w-full min-w-0 space-y-3">
-                <div className="w-full min-w-0 rounded-[26px] border-2 border-black bg-[#fff6d8] p-4 shadow-[0_8px_0_0_#111111]">
+                <div className="w-full min-w-0 rounded-[24px] border border-[#e2d7c8] bg-[#f8f3eb] p-4 shadow-[0_14px_36px_rgba(49,23,13,0.07)]">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-xs font-black uppercase tracking-[0.2em] text-neutral-600">
+                        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7a6e64]">
                           {isNoReplyMode ? 'מה הפולו-אפ צריך לשדר' : 'מה הם כנראה מנסים להגיד'}
                         </p>
                         <span className={readOnlyBadgeClass}>לקריאה</span>
                       </div>
-                      <p className="mt-2 text-base font-bold leading-7 text-black">{result.intent}</p>
+                      <p className="mt-2 text-base font-bold leading-7 text-[#241d18]">{result.intent}</p>
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-1.5">
                       <button
                         type="button"
                         onClick={handleCopyAllReplies}
-                        className={`min-h-[40px] rounded-full border-2 border-black bg-white px-3 py-1.5 text-xs font-black text-black transition hover:bg-[#f5f5f5] ${whiteSurfaceFocusClass}`}
+                        className={`min-h-[40px] rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-black text-[#241d18] transition hover:bg-[#fffdfa] ${whiteSurfaceFocusClass}`}
                       >
                         {hasCopiedAllReplies ? 'הכל הועתק' : 'העתק הכל'}
                       </button>
@@ -4791,20 +4819,20 @@ export default function Home({
                         type="button"
                         onClick={handleGenerateMoreReplies}
                         disabled={isGenerating}
-                        className={`min-h-[40px] rounded-full border-2 border-black bg-[#f7ff4f] px-3 py-1.5 text-xs font-black text-black transition disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                        className={`min-h-[40px] rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1.5 text-xs font-black text-[#7a2d19] transition disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
                       >
                         ליצור 3 נוספות
                       </button>
                       <button
                         type="button"
                         onClick={handleNewMessage}
-                        className={`min-h-[40px] rounded-full border-2 border-black bg-[#d7f9ff] px-3 py-1.5 text-xs font-black text-black transition hover:bg-[#b8f2ff] ${whiteSurfaceFocusClass}`}
+                        className={`min-h-[40px] rounded-full border border-[#b8e7df] bg-[#e3fbf7] px-3 py-1.5 text-xs font-black text-[#123a36] transition hover:bg-[#cef6ef] ${whiteSurfaceFocusClass}`}
                       >
                         הודעה חדשה
                       </button>
                     </div>
                   </div>
-                  <p className="mt-3 text-xs font-bold leading-5 text-neutral-700">
+                  <p className="mt-3 text-xs font-bold leading-5 text-[#6d6259]">
                     יצירת 3 נוספות או שיפור ניסוח משתמשים בשימוש אחד.
                   </p>
                 </div>
@@ -4827,15 +4855,15 @@ export default function Home({
                 </div>
                 </div>
               ) : (
-                <div className="flex w-full min-w-0 min-h-72 flex-col justify-center rounded-[28px] border-2 border-dashed border-black bg-[#f8f4ed] p-5 sm:min-h-80">
-                  <h3 className="text-2xl font-black text-black">
+                <div className="flex w-full min-w-0 min-h-72 flex-col justify-center rounded-[26px] border border-dashed border-[#d8cab9] bg-[#fbf7f1] p-5 sm:min-h-80">
+                  <h3 className="text-2xl font-black text-[#181411]">
                     {isLoading
                       ? isNoReplyMode
                         ? 'מכינים פולו-אפ קצר'
                         : 'עוד רגע זה מוכן'
-                      : 'כאן יופיעו התשובות שלך'}
+                      : 'כאן יופיעו 3 תשובות מוכנות להעתקה'}
                   </h3>
-                  <p className="mt-3 max-w-md text-sm font-bold leading-6 text-neutral-700">
+                  <p className="mt-3 max-w-md text-sm font-bold leading-6 text-[#6d6259]">
                     {isLoading
                       ? isNoReplyMode
                         ? 'בודקים מה שלחת, כמה זמן עבר, ואיך להחזיר את השיחה בלי לחץ.'
@@ -4843,7 +4871,7 @@ export default function Home({
                       : 'בחרו מצב כתיבה, מלאו את השדה הראשי ותוך רגע יופיעו 3 תשובות מוכנות להעתקה.'}
                   </p>
                   {isLoading ? (
-                    <p className="mt-4 inline-flex min-h-[36px] items-center self-start rounded-full border-2 border-black bg-[#f7ff4f] px-3 py-1 text-xs font-black text-black">
+                    <p className="mt-4 inline-flex min-h-[36px] items-center self-start rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1 text-xs font-black text-[#7a2d19]">
                       עובדים על זה עכשיו...
                     </p>
                   ) : (
@@ -4853,7 +4881,7 @@ export default function Home({
                         setMobilePrimaryView('compose');
                         scrollToMobileSection('compose', { source: 'navigation' });
                       }}
-                      className={`mt-4 min-h-[44px] w-full rounded-full border-2 border-black bg-white px-4 py-2 text-sm font-black text-black sm:hidden ${lightSurfaceFocusClass}`}
+                      className={`mt-4 min-h-[44px] w-full rounded-full border border-[#ded2c3] bg-white px-4 py-2 text-sm font-black text-[#241d18] sm:hidden ${lightSurfaceFocusClass}`}
                     >
                       לחזור לשלב 1: מילוי
                     </button>
@@ -4864,18 +4892,20 @@ export default function Home({
           </div>
         </section>
 
+        <QuickStartStrip />
+
         {!billingBypassEnabled ? (
           <section
             ref={plansSectionRef}
             id="plans-section"
-            className="mobile-section-anchor w-full min-w-0 rounded-[30px] border-2 border-black bg-[#fff9ef] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]"
+            className="mobile-section-anchor w-full min-w-0 rounded-[28px] border border-[#e2d7c8] bg-[#fffdfa] p-4 shadow-[0_18px_48px_rgba(49,23,13,0.08)] sm:rounded-[32px] sm:p-6"
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#8b2d10]">חשבון ותשלום</p>
-                <h2 className="mt-2 text-2xl font-black text-black sm:text-3xl">ממשיכים מכאן כשצריך</h2>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#a45334]">חשבון ותשלום</p>
+                <h2 className="mt-2 text-2xl font-black text-[#181411] sm:text-3xl">ממשיכים מכאן כשצריך</h2>
               </div>
-              <p className="max-w-xl text-sm font-bold leading-6 text-neutral-700">
+              <p className="max-w-xl text-sm font-bold leading-6 text-[#6d6259]">
                 אחרי שמילאתם הודעה, כאן רואים מה נשאר בחשבון, שומרים גישה באימייל ופותחים עוד תשובות.
               </p>
             </div>
@@ -4945,23 +4975,23 @@ export default function Home({
                     hasUnlimitedAccess ? 'md:grid-cols-1' : 'md:grid-cols-2',
                   ].join(' ')}
                 >
-                  <div className="rounded-[22px] border-2 border-black bg-white p-4">
+                  <div className="rounded-[22px] border border-[#e2d7c8] bg-white p-4 shadow-[0_12px_30px_rgba(49,23,13,0.06)]">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <span className="rounded-full border border-black bg-[#f7ff4f] px-3 py-1 text-xs font-black text-black">
+                        <span className="rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1 text-xs font-black text-[#7a2d19]">
                           {CREDIT_PLAN_COPY.badge}
                         </span>
-                        <h3 className="mt-3 text-lg font-black text-black">{CREDIT_PLAN_COPY.title}</h3>
-                        <p className="mt-1.5 text-sm font-black text-neutral-700">{CREDIT_PLAN_COPY.helper}</p>
-                        <p className="mt-1 text-sm font-bold text-neutral-700">{CREDIT_PLAN_COPY.body}</p>
+                        <h3 className="mt-3 text-lg font-black text-[#181411]">{CREDIT_PLAN_COPY.title}</h3>
+                        <p className="mt-1.5 text-sm font-black text-[#5b4d42]">{CREDIT_PLAN_COPY.helper}</p>
+                        <p className="mt-1 text-sm font-bold text-[#6d6259]">{CREDIT_PLAN_COPY.body}</p>
                       </div>
-                      <p className="shrink-0 text-2xl font-black text-black">{CREDIT_PLAN_COPY.price}</p>
+                      <p className="shrink-0 text-2xl font-black text-[#181411]">{CREDIT_PLAN_COPY.price}</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleCheckout('credits_50')}
                       disabled={checkoutPlan !== null || !isSessionReady}
-                      className={`mt-3 min-h-[46px] w-full rounded-2xl border-2 border-black bg-[#f7ff4f] px-4 py-2.5 text-sm font-black text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 ${lightSurfaceFocusClass}`}
+                      className={`mt-3 min-h-[46px] w-full rounded-full bg-[#ff5a2a] px-4 py-2.5 text-sm font-black text-white shadow-[0_12px_22px_rgba(255,90,42,0.22)] transition hover:-translate-y-0.5 hover:bg-[#f04d1f] disabled:cursor-not-allowed disabled:opacity-70 ${lightSurfaceFocusClass}`}
                     >
                       {!isRecoverableAccount
                         ? 'שמירת גישה ואז תשלום'
@@ -4972,7 +5002,7 @@ export default function Home({
                   </div>
 
                   {!hasUnlimitedAccess ? (
-                    <div className="rounded-[22px] border-2 border-black bg-[#111111] p-4 text-white">
+                    <div className="rounded-[22px] bg-[#181411] p-4 text-white shadow-[0_18px_40px_rgba(24,20,17,0.18)]">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-black">
@@ -4988,7 +5018,7 @@ export default function Home({
                         type="button"
                         onClick={() => handleCheckout('unlimited_monthly')}
                         disabled={checkoutPlan !== null || !isSessionReady}
-                        className={`mt-3 min-h-[46px] w-full rounded-2xl border-2 border-white bg-[#ff623d] px-4 py-2.5 text-sm font-black text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 ${darkSurfaceFocusClass}`}
+                        className={`mt-3 min-h-[46px] w-full rounded-full bg-[#20d6c7] px-4 py-2.5 text-sm font-black text-[#102b29] transition hover:-translate-y-0.5 hover:bg-[#51e0d4] disabled:cursor-not-allowed disabled:opacity-70 ${darkSurfaceFocusClass}`}
                       >
                         {!isRecoverableAccount
                           ? 'שמירת גישה ואז תשלום'
@@ -5001,7 +5031,7 @@ export default function Home({
                 </div>
 
                 {checkoutError ? (
-                  <p className="rounded-2xl border-2 border-black bg-[#ffd6ce] px-4 py-3 text-sm font-bold text-black">
+                  <p className="rounded-2xl border border-[#ffc4b5] bg-[#fff0ea] px-4 py-3 text-sm font-bold text-[#7a2d19]">
                     {checkoutError}
                   </p>
                 ) : null}
@@ -5085,7 +5115,7 @@ export default function Home({
           </section>
         ) : null}
 
-        <footer className="w-full min-w-0 rounded-[24px] border-2 border-black bg-[#fff6d8] px-4 py-4 text-sm font-bold text-neutral-800 shadow-[0_8px_0_0_#111111]">
+        <footer className="w-full min-w-0 rounded-[24px] border border-[#e2d7c8] bg-[#fbf7f1] px-4 py-4 text-sm font-bold text-[#5b4d42]">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p>
               {billingBypassEnabled
