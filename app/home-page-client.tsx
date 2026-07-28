@@ -15,6 +15,7 @@ import {
   type SetStateAction,
 } from 'react';
 import dynamic from 'next/dynamic';
+import Image, { type StaticImageData } from 'next/image';
 import { trackEvent } from '@/lib/analytics';
 import { buildHomeDeepLink } from '@/lib/home-deeplink';
 import {
@@ -26,6 +27,18 @@ import {
 import {
   CREDIT_PACK_PRICE_LABEL,
 } from '@/lib/pricing';
+import bossBriefcaseIllustration from '@/public/option-illustrations/boss-briefcase.webp';
+import clientHandshakeIllustration from '@/public/option-illustrations/client-handshake.webp';
+import crushHeartIllustration from '@/public/option-illustrations/crush-heart.webp';
+import dateCoffeeIllustration from '@/public/option-illustrations/date-coffee.webp';
+import directTargetIllustration from '@/public/option-illustrations/direct-target.webp';
+import exBrokenHeartIllustration from '@/public/option-illustrations/ex-broken-heart.webp';
+import flirtySparkleHeartIllustration from '@/public/option-illustrations/flirty-sparkle-heart.webp';
+import flowWaveIllustration from '@/public/option-illustrations/flow-wave.webp';
+import friendHighFiveIllustration from '@/public/option-illustrations/friend-high-five.webp';
+import funnySmileIllustration from '@/public/option-illustrations/funny-smile.webp';
+import gentleFeatherIllustration from '@/public/option-illustrations/gentle-feather.webp';
+import yad2PriceTagIllustration from '@/public/option-illustrations/yad2-price-tag.webp';
 
 type ContextOption =
   | 'קראש'
@@ -248,6 +261,22 @@ const freeContextOptions = contextOptions.slice(0, CONTEXT_PRIMARY_VISIBLE_COUNT
 const freeToneOptions = toneOptions.slice(0, TONE_PRIMARY_VISIBLE_COUNT);
 const monthlyOnlyContextOptions = contextOptions.slice(CONTEXT_PRIMARY_VISIBLE_COUNT);
 const monthlyOnlyToneOptions = toneOptions.slice(TONE_PRIMARY_VISIBLE_COUNT);
+const contextOptionIllustrations: Partial<Record<ContextOption, StaticImageData>> = {
+  קראש: crushHeartIllustration,
+  אקס: exBrokenHeartIllustration,
+  ידיד: friendHighFiveIllustration,
+  לקוח: clientHandshakeIllustration,
+  בוס: bossBriefcaseIllustration,
+  יד2: yad2PriceTagIllustration,
+  דייט: dateCoffeeIllustration,
+};
+const toneOptionIllustrations: Partial<Record<ToneOption, StaticImageData>> = {
+  עדין: gentleFeatherIllustration,
+  ישיר: directTargetIllustration,
+  זורם: flowWaveIllustration,
+  מצחיק: funnySmileIllustration,
+  פלרטטני: flirtySparkleHeartIllustration,
+};
 const continuePreferenceOptions: ContinuePreference[] = ['כן', 'לא'];
 const composeModeOptions: Array<{ value: ComposeMode; label: string; description: string }> = [
   {
@@ -793,6 +822,8 @@ function ChipGroup<T extends string>({
   showMoreOptionsSearch = true,
   onLockedOptionsNoticeCtaClick,
   headerAlign = 'center',
+  illustrations,
+  warmOptionCards = false,
 }: {
   title: string;
   description?: string;
@@ -813,6 +844,8 @@ function ChipGroup<T extends string>({
   showMoreOptionsSearch?: boolean;
   onLockedOptionsNoticeCtaClick?: () => void;
   headerAlign?: 'center' | 'right';
+  illustrations?: Partial<Record<T, StaticImageData>>;
+  warmOptionCards?: boolean;
 }) {
   const hasSelection = value !== null;
   const normalizedPrimaryVisibleCount = Math.min(
@@ -831,6 +864,7 @@ function ChipGroup<T extends string>({
   );
   const moreOptionsDialogTitleId = useId();
   const moreOptionsDialogDescriptionId = useId();
+  const groupTitleId = useId();
   const [isMoreOptionsDialogOpen, setIsMoreOptionsDialogOpen] = useState(false);
   const [isMoreOptionsDialogClosing, setIsMoreOptionsDialogClosing] = useState(false);
   const [moreOptionsSearchTerm, setMoreOptionsSearchTerm] = useState('');
@@ -925,6 +959,8 @@ function ChipGroup<T extends string>({
     const isSelected = option === value;
     const isLockedOption = lockedOptionsSet.has(option);
     const shouldCloseDialogOnSelect = mode === 'dialog';
+    const illustration = illustrations?.[option];
+    const usesWarmOptionCards = warmOptionCards || illustrations !== undefined;
 
     return (
       <button
@@ -945,15 +981,27 @@ function ChipGroup<T extends string>({
           }
         }}
         className={[
-          `w-full rounded-full border px-3.5 py-2 text-center font-bold transition duration-150 touch-manipulation ${whiteSurfaceFocusClass}`,
-          mode === 'dialog'
-            ? 'min-h-[44px] text-sm sm:w-auto'
-            : 'min-h-[40px] text-sm sm:min-h-[42px]',
-          isLockedOption
-            ? 'border-[#4a3320] bg-[#2b211a] text-[#f7e2ab] hover:-translate-y-0.5 hover:brightness-110'
-            : isSelected
-            ? 'border-[#181411] bg-[#181411] text-white shadow-[0_10px_20px_rgba(24,20,17,0.14)]'
-            : 'border-[#ded2c3] bg-[#fffdfa] text-[#241d18] hover:-translate-y-0.5 hover:bg-[#f8f3eb]',
+          usesWarmOptionCards
+            ? `sb-option-card group relative w-full rounded-[18px] border-2 px-2.5 py-1.5 text-center font-bold touch-manipulation ${whiteSurfaceFocusClass}`
+            : `w-full rounded-full border px-3.5 py-2 text-center font-bold transition duration-150 touch-manipulation ${whiteSurfaceFocusClass}`,
+          usesWarmOptionCards
+            ? mode === 'dialog'
+              ? 'min-h-[48px] text-sm sm:w-auto sm:min-w-36'
+              : 'min-h-[48px] text-[0.82rem] sm:text-sm'
+            : mode === 'dialog'
+              ? 'min-h-[44px] text-sm sm:w-auto'
+              : 'min-h-[40px] text-sm sm:min-h-[42px]',
+          usesWarmOptionCards
+            ? isLockedOption
+              ? 'sb-option-card--locked'
+              : isSelected
+                ? 'sb-option-card--selected'
+                : 'sb-option-card--default'
+            : isLockedOption
+              ? 'border-[#4a3320] bg-[#2b211a] text-[#f7e2ab] hover:-translate-y-0.5 hover:brightness-110'
+              : isSelected
+                ? 'border-[#181411] bg-[#181411] text-white shadow-[0_10px_20px_rgba(24,20,17,0.14)]'
+                : 'border-[#ded2c3] bg-[#fffdfa] text-[#241d18] hover:-translate-y-0.5 hover:bg-[#f8f3eb]',
         ].join(' ')}
       >
         <span
@@ -962,9 +1010,32 @@ function ChipGroup<T extends string>({
             isLockedOption ? 'justify-between' : 'justify-center',
           ].join(' ')}
         >
-          <span>{option}</span>
+          <span className="inline-flex min-w-0 items-center justify-center gap-1.5 sm:gap-2">
+            {illustration ? (
+              <Image
+                src={illustration}
+                width={32}
+                height={32}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                className={[
+                  'sb-option-card__illustration size-8 shrink-0 object-contain',
+                  isSelected ? 'sb-option-card__illustration--selected' : '',
+                ].join(' ')}
+              />
+            ) : null}
+            <span>{option}</span>
+          </span>
           {isLockedOption ? (
-            <span className="rounded-full border border-[#f7cf76] bg-[#1d1608] px-2 py-0.5 text-[0.6rem] font-black uppercase tracking-[0.08em] text-[#ffe7b2]">
+            <span
+              className={[
+                'rounded-full border px-2 py-0.5 text-[0.6rem] font-black uppercase tracking-[0.08em]',
+                usesWarmOptionCards
+                  ? 'border-[#d8ad52] bg-white/75 text-[#6b4610]'
+                  : 'border-[#f7cf76] bg-[#1d1608] text-[#ffe7b2]',
+              ].join(' ')}
+            >
               {lockedOptionsPreviewLabel}
             </span>
           ) : null}
@@ -974,7 +1045,11 @@ function ChipGroup<T extends string>({
   };
 
   return (
-    <section className="w-full min-w-0 rounded-[22px] border border-[#e2d7c8] bg-white p-3 shadow-[0_10px_26px_rgba(49,23,13,0.06)] sm:p-3.5">
+    <section
+      role="group"
+      aria-labelledby={groupTitleId}
+      className="w-full min-w-0 rounded-[22px] border border-[#e2d7c8] bg-white p-3 shadow-[0_10px_26px_rgba(49,23,13,0.06)] sm:p-3.5"
+    >
       <div
         className={[
           'flex items-center gap-2',
@@ -987,7 +1062,9 @@ function ChipGroup<T extends string>({
             isHeaderRightAligned ? 'justify-start text-right' : 'justify-center text-center',
           ].join(' ')}
         >
-          <p className="text-[0.92rem] font-black text-[#241d18] sm:text-[0.95rem]">{title}</p>
+          <p id={groupTitleId} className="text-[0.92rem] font-black text-[#241d18] sm:text-[0.95rem]">
+            {title}
+          </p>
           <span
             className={[
               'rounded-full border px-2 py-0.5 text-[0.62rem] font-black uppercase tracking-[0.12em]',
@@ -4627,6 +4704,7 @@ export default function Home({
                 title="מה המצב?"
                 description="נבין את הסיטואציה כדי לנסח תשובה שמתאימה לך."
                 headerAlign="right"
+                illustrations={contextOptionIllustrations}
                 options={shouldShowMonthlyFeatureOptions ? contextOptions : freeContextOptions}
                 primaryVisibleCount={CONTEXT_PRIMARY_VISIBLE_COUNT}
                 moreOptionsLabel="עוד סיטואציות"
@@ -4651,6 +4729,7 @@ export default function Home({
                 title="איך תרצו לענות?"
                 description="בחרו את הווייב שתרצו לשדר בתשובה."
                 headerAlign="right"
+                illustrations={toneOptionIllustrations}
                 options={shouldShowMonthlyFeatureOptions ? toneOptions : freeToneOptions}
                 primaryVisibleCount={TONE_PRIMARY_VISIBLE_COUNT}
                 moreOptionsLabel="עוד וייבים"
@@ -4677,6 +4756,7 @@ export default function Home({
                   description="כן = לפתוח המשך שיחה. לא = לענות ולסגור או להציב גבול."
                   headerAlign="right"
                   options={continuePreferenceOptions}
+                  warmOptionCards
                   value={continuePreference}
                   onChange={(nextValue) => {
                     trackEvent('agrees_select', { value: nextValue ?? 'unset' });

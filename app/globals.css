@@ -184,6 +184,71 @@ body {
   overflow: hidden;
 }
 
+.sb-option-card {
+  transition:
+    background-color 200ms ease-out,
+    border-color 200ms ease-out,
+    box-shadow 200ms ease-out,
+    transform 200ms ease-out;
+}
+
+.sb-option-card--default {
+  border-color: #e2d7c8;
+  color: #241d18;
+  background-color: #fffdfa;
+}
+
+.sb-option-card--selected {
+  border-color: #ff623d;
+  color: #241d18;
+  background-color: #fff6d8;
+  box-shadow: 0 6px 14px rgb(255 98 61 / 0.14);
+  transform: translateY(-1px);
+}
+
+.sb-option-card--locked {
+  border-color: #d8ad52;
+  color: #5b3a0a;
+  background-color: #fff6d8;
+}
+
+.sb-option-card__illustration {
+  transition: transform 200ms ease-out;
+}
+
+.sb-option-card__illustration--selected {
+  transform: scale(1.06);
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .sb-option-card--default:hover,
+  .sb-option-card--locked:hover {
+    transform: translateY(-1px);
+  }
+}
+
+.sb-option-card--default:hover {
+  border-color: #f3a083;
+  background-color: #fff9ea;
+}
+
+.sb-option-card--locked:hover {
+  border-color: #c79531;
+  background-color: #fff0bd;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-option-card,
+  .sb-option-card__illustration {
+    transition: none;
+  }
+
+  .sb-option-card,
+  .sb-option-card__illustration--selected {
+    transform: none;
+  }
+}
+
 /* Prevent iOS Safari focus-zoom on form controls in mobile layouts. */
 @media (max-width: 1023px) {
   input:not([type='checkbox']):not([type='radio']):not([type='range']),

@@ -1,0 +1,24 @@
+[Script Info]
+Title: SayBack TikTok Hebrew Marketing
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+WrapStyle: 2
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Hook,Arial,72,&H00FFFFFF,&H000000FF,&H00171310,&HC0171310,-1,0,0,0,100,100,0,0,3,5,0,8,65,65,90,1
+Style: Caption,Arial,58,&H00171310,&H000000FF,&H00FFFFFF,&HDCFFFFFF,-1,0,0,0,100,100,0,0,3,4,0,2,70,70,115,1
+Style: CTA,Arial,66,&H00FFFFFF,&H000000FF,&H00171310,&HE6171310,-1,0,0,0,100,100,0,0,3,5,0,2,65,65,105,1
+Style: Brand,Arial,38,&H00FFFFFF,&H000000FF,&H00F26642,&HE6F26642,-1,0,0,0,100,100,2,0,3,2,0,2,220,220,38,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:02.40,Hook,,0,0,0,,קיבלתם הודעה כזאת?
+Dialogue: 0,0:00:02.40,0:00:04.20,Hook,,0,0,0,,מה עונים בלי להילחץ?
+Dialogue: 0,0:00:04.20,0:00:07.00,Caption,,0,0,0,,במקום לכתוב ולמחוק שוב...
+Dialogue: 0,0:00:07.00,0:00:10.00,Caption,,0,0,0,,מדביקים הודעה ובוחרים וייב
+Dialogue: 0,0:00:10.00,0:00:14.80,Caption,,0,0,0,,ומקבלים 3 תשובות טבעיות בעברית
+Dialogue: 0,0:00:14.80,0:00:18.00,CTA,,0,0,0,,מה אתם שולחים — 1, 2 או 3?
+Dialogue: 1,0:00:15.10,0:00:18.00,Brand,,0,0,0,,SAYBACK • מה לענות עכשיו

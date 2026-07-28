@@ -59,17 +59,21 @@ interface GenerateRequestBody {
 type PersistedUsageLogBase = {
   uid: string;
   messageLength: number | null;
+  messageText: string | null;
   hasImage: boolean;
   context: string | null;
   tone: string | null;
   continuePreference: string | null;
   conversationBackgroundLength: number | null;
+  conversationBackgroundText: string | null;
   noReplyMode: boolean | null;
   noReplyDurationValue: number | null;
   noReplyDurationUnit: string | null;
   lastOutgoingMessageLength: number | null;
+  lastOutgoingMessageText: string | null;
   action: string | null;
   sourceReplyLength: number | null;
+  sourceReplyText: string | null;
 };
 
 export async function POST(request: Request) {
@@ -164,11 +168,13 @@ export async function POST(request: Request) {
     persistedUsageLogBase = {
       uid: authenticatedUserUid,
       messageLength: readOptionalTextLength(body.message),
+      messageText: normalizeOptionalText(body.message, 1600),
       hasImage: typeof body.imageBase64 === "string" && body.imageBase64.length > 0,
       context: normalizeOptionalText(body.context, 80),
       tone: normalizeOptionalText(body.tone, 80),
       continuePreference: normalizeOptionalText(body.continuePreference ?? null, 24),
       conversationBackgroundLength: readOptionalTextLength(body.conversationBackground),
+      conversationBackgroundText: normalizeOptionalText(body.conversationBackground, 500),
       noReplyMode: normalizeOptionalBoolean(body.noReplyMode),
       noReplyDurationValue: normalizeOptionalInteger(
         body.noReplyDurationValue,
@@ -177,8 +183,10 @@ export async function POST(request: Request) {
       ),
       noReplyDurationUnit: normalizeOptionalText(body.noReplyDurationUnit, 16),
       lastOutgoingMessageLength: readOptionalTextLength(body.lastOutgoingMessage),
+      lastOutgoingMessageText: normalizeOptionalText(body.lastOutgoingMessage, 500),
       action: normalizeOptionalText(body.action, 24),
       sourceReplyLength: readOptionalTextLength(body.sourceReply),
+      sourceReplyText: normalizeOptionalText(body.sourceReply, 500),
     };
   }
 
@@ -195,6 +203,7 @@ export async function POST(request: Request) {
       clearLocalUsageLogConversationBackgroundLength(localUsageLogId);
       if (persistedUsageLogBase) {
         persistedUsageLogBase.conversationBackgroundLength = null;
+        persistedUsageLogBase.conversationBackgroundText = null;
       }
       completeLocalUsageLog(localUsageLogId, {
         status: "error",
@@ -220,6 +229,7 @@ export async function POST(request: Request) {
       clearLocalUsageLogConversationBackgroundLength(localUsageLogId);
       if (persistedUsageLogBase) {
         persistedUsageLogBase.conversationBackgroundLength = null;
+        persistedUsageLogBase.conversationBackgroundText = null;
       }
     }
 
@@ -324,7 +334,9 @@ function schedulePersistedUsageLog(
     consumption?: GenerationConsumption | null;
     modelSource?: AIModelSource | null;
     intentLength?: number | null;
+    intentText?: string | null;
     replyCount?: number | null;
+    repliesText?: string[] | null;
     schemaValid?: boolean | null;
     error?: string | null;
   },
