@@ -1264,30 +1264,30 @@ function HomeHero({
   accountStatusLine: string;
 }) {
   return (
-    <section className="relative overflow-hidden rounded-[28px] border border-[#e2d7c8] bg-[#fffdfa] px-4 py-4 shadow-[0_20px_60px_rgba(49,23,13,0.12)] sm:rounded-[34px] sm:px-6 sm:py-5">
+    <section className="relative overflow-hidden rounded-[28px] border border-[#e2d7c8] bg-[#fffdfa] px-4 py-3 shadow-[0_20px_60px_rgba(49,23,13,0.12)] sm:rounded-[34px] sm:px-6 sm:py-5">
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-l from-[#ff5a2a] via-[#ffb089] to-[#20d6c7]" aria-hidden="true" />
-      <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0 space-y-3">
+      <div className="relative flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 space-y-2 sm:space-y-3">
           <div className="flex items-center justify-center lg:justify-start">
-            <span className="inline-flex min-h-[34px] items-center rounded-full bg-[#181411] px-4 py-1.5 text-xs font-black uppercase tracking-[0.18em] text-white shadow-[0_10px_22px_rgba(24,20,17,0.12)]">
+            <span className="inline-flex min-h-[30px] items-center rounded-full bg-[#181411] px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-white shadow-[0_10px_22px_rgba(24,20,17,0.12)] sm:min-h-[34px] sm:px-4 sm:py-1.5 sm:text-xs">
               SayBack
             </span>
           </div>
           <div className="max-w-3xl text-center lg:text-right">
-            <h1 className="sb-hero-title font-black text-[#181411]">
+            <h1 className="text-[3.25rem] leading-none font-black text-[#181411] sm:text-[4.5rem] lg:text-[5.5rem]">
               מה לענות עכשיו?
             </h1>
-            <p className="mx-auto mt-2 max-w-2xl text-base font-bold leading-7 text-[#5b4d42] sm:text-lg lg:mx-0">
+            <p className="mx-auto mt-1.5 max-w-2xl text-sm font-bold leading-6 text-[#5b4d42] sm:mt-2 sm:text-lg sm:leading-7 lg:mx-0">
               מדביקים הודעה, בוחרים וייב, ומקבלים 3 תשובות קצרות בעברית.
             </p>
           </div>
         </div>
 
-        <div className="flex w-full flex-col gap-2 lg:w-auto lg:min-w-72">
+        <div className="flex w-full flex-col gap-1.5 sm:gap-2 lg:w-auto lg:min-w-72">
           <button
             type="button"
             onClick={onStart}
-            className={`inline-flex min-h-[52px] w-full items-center justify-center rounded-full bg-[#ff5a2a] px-6 py-3 text-base font-black text-white shadow-[0_14px_26px_rgba(255,90,42,0.26)] transition hover:-translate-y-0.5 hover:bg-[#f04d1f] active:translate-y-0 lg:w-auto ${lightSurfaceFocusClass}`}
+            className={`inline-flex min-h-[48px] w-full items-center justify-center rounded-full bg-[#ff5a2a] px-5 py-2.5 text-base font-black text-white shadow-[0_14px_26px_rgba(255,90,42,0.26)] transition hover:-translate-y-0.5 hover:bg-[#f04d1f] active:translate-y-0 sm:min-h-[52px] sm:px-6 sm:py-3 lg:w-auto ${lightSurfaceFocusClass}`}
           >
             {ctaLabel}
           </button>
@@ -1297,11 +1297,11 @@ function HomeHero({
         </div>
       </div>
 
-      <div className="relative mt-4 grid gap-2 sm:grid-cols-3">
+      <div className="relative mt-3 grid grid-cols-3 gap-1.5 sm:mt-4 sm:gap-2">
         {['3 שימושים חינם', 'לא שומרים הודעות', 'עברית טבעית'].map((item) => (
           <div
             key={item}
-            className="rounded-[18px] border border-[#e4d8c8] bg-[#f8f3eb] px-3 py-2.5 text-center text-sm font-black text-[#2c241f]"
+            className="flex min-h-[42px] items-center justify-center rounded-[16px] border border-[#e4d8c8] bg-[#f8f3eb] px-2 py-2 text-center text-xs leading-4 font-black text-[#2c241f] sm:rounded-[18px] sm:px-3 sm:py-2.5 sm:text-sm"
           >
             {item}
           </div>
@@ -1356,11 +1356,11 @@ function ExampleCard({
     <button
       type="button"
       onClick={() => onUse(scenario)}
-      className={`group flex min-h-44 w-full cursor-pointer flex-col justify-between rounded-[28px] border-2 border-black bg-[#fff6d8] p-5 text-right shadow-[0_10px_0_0_#111111] transition duration-200 hover:-translate-y-1 hover:bg-[#f7ff4f] touch-manipulation ${darkSurfaceFocusClass}`}
+      className={`group flex min-h-44 w-full cursor-pointer touch-manipulation flex-col justify-between rounded-[22px] border border-[#e4d8c8] bg-[#fbf7f1] p-4 text-right shadow-[0_10px_24px_rgba(49,23,13,0.06)] transition duration-200 hover:-translate-y-0.5 hover:border-[#ffc4b5] hover:bg-[#fff8ef] ${lightSurfaceFocusClass}`}
     >
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3 text-xs font-black text-neutral-700">
-          <span className="rounded-full border border-black bg-white px-3 py-1">
+        <div className="flex items-center justify-between gap-3 text-xs font-black text-[#5b4d42]">
+          <span className="rounded-full border border-[#ded2c3] bg-white px-3 py-1 text-[#463b33]">
             {scenario.context}
           </span>
           <div className="flex items-center gap-2">
@@ -1368,12 +1368,12 @@ function ExampleCard({
             <span className={interactiveBadgeClass}>לחיץ</span>
           </div>
         </div>
-        <h3 className="text-lg font-black text-black">{scenario.title}</h3>
-        <p className="text-sm leading-6 text-neutral-800">
+        <h3 className="text-lg font-black text-[#181411]">{scenario.title}</h3>
+        <p className="text-sm leading-6 text-[#5b4d42]">
           &quot;{scenario.message}&quot;
         </p>
       </div>
-      <span className="mt-4 text-sm font-black text-black">לחיצה אחת, והדוגמה נכנסת לטופס</span>
+      <span className="mt-4 text-sm font-black text-[#7a2d19]">לחיצה אחת, והדוגמה נכנסת לטופס</span>
     </button>
   );
 }
@@ -1476,7 +1476,11 @@ function ReplyActions({
           }
           setIsEditing((current) => !current);
         }}
-        className={`inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#b8e7df] bg-[#e3fbf7] px-3.5 py-2 leading-5 text-[#123a36] transition hover:bg-[#cef6ef] ${whiteSurfaceFocusClass}`}
+        className={`inline-flex min-h-[42px] items-center justify-center rounded-full border px-3.5 py-2 leading-5 transition ${
+          isEditing
+            ? 'border-[#b8e7df] bg-[#e3fbf7] text-[#123a36] hover:bg-[#cef6ef]'
+            : 'border-[#ded2c3] bg-white text-[#6d6259] hover:bg-[#f8f3eb]'
+        } ${whiteSurfaceFocusClass}`}
       >
         {isEditing ? 'שמור עריכה' : 'ערוך'}
       </button>
@@ -1484,7 +1488,7 @@ function ReplyActions({
       <button
         type="button"
         onClick={() => onShare(displayedReply, index)}
-        className={`inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#ded2c3] bg-white px-3.5 py-2 leading-5 text-[#241d18] transition hover:bg-[#f8f3eb] ${whiteSurfaceFocusClass}`}
+        className={`inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#e2d7c8] bg-transparent px-3.5 py-2 leading-5 text-[#6d6259] transition hover:bg-[#f8f3eb] ${whiteSurfaceFocusClass}`}
       >
         שתף
       </button>
@@ -1494,7 +1498,7 @@ function ReplyActions({
         target="_blank"
         rel="noreferrer"
         onClick={() => trackEvent('reply_share', { index, method: 'whatsapp' })}
-        className={`inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#ded2c3] bg-[#f8f3eb] px-3.5 py-2 leading-5 text-[#241d18] transition hover:bg-[#efe5d8] ${whiteSurfaceFocusClass}`}
+        className={`inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#e2d7c8] bg-transparent px-3.5 py-2 leading-5 text-[#6d6259] transition hover:bg-[#f8f3eb] ${whiteSurfaceFocusClass}`}
       >
         וואטסאפ
       </a>
@@ -1529,9 +1533,10 @@ function ReplyCard({
   const displayedReply = isEditing ? draftReply : reply;
 
   return (
-    <article className="relative w-full min-w-0 overflow-hidden rounded-[24px] border border-[#ded2c3] bg-white p-3.5 shadow-[0_16px_40px_rgba(49,23,13,0.09)] sm:p-4">
+    <article className="relative w-full min-w-0 overflow-hidden rounded-[24px] border border-[#ded2c3] bg-[#fffdfa] p-3.5 pr-5 shadow-[0_12px_30px_rgba(49,23,13,0.07)] sm:p-4 sm:pr-5">
+      <div className="absolute inset-y-0 right-0 w-1.5 bg-gradient-to-b from-[#ff5a2a] via-[#ff8b67] to-[#ffc4b5]" aria-hidden="true" />
       <div className="mb-3 flex items-center justify-between gap-2">
-        <span className="rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1 text-xs font-black text-[#7a2d19]">
+        <span className="rounded-full border border-[#e4d8c8] bg-[#f8f3eb] px-3 py-1 text-xs font-black text-[#7a6e64]">
           אפשרות {index + 1}
         </span>
         {isUpdating ? (
@@ -1543,10 +1548,10 @@ function ReplyCard({
         <textarea
           value={draftReply}
           onChange={(event) => setDraftReply(event.target.value)}
-          className={`min-h-28 w-full resize-none rounded-[20px] border border-[#ded2c3] bg-[#fffdfa] px-3 py-3 text-base font-bold leading-7 text-[#241d18] outline-none ${whiteSurfaceFocusClass}`}
+          className={`min-h-28 w-full resize-none rounded-[20px] border border-[#ded2c3] bg-white px-3 py-3 text-[1.05rem] leading-8 font-black text-[#241d18] outline-none sm:text-lg ${whiteSurfaceFocusClass}`}
         />
       ) : (
-        <p className="text-base leading-7 font-bold text-[#241d18]">{reply}</p>
+        <p className="text-[1.05rem] leading-8 font-black text-[#241d18] sm:text-lg">{reply}</p>
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5 text-sm font-bold">
@@ -5091,17 +5096,17 @@ export default function Home({
           <section
             ref={examplesSectionRef}
             id="examples-section"
-            className="mobile-section-anchor w-full min-w-0 rounded-[30px] border-2 border-black bg-[#d34f24] p-4 shadow-[0_10px_0_0_#111111] sm:rounded-[36px] sm:p-6 sm:shadow-[0_12px_0_0_#111111]"
+            className="mobile-section-anchor w-full min-w-0 rounded-[28px] border border-[#e2d7c8] bg-[#fffdfa] p-4 shadow-[0_18px_48px_rgba(49,23,13,0.08)] sm:rounded-[32px] sm:p-6"
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="inline-flex min-h-[32px] items-center rounded-full border-2 border-black bg-white px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-[#9a2f10] lg:hidden">
+                <p className="inline-flex min-h-[32px] items-center rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-[#7a2d19] lg:hidden">
                   {mobileSectionNavItems[2].stepLabel}
                 </p>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-black">דוגמאות פתיחה</p>
-                <h2 className="mt-2 text-2xl font-black text-black sm:text-3xl">4 מצבים שמכירים מהחיים</h2>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#a45334]">דוגמאות פתיחה</p>
+                <h2 className="mt-2 text-2xl font-black text-[#181411] sm:text-3xl">4 מצבים שמכירים מהחיים</h2>
               </div>
-              <p className="max-w-xl text-sm font-bold leading-6 text-black">
+              <p className="max-w-xl text-sm font-bold leading-6 text-[#6d6259]">
                 לחיצה על כרטיס מכניסה את הדוגמה לטופס ותיתן לך נקודת פתיחה מהירה.
               </p>
             </div>
