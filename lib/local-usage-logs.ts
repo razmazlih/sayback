@@ -39,6 +39,7 @@ export interface LocalUsageLogEntry {
   hasImage: boolean;
   context: string | null;
   tone: string | null;
+  goal: string | null;
   continuePreference: string | null;
   conversationBackgroundLength: number | null;
   noReplyMode: boolean | null;
@@ -63,6 +64,7 @@ type StartLocalUsageLogInput = {
   hasImage?: boolean;
   context?: string;
   tone?: string;
+  goal?: string | null;
   continuePreference?: string | null;
   conversationBackgroundLength?: number | null;
   conversationBackgroundText?: string | null;
@@ -112,6 +114,7 @@ export function startLocalUsageLog(input: StartLocalUsageLogInput) {
     conversationBackgroundText: normalizeText(input.conversationBackgroundText, LOCAL_CONTEXT_PREVIEW_LIMIT),
     context: normalizeText(input.context, 80),
     tone: normalizeText(input.tone, 80),
+    goal: normalizeText(input.goal ?? null, 80),
     continuePreference: normalizeText(input.continuePreference ?? null, 24),
     conversationBackgroundLength: normalizeLength(input.conversationBackgroundLength),
     lastOutgoingMessageText: normalizeText(input.lastOutgoingMessageText, LOCAL_CONTEXT_PREVIEW_LIMIT),

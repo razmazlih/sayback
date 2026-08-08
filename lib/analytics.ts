@@ -11,6 +11,7 @@ export type AnalyticsEventName =
   | "screenshot_upload"
   | "situation_select"
   | "tone_select"
+  | "goal_select"
   | "agrees_select"
   | "generate_click"
   | "generate_success"
@@ -18,6 +19,10 @@ export type AnalyticsEventName =
   | "generate_blocked_402"
   | "reply_copy"
   | "refine_click"
+  | "custom_refine_open"
+  | "custom_refine_submit"
+  | "custom_refine_preset_select"
+  | "sticky_generate_click"
   | "paywall_view"
   | "plan_select"
   | "checkout_start"
@@ -65,6 +70,9 @@ type AnalyticsPayloadMap = {
   tone_select: AnalyticsPayload & {
     value?: string;
   };
+  goal_select: AnalyticsPayload & {
+    value?: string;
+  };
   agrees_select: AnalyticsPayload & {
     value?: string;
   };
@@ -76,6 +84,10 @@ type AnalyticsPayloadMap = {
   refine_click: AnalyticsPayload & {
     action: RefineAction;
   };
+  custom_refine_open: AnalyticsPayload;
+  custom_refine_submit: AnalyticsPayload;
+  custom_refine_preset_select: AnalyticsPayload;
+  sticky_generate_click: AnalyticsPayload;
   paywall_view: AnalyticsPayload;
   plan_select: AnalyticsPayload & {
     plan?: CheckoutPlan;

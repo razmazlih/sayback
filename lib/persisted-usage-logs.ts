@@ -21,6 +21,7 @@ export type PersistedUsageLogInput = {
   hasImage: boolean;
   context?: string | null;
   tone?: string | null;
+  goal?: string | null;
   continuePreference?: string | null;
   conversationBackgroundLength?: number | null;
   conversationBackgroundText?: string | null;
@@ -52,6 +53,7 @@ export type PersistedUsageLogEntry = {
   hasImage: boolean;
   context: string | null;
   tone: string | null;
+  goal: string | null;
   continuePreference: string | null;
   conversationBackgroundLength: number | null;
   conversationBackgroundText: string | null;
@@ -140,6 +142,7 @@ export async function persistUsageLog(input: PersistedUsageLogInput) {
     hasImage: input.hasImage === true,
     context: normalizeText(input.context ?? null, 80),
     tone: normalizeText(input.tone ?? null, 80),
+    goal: normalizeText(input.goal ?? null, 80),
     continuePreference: normalizeText(input.continuePreference ?? null, 24),
     conversationBackgroundLength: normalizeLength(input.conversationBackgroundLength),
     conversationBackgroundText: normalizeText(
@@ -214,6 +217,7 @@ function normalizeEntry(id: string, data: unknown): PersistedUsageLogEntry | nul
     hasImage: document.hasImage === true,
     context: readString(document.context),
     tone: readString(document.tone),
+    goal: readString(document.goal),
     continuePreference: readString(document.continuePreference),
     conversationBackgroundLength:
       normalizeLength(document.conversationBackgroundLength) ??

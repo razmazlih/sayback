@@ -45,6 +45,7 @@ interface GenerateRequestBody {
   imageBase64?: string;
   context?: string;
   tone?: string;
+  goal?: string;
   continuePreference?: string | null;
   conversationBackground?: string;
   noReplyMode?: boolean;
@@ -63,6 +64,7 @@ type PersistedUsageLogBase = {
   hasImage: boolean;
   context: string | null;
   tone: string | null;
+  goal: string | null;
   continuePreference: string | null;
   conversationBackgroundLength: number | null;
   conversationBackgroundText: string | null;
@@ -153,6 +155,7 @@ export async function POST(request: Request) {
       hasImage: typeof body.imageBase64 === "string" && body.imageBase64.length > 0,
       context: body.context,
       tone: body.tone,
+      goal: body.goal ?? null,
       continuePreference: body.continuePreference ?? null,
       conversationBackgroundLength: readOptionalTextLength(body.conversationBackground),
       conversationBackgroundText: body.conversationBackground,
@@ -172,6 +175,7 @@ export async function POST(request: Request) {
       hasImage: typeof body.imageBase64 === "string" && body.imageBase64.length > 0,
       context: normalizeOptionalText(body.context, 80),
       tone: normalizeOptionalText(body.tone, 80),
+      goal: normalizeOptionalText(body.goal, 80),
       continuePreference: normalizeOptionalText(body.continuePreference ?? null, 24),
       conversationBackgroundLength: readOptionalTextLength(body.conversationBackground),
       conversationBackgroundText: normalizeOptionalText(body.conversationBackground, 500),

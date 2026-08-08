@@ -65,6 +65,15 @@ type ToneOption =
   | 'קליל'
   | 'ענייני';
 type ContinuePreference = 'כן' | 'לא';
+type IncomingGoal =
+  | 'להמשיך שיחה'
+  | 'לקבוע זמן'
+  | 'לבקש הבהרה'
+  | 'להציב גבול'
+  | 'לסגור בנימוס'
+  | 'להתמקח / לקדם סגירה';
+type NoReplyGoal = 'תזכורת עדינה' | 'בדיקת סטטוס' | 'שחרור מכבד';
+type Goal = IncomingGoal | NoReplyGoal;
 type ComposeMode = 'incoming' | 'no_reply';
 type NoReplyDurationUnit = 'minutes' | 'hours' | 'days';
 type ReplyAction = 'softer' | 'sharper' | 'retry';
@@ -83,6 +92,7 @@ type ExampleScenario = {
   message: string;
   context: ContextOption;
   tone: ToneOption;
+  goal?: IncomingGoal;
   continuePreference?: ContinuePreference | null;
 };
 
@@ -107,12 +117,14 @@ type GenerateRequest = {
   imageBase64: string | null;
   context: ContextOption;
   tone: ToneOption;
+  goal?: Goal;
   continuePreference?: ContinuePreference | null;
   conversationBackground?: string;
   noReplyMode?: boolean;
   noReplyDurationValue?: number;
   noReplyDurationUnit?: NoReplyDurationUnit;
   lastOutgoingMessage?: string;
+  refineInstruction?: string;
   action?: ReplyAction;
   sourceReply?: string;
 };
@@ -255,6 +267,23 @@ const toneOptions: ToneOption[] = [
   'קליל',
   'ענייני',
 ];
+const incomingGoalOptions: IncomingGoal[] = [
+  'להמשיך שיחה',
+  'לקבוע זמן',
+  'לבקש הבהרה',
+  'להציב גבול',
+  'לסגור בנימוס',
+  'להתמקח / לקדם סגירה',
+];
+const noReplyGoalOptions: NoReplyGoal[] = ['תזכורת עדינה', 'בדיקת סטטוס', 'שחרור מכבד'];
+const customRefinePresets = [
+  'קצר יותר',
+  'טבעי יותר',
+  'עם אימוג׳י',
+  'בלי אימוג׳י',
+  'להציב גבול',
+  'לקבוע זמן',
+] as const;
 const CONTEXT_PRIMARY_VISIBLE_COUNT = 6;
 const TONE_PRIMARY_VISIBLE_COUNT = 5;
 const freeContextOptions = contextOptions.slice(0, CONTEXT_PRIMARY_VISIBLE_COUNT);
@@ -277,7 +306,6 @@ const toneOptionIllustrations: Partial<Record<ToneOption, StaticImageData>> = {
   מצחיק: funnySmileIllustration,
   פלרטטני: flirtySparkleHeartIllustration,
 };
-const continuePreferenceOptions: ContinuePreference[] = ['כן', 'לא'];
 const composeModeOptions: Array<{ value: ComposeMode; label: string; description: string }> = [
   {
     value: 'incoming',
@@ -425,6 +453,7 @@ const examples: ExampleScenario[] = [
     message: 'היי, מה קורה? נעלמתי קצת השבוע אבל חשבתי עלייך',
     context: 'קראש',
     tone: 'פלרטטני',
+    goal: 'להמשיך שיחה',
     continuePreference: 'כן',
   },
   {
@@ -433,6 +462,7 @@ const examples: ExampleScenario[] = [
     message: 'וואלה עברתי ליד המקום שלנו ונזכרתי בך. איך את?',
     context: 'אקס',
     tone: 'ישיר',
+    goal: 'לסגור בנימוס',
     continuePreference: 'לא',
   },
   {
@@ -441,6 +471,7 @@ const examples: ExampleScenario[] = [
     message: 'ראיתי את ההצעה, אם תוריד בעוד 20% אני סוגר עכשיו',
     context: 'לקוח',
     tone: 'עדין',
+    goal: 'להתמקח / לקדם סגירה',
     continuePreference: 'כן',
   },
   {
@@ -449,6 +480,7 @@ const examples: ExampleScenario[] = [
     message: 'אחרון כמה? בא לקחת היום אם יש מחיר טוב',
     context: 'יד2',
     tone: 'זורם',
+    goal: 'להתמקח / לקדם סגירה',
     continuePreference: 'כן',
   },
 ];
@@ -1382,11 +1414,24 @@ function ReplyRefineMenu({
   index,
   isBusy,
   onAdjust,
+  onCustomAdjust,
 }: {
   index: number;
   isBusy: boolean;
   onAdjust: (index: number, action: ReplyAction) => void;
+  onCustomAdjust: (index: number, instruction: string) => void;
 }) {
+  const [instruction, setInstruction] = useState('');
+
+  const submitCustomAdjustment = () => {
+    const nextInstruction = instruction.trim();
+    if (!nextInstruction) {
+      return;
+    }
+
+    onCustomAdjust(index, nextInstruction);
+  };
+
   return (
     <details className="group w-full min-w-0 rounded-[18px] border border-dashed border-[#d8cab9] bg-[#f8f3eb] transition-colors duration-200 open:bg-[#fff8ef] sm:w-auto sm:flex-1 sm:min-w-[11rem]">
       <summary
@@ -1427,6 +1472,45 @@ function ReplyRefineMenu({
               >
                 ניסוח חדש
               </button>
+            </div>
+            <div className="mt-3 border-t border-[#e2d7c8] pt-3">
+              <label htmlFor={`custom-refine-${index}`} className="text-xs font-black text-[#241d18]">
+                מה לשנות?
+              </label>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {customRefinePresets.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => {
+                      setInstruction(preset);
+                      trackEvent('custom_refine_preset_select', { index, preset });
+                    }}
+                    className={`min-h-[34px] rounded-full border border-[#ded2c3] bg-white px-2.5 py-1 text-xs font-black text-[#5b4d42] transition hover:bg-[#fff8ef] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 flex gap-2">
+                <input
+                  id={`custom-refine-${index}`}
+                  value={instruction}
+                  onFocus={() => trackEvent('custom_refine_open', { index })}
+                  onChange={(event) => setInstruction(event.target.value.slice(0, 220))}
+                  placeholder="למשל: שיהיה קצר וחם יותר"
+                  className={`min-h-[42px] min-w-0 flex-1 rounded-xl border border-[#ded2c3] bg-white px-3 py-2 text-sm font-bold text-[#241d18] outline-none ${whiteSurfaceFocusClass}`}
+                />
+                <button
+                  type="button"
+                  disabled={isBusy || !instruction.trim()}
+                  onClick={submitCustomAdjustment}
+                  className={`min-h-[42px] shrink-0 rounded-xl bg-[#181411] px-3 py-2 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                >
+                  שפר
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1512,6 +1596,7 @@ function ReplyCard({
   onCopy,
   onShare,
   onAdjust,
+  onCustomAdjust,
   onEdit,
   isBusy,
   isUpdating,
@@ -1522,6 +1607,7 @@ function ReplyCard({
   onCopy: (reply: string, index: number) => void;
   onShare: (reply: string, index: number) => void;
   onAdjust: (index: number, action: ReplyAction) => void;
+  onCustomAdjust: (index: number, instruction: string) => void;
   onEdit: (reply: string, index: number) => void;
   isBusy: boolean;
   isUpdating: boolean;
@@ -1566,7 +1652,12 @@ function ReplyCard({
           onShare={onShare}
           onEdit={onEdit}
         />
-        <ReplyRefineMenu index={index} isBusy={isBusy} onAdjust={onAdjust} />
+        <ReplyRefineMenu
+          index={index}
+          isBusy={isBusy}
+          onAdjust={onAdjust}
+          onCustomAdjust={onCustomAdjust}
+        />
       </div>
     </article>
   );
@@ -2464,6 +2555,7 @@ export default function Home({
   const [conversationBackground, setConversationBackground] = useState('');
   const [context, setContext] = useState<ContextOption>('קראש');
   const [tone, setTone] = useState<ToneOption>('זורם');
+  const [goal, setGoal] = useState<Goal>('להמשיך שיחה');
   const [continuePreference, setContinuePreference] = useState<ContinuePreference | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [imageName, setImageName] = useState<string | null>(null);
@@ -2544,6 +2636,9 @@ export default function Home({
     : isNoReplyMode
       ? 'קבלו 3 פולו-אפים לשליחה'
       : 'קבלו 3 תשובות עכשיו';
+  const canUseStickyGenerate = isNoReplyMode
+    ? Boolean(trimmedLastOutgoingMessage) && Number.isInteger(parsedNoReplyDuration) && parsedNoReplyDuration >= 1
+    : Boolean(trimmedMessage || imageBase64);
   const heroGenerateCtaLabel = 'יאללה, מתחילים לענות';
   const heroStartUsingCtaLabel = 'התחילו להשתמש עכשיו';
   const mobileComposeHelper = useMemo(() => {
@@ -4034,6 +4129,7 @@ export default function Home({
     trackEvent('generate_click', {
       context,
       tone,
+      goal,
       compose_mode: composeMode,
       continue_preference: effectiveContinuePreference ?? 'unspecified',
       has_image: !isNoReplyMode && Boolean(imageBase64),
@@ -4049,6 +4145,7 @@ export default function Home({
       imageBase64: isNoReplyMode ? null : imageBase64,
       context,
       tone,
+      goal,
       continuePreference: effectiveContinuePreference,
       conversationBackground: allowedConversationBackground || undefined,
       noReplyMode: isNoReplyMode,
@@ -4078,6 +4175,7 @@ export default function Home({
       index,
       context,
       tone,
+      goal,
       compose_mode: composeMode,
       continue_preference: effectiveContinuePreference ?? 'unspecified',
       has_image: !isNoReplyMode && Boolean(imageBase64),
@@ -4104,6 +4202,7 @@ export default function Home({
         imageBase64: isNoReplyMode ? null : imageBase64,
         context,
         tone,
+        goal,
         continuePreference: effectiveContinuePreference,
         conversationBackground: allowedConversationBackground || undefined,
         noReplyMode: isNoReplyMode,
@@ -4114,6 +4213,44 @@ export default function Home({
         noReplyDurationUnit: isNoReplyMode ? noReplyDurationUnit : undefined,
         lastOutgoingMessage: isNoReplyMode ? trimmedLastOutgoingMessage : undefined,
         action,
+        sourceReply: result.replies[index],
+      },
+      { replyIndex: index },
+    );
+  }
+
+  async function handleCustomReplyAdjustment(index: number, refineInstruction: string) {
+    if (!result?.replies[index] || !refineInstruction.trim()) {
+      return;
+    }
+
+    trackEvent('custom_refine_submit', { index });
+    const trimmedMessage = message.trim().slice(0, MAX_INCOMING_MESSAGE_LENGTH);
+    const trimmedLastOutgoingMessage = lastOutgoingMessage
+      .trim()
+      .slice(0, MAX_LAST_OUTGOING_MESSAGE_LENGTH);
+    const parsedNoReplyDuration = Number.parseInt(noReplyDurationValue, 10);
+    const allowedConversationBackground = hasMonthlyFeatureAccess
+      ? conversationBackground.trim().slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH)
+      : '';
+
+    await runGeneration(
+      {
+        message: isNoReplyMode ? '' : trimmedMessage,
+        imageBase64: isNoReplyMode ? null : imageBase64,
+        context,
+        tone,
+        goal,
+        continuePreference: isNoReplyMode ? null : continuePreference,
+        conversationBackground: allowedConversationBackground || undefined,
+        noReplyMode: isNoReplyMode,
+        noReplyDurationValue:
+          isNoReplyMode && Number.isInteger(parsedNoReplyDuration)
+            ? parsedNoReplyDuration
+            : undefined,
+        noReplyDurationUnit: isNoReplyMode ? noReplyDurationUnit : undefined,
+        lastOutgoingMessage: isNoReplyMode ? trimmedLastOutgoingMessage : undefined,
+        refineInstruction: refineInstruction.trim().slice(0, 220),
         sourceReply: result.replies[index],
       },
       { replyIndex: index },
@@ -4292,6 +4429,7 @@ export default function Home({
     setConversationBackground('');
     setContext(scenario.context);
     setTone(scenario.tone);
+    setGoal(scenario.goal ?? 'להמשיך שיחה');
     setContinuePreference(scenario.continuePreference ?? null);
     setShowDeepLinkPrefillBanner(false);
     setRequestError(null);
@@ -4463,7 +4601,12 @@ export default function Home({
                         key={option.value}
                         type="button"
                         aria-pressed={isSelected}
-                        onClick={() => setComposeMode(option.value)}
+                        onClick={() => {
+                          setComposeMode(option.value);
+                          setGoal(
+                            option.value === 'no_reply' ? 'תזכורת עדינה' : 'להמשיך שיחה',
+                          );
+                        }}
                         className={[
                           `min-h-[48px] rounded-2xl border px-3 py-2 text-right transition ${lightSurfaceFocusClass}`,
                           isSelected
@@ -4731,53 +4874,61 @@ export default function Home({
               />
 
               <ChipGroup
-                title="איך תרצו לענות?"
-                description="בחרו את הווייב שתרצו לשדר בתשובה."
+                title={isNoReplyMode ? 'מה המטרה של הפולו-אפ?' : 'מה המטרה שלך?'}
+                description={
+                  isNoReplyMode
+                    ? 'ננסח פולו-אפ שנכון לרגע הזה.'
+                    : 'כך שלוש התשובות יגיעו בדיוק לאן שרצית.'
+                }
                 headerAlign="right"
-                illustrations={toneOptionIllustrations}
-                options={shouldShowMonthlyFeatureOptions ? toneOptions : freeToneOptions}
-                primaryVisibleCount={TONE_PRIMARY_VISIBLE_COUNT}
-                moreOptionsLabel="עוד וייבים"
-                lockedOptions={hasUnlimitedAccess ? [] : monthlyOnlyToneOptions}
-                lockedOptionsPreviewLabel="חודשי"
-                lockedOptionsHint="הווייבים המורחבים פתוחים במסלול ללא הגבלה חודשי."
-                lockedOptionsNoticeTitle={MONTHLY_LOCK_COPY.tone.title}
-                lockedOptionsNoticeBody={MONTHLY_LOCK_COPY.tone.body}
-                lockedOptionsNoticeCta="לפתוח ללא הגבלה חודשי"
-                showMoreOptionsSearch={false}
-                onLockedOptionsNoticeCtaClick={openPaywall}
-                value={tone}
+                options={isNoReplyMode ? noReplyGoalOptions : incomingGoalOptions}
+                primaryVisibleCount={isNoReplyMode ? 3 : 6}
+                warmOptionCards
+                value={goal}
                 onChange={(nextValue) => {
                   if (nextValue) {
-                    trackEvent('tone_select', { value: nextValue });
-                    setTone(nextValue);
+                    trackEvent('goal_select', { value: nextValue, compose_mode: composeMode });
+                    setGoal(nextValue);
                   }
                 }}
               />
 
-              {!isNoReplyMode ? (
-                <ChipGroup
-                  title="להמשיך את השיחה?"
-                  description="כן = לפתוח המשך שיחה. לא = לענות ולסגור או להציב גבול."
-                  headerAlign="right"
-                  options={continuePreferenceOptions}
-                  warmOptionCards
-                  value={continuePreference}
-                  onChange={(nextValue) => {
-                    trackEvent('agrees_select', { value: nextValue ?? 'unset' });
-                    setContinuePreference(nextValue);
-                  }}
-                  helperText={
-                    continuePreference
-                      ? continuePreference === 'כן'
-                        ? 'ננסח תשובות שמחזירות את השיחה קדימה.'
-                        : 'ננסח תשובות שסוגרות בנימוס או מציבות גבול.'
-                      : 'אופציונלי לגמרי, אפשר להמשיך גם בלי לבחור.'
-                  }
-                  optional
-                  allowEmpty
-                />
-              ) : null}
+              <details className="group rounded-[22px] border border-dashed border-[#d8cab9] bg-[#f8f3eb] transition-colors duration-200 open:bg-[#fff8ef]">
+                <summary
+                  className={`flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-black text-[#241d18] marker:content-none ${lightSurfaceFocusClass}`}
+                >
+                  <span>דיוק נוסף (אופציונלי)</span>
+                  <span className="text-xs transition-transform duration-200 group-open:rotate-180">⌄</span>
+                </summary>
+                <div className="sb-accordion-content">
+                  <div className="sb-accordion-content-inner px-3 pb-3 pt-1">
+                    <ChipGroup
+                      title="איך תרצו לענות?"
+                      description="בחרו את הווייב שתרצו לשדר בתשובה."
+                      headerAlign="right"
+                      illustrations={toneOptionIllustrations}
+                      options={shouldShowMonthlyFeatureOptions ? toneOptions : freeToneOptions}
+                      primaryVisibleCount={TONE_PRIMARY_VISIBLE_COUNT}
+                      moreOptionsLabel="עוד וייבים"
+                      lockedOptions={hasUnlimitedAccess ? [] : monthlyOnlyToneOptions}
+                      lockedOptionsPreviewLabel="חודשי"
+                      lockedOptionsHint="הווייבים המורחבים פתוחים במסלול ללא הגבלה חודשי."
+                      lockedOptionsNoticeTitle={MONTHLY_LOCK_COPY.tone.title}
+                      lockedOptionsNoticeBody={MONTHLY_LOCK_COPY.tone.body}
+                      lockedOptionsNoticeCta="לפתוח ללא הגבלה חודשי"
+                      showMoreOptionsSearch={false}
+                      onLockedOptionsNoticeCtaClick={openPaywall}
+                      value={tone}
+                      onChange={(nextValue) => {
+                        if (nextValue) {
+                          trackEvent('tone_select', { value: nextValue });
+                          setTone(nextValue);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              </details>
             </div>
 
             <div className="hidden sm:flex sm:flex-row sm:items-center sm:justify-between sm:gap-3">
@@ -4901,6 +5052,7 @@ export default function Home({
                       onCopy={handleCopy}
                       onShare={handleShare}
                       onAdjust={handleReplyAction}
+                      onCustomAdjust={handleCustomReplyAdjustment}
                       onEdit={handleReplyEdit}
                     />
                   ))}
@@ -5141,6 +5293,27 @@ export default function Home({
           </div>
         </footer>
       </div>
+
+      {canUseStickyGenerate ? (
+        <div className="fixed inset-x-3 bottom-0 z-30 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:hidden">
+          <div className="mx-auto flex max-w-md items-center gap-2 rounded-[20px] border border-[#e2d7c8] bg-[#fffdfa]/95 p-2 shadow-[0_12px_32px_rgba(49,23,13,0.18)] backdrop-blur">
+            <p className="min-w-0 flex-1 truncate px-1 text-xs font-black text-[#5b4d42]">
+              {context} · {goal} · {tone}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                trackEvent('sticky_generate_click', { context, goal, tone, compose_mode: composeMode });
+                void handleMainSubmit();
+              }}
+              disabled={isGenerating || !isSessionReady}
+              className={`min-h-[48px] shrink-0 rounded-[15px] bg-[#ff5a2a] px-4 py-2 text-sm font-black text-white shadow-[0_8px_18px_rgba(255,90,42,0.24)] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+            >
+              {isLoading ? 'מכינים...' : 'קבלו 3 תשובות'}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {!billingBypassEnabled ? (
         <PaywallModal

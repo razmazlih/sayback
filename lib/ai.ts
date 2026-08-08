@@ -32,6 +32,18 @@ const TONE_OPTIONS = [
   "ענייני",
 ] as const;
 const CONTINUE_PREFERENCE_OPTIONS = ["כן", "לא"] as const;
+export const GOAL_OPTIONS = [
+  "להמשיך שיחה",
+  "לקבוע זמן",
+  "לבקש הבהרה",
+  "להציב גבול",
+  "לסגור בנימוס",
+  "להתמקח / לקדם סגירה",
+  "תזכורת עדינה",
+  "בדיקת סטטוס",
+  "שחרור מכבד",
+] as const;
+const FOLLOW_UP_GOAL_OPTIONS = ["תזכורת עדינה", "בדיקת סטטוס", "שחרור מכבד"] as const;
 const REPLY_ACTION_OPTIONS = ["softer", "sharper", "retry"] as const;
 const NO_REPLY_DURATION_UNITS = ["minutes", "hours", "days"] as const;
 
@@ -44,6 +56,8 @@ const MAX_IMAGE_LENGTH = 10_000_000;
 type ContextOption = (typeof CONTEXT_OPTIONS)[number];
 type ToneOption = (typeof TONE_OPTIONS)[number];
 type ContinuePreferenceOption = (typeof CONTINUE_PREFERENCE_OPTIONS)[number];
+export type GoalOption = (typeof GOAL_OPTIONS)[number];
+type FollowUpGoalOption = (typeof FOLLOW_UP_GOAL_OPTIONS)[number];
 type ReplyActionOption = (typeof REPLY_ACTION_OPTIONS)[number];
 type NoReplyDurationUnit = (typeof NO_REPLY_DURATION_UNITS)[number];
 
@@ -84,6 +98,7 @@ export interface GenerateRepliesInput {
   imageBase64?: string;
   context?: string;
   tone?: string;
+  goal?: string;
   continuePreference?: string | null;
   conversationBackground?: string;
   noReplyMode?: boolean;
@@ -220,6 +235,7 @@ export async function generateRepliesWithModelSource(
   const message = normalizeMessage(input.message);
   const context = normalizeContext(input.context);
   const tone = normalizeTone(input.tone);
+  const goal = normalizeGoal(input.goal);
   const continuePreference = normalizeContinuePreference(input.continuePreference);
   const conversationBackground = normalizeOptionalText(
     input.conversationBackground,
@@ -241,7 +257,15 @@ export async function generateRepliesWithModelSource(
   });
   const imageUrl = normalizeImage(input.imageBase64);
 
+  if (input.refineInstruction !== undefined && !normalizeOptionalText(input.refineInstruction, 220)) {
+    throw new AIRequestError("כתבו מה תרצו לשנות בניסוח.", 400);
+  }
+
   if (noReplyMode) {
+    if (goal && !FOLLOW_UP_GOAL_OPTIONS.includes(goal as FollowUpGoalOption)) {
+      throw new AIRequestError('המטרה שנבחרה לא מתאימה למצב "מחכה לתשובה".', 400);
+    }
+
     if (imageUrl) {
       throw new AIRequestError(
         'במצב "מחכה לתשובה" אפשר לשלוח טקסט בלבד, בלי צילום מסך.',
@@ -269,10 +293,15 @@ export async function generateRepliesWithModelSource(
     );
   }
 
+  if (!noReplyMode && goal && FOLLOW_UP_GOAL_OPTIONS.includes(goal as FollowUpGoalOption)) {
+    throw new AIRequestError('מטרת פולו־אפ זמינה רק במצב "מחכה לתשובה".', 400);
+  }
+
   const presetResult = findPresetExampleResult({
     message,
     context,
     tone,
+    goal,
     continuePreference,
     action,
     sourceReply,
@@ -298,6 +327,7 @@ export async function generateRepliesWithModelSource(
         message,
         context,
         tone,
+        goal,
         continuePreference,
         conversationBackground,
         noReplyMode,
@@ -306,6 +336,7 @@ export async function generateRepliesWithModelSource(
         lastOutgoingMessage,
         action,
         sourceReply,
+        refineInstruction,
       }),
       modelSource: "local",
     };
@@ -327,6 +358,7 @@ export async function generateRepliesWithModelSource(
       imageUrl,
       context,
       tone,
+      goal,
       continuePreference,
       conversationBackground,
       noReplyMode,
@@ -355,6 +387,7 @@ async function generateRepliesViaOpenAI({
   imageUrl,
   context,
   tone,
+  goal,
   continuePreference,
   conversationBackground,
   noReplyMode,
@@ -368,6 +401,7 @@ async function generateRepliesViaOpenAI({
   imageUrl?: string;
   context?: ContextOption;
   tone?: ToneOption;
+  goal?: GoalOption;
   continuePreference?: ContinuePreferenceOption;
   conversationBackground?: string;
   noReplyMode?: boolean;
@@ -398,6 +432,7 @@ async function generateRepliesViaOpenAI({
             imageUrl,
             context,
             tone,
+            goal,
             continuePreference,
             conversationBackground,
             noReplyMode,
@@ -452,6 +487,7 @@ function generateFreeReplies({
   message,
   context,
   tone,
+  goal,
   continuePreference,
   conversationBackground,
   noReplyMode,
@@ -460,10 +496,12 @@ function generateFreeReplies({
   lastOutgoingMessage,
   action,
   sourceReply,
+  refineInstruction,
 }: {
   message?: string;
   context?: ContextOption;
   tone?: ToneOption;
+  goal?: GoalOption;
   continuePreference?: ContinuePreferenceOption;
   conversationBackground?: string;
   noReplyMode?: boolean;
@@ -472,10 +510,12 @@ function generateFreeReplies({
   lastOutgoingMessage?: string;
   action?: ReplyActionOption;
   sourceReply?: string;
+  refineInstruction?: string;
 }): GenerateRepliesResult {
   const intent = buildFreeIntent({
     message,
     context,
+    goal,
     noReplyMode,
     noReplyDurationValue,
     noReplyDurationUnit,
@@ -487,13 +527,16 @@ function generateFreeReplies({
     tone: effectiveTone,
     context,
     message,
+    goal,
     continuePreference,
     conversationBackground,
     noReplyMode,
     noReplyDurationValue,
     noReplyDurationUnit,
     lastOutgoingMessage,
+    action,
     sourceReply,
+    refineInstruction,
   });
 
   return { intent, replies };
@@ -502,18 +545,38 @@ function generateFreeReplies({
 function buildFreeIntent({
   message,
   context,
+  goal,
   noReplyMode,
   noReplyDurationValue,
   noReplyDurationUnit,
 }: {
   message?: string;
   context?: ContextOption;
+  goal?: GoalOption;
   noReplyMode?: boolean;
   noReplyDurationValue?: number;
   noReplyDurationUnit?: NoReplyDurationUnit;
 }): string {
   if (noReplyMode && noReplyDurationValue && noReplyDurationUnit) {
+    if (goal === "שחרור מכבד") {
+      return "לסיים את הפולו־אפ בכבוד, בלי ליצור לחץ נוסף.";
+    }
+    if (goal === "בדיקת סטטוס") {
+      return "לבדוק סטטוס בצורה קצרה, ישירה ומכבדת.";
+    }
     return `הצד השני שקט כבר ${formatNoReplyDuration(noReplyDurationValue, noReplyDurationUnit)}, וצריך הודעת המשך קצרה שמניעה תשובה בלי לחץ.`;
+  }
+
+  const goalIntent: Partial<Record<GoalOption, string>> = {
+    "להמשיך שיחה": "להמשיך את השיחה בצורה טבעית ונעימה.",
+    "לקבוע זמן": "לקדם תיאום ברור לזמן או למפגש.",
+    "לבקש הבהרה": "לבקש הבהרה ישירה בלי להישמע מאשים/ה.",
+    "להציב גבול": "לנסח גבול ברור ומכבד.",
+    "לסגור בנימוס": "לסיים את השיחה בנימוס ובבהירות.",
+    "להתמקח / לקדם סגירה": "לקדם סגירה תוך שמירה על תנאים ברורים.",
+  };
+  if (goal && goalIntent[goal]) {
+    return goalIntent[goal];
   }
 
   const normalized = message?.trim();
@@ -545,24 +608,30 @@ function buildFreeReplies({
   tone,
   context,
   message,
+  goal,
   continuePreference,
   conversationBackground,
   noReplyMode,
   noReplyDurationValue,
   noReplyDurationUnit,
   lastOutgoingMessage,
+  action,
   sourceReply,
+  refineInstruction,
 }: {
   tone: ToneOption;
   context?: ContextOption;
   message?: string;
+  goal?: GoalOption;
   continuePreference?: ContinuePreferenceOption;
   conversationBackground?: string;
   noReplyMode?: boolean;
   noReplyDurationValue?: number;
   noReplyDurationUnit?: NoReplyDurationUnit;
   lastOutgoingMessage?: string;
+  action?: ReplyActionOption;
   sourceReply?: string;
+  refineInstruction?: string;
 }): [string, string, string] {
   if (
     noReplyMode &&
@@ -577,7 +646,20 @@ function buildFreeReplies({
       noReplyDurationUnit,
       lastOutgoingMessage,
       conversationBackground,
+      goal,
     });
+  }
+
+  const goalReplies: Partial<Record<GoalOption, [string, string, string]>> = {
+    "להמשיך שיחה": ["מעניין, ספר/י לי עוד.", "סבבה, בא לי להמשיך את השיחה הזאת.", "מה קורה איתך מאז?"],
+    "לקבוע זמן": ["נשמע טוב. מתאים לך לקבוע זמן השבוע?", "בוא/י נסגור זמן שנוח לשנינו.", "אני פנוי/ה ב___ או ב___, מה עובד לך?"],
+    "לבקש הבהרה": ["רק כדי להבין, למה בדיוק התכוונת?", "אפשר לחדד לי מה את/ה מציע/ה?", "אני רוצה לוודא שהבנתי נכון — תסביר/י רגע?"],
+    "להציב גבול": ["חשוב לי לשמור על הגבול הזה, אז זה לא מתאים לי.", "אני מבין/ה, אבל זה לא עובד לי בצורה הזאת.", "מעדיף/ה שנשמור על זה ברור ומכבד מכאן."],
+    "לסגור בנימוס": ["תודה שכתבת. מבחינתי אפשר לסגור את זה כאן.", "מעריך/ה את ההודעה, אבל לא נכון לי להמשיך בזה.", "תודה, מאחל/ת לך טוב בהמשך."],
+    "להתמקח / לקדם סגירה": ["אם זה מתאים בתנאים שסיכמנו, אפשר לסגור היום.", "אשמח להתקדם, זה המחיר או התנאי הנכון מבחינתי.", "יש גמישות קטנה רק אם סוגרים עכשיו. מתאים?"],
+  };
+  if (goal && goalReplies[goal] && !sourceReply) {
+    return goalReplies[goal];
   }
 
   const businessReplies =
@@ -655,7 +737,7 @@ function buildFreeReplies({
   const replies = [...baseRepliesByTone[tone]] as [string, string, string];
 
   if (sourceReply) {
-    replies[0] = sourceReply;
+    replies[0] = refineFreeReply(sourceReply, refineInstruction, action);
   } else if (continuePreference === "לא") {
     const repliesByTone: Record<ToneOption, string> = {
       עדין: "תודה שכתבת, אבל פחות מתאים לי ואני לא מסכים/ה עם זה כרגע.",
@@ -693,9 +775,40 @@ function buildFreeReplies({
   return replies;
 }
 
+function refineFreeReply(
+  sourceReply: string,
+  refineInstruction?: string,
+  action?: ReplyActionOption,
+) {
+  const instruction = refineInstruction?.toLowerCase() ?? '';
+
+  if (instruction.includes('בלי אימוג׳י') || instruction.includes('בלי אימוג׳')) {
+    return sourceReply.replace(/[\p{Extended_Pictographic}\uFE0F]/gu, '').replace(/\s{2,}/g, ' ').trim();
+  }
+
+  if (instruction.includes('עם אימוג׳י') || instruction.includes('עם אימוג׳')) {
+    return /[\p{Extended_Pictographic}]/u.test(sourceReply) ? sourceReply : `${sourceReply} 🙂`;
+  }
+
+  if (instruction.includes('קצר')) {
+    return sourceReply.split(/[.!?]/)[0]?.trim() || sourceReply;
+  }
+
+  if (action === 'softer') {
+    return `היי, ${sourceReply}`;
+  }
+
+  if (action === 'sharper') {
+    return sourceReply.replace(/(אולי|נראה לי|בערך)\s*/g, '').trim();
+  }
+
+  return `${sourceReply} — ${instruction || 'בניסוח קצת אחר'}`;
+}
+
 function buildNoReplyFreeReplies({
   tone,
   context,
+  goal,
   noReplyDurationValue,
   noReplyDurationUnit,
   lastOutgoingMessage,
@@ -703,6 +816,7 @@ function buildNoReplyFreeReplies({
 }: {
   tone: ToneOption;
   context?: ContextOption;
+  goal?: GoalOption;
   noReplyDurationValue: number;
   noReplyDurationUnit: NoReplyDurationUnit;
   lastOutgoingMessage: string;
@@ -727,6 +841,12 @@ function buildNoReplyFreeReplies({
       : context === "בוס"
         ? "אם תרצה/י, אעדכן מיד מה צריך ממני כדי להתקדם."
         : "אם זה עדיין מתאים לך, אשמח להמשיך.";
+  const goalSuffix =
+    goal === "שחרור מכבד"
+      ? "אם זה כבר לא רלוונטי, הכול טוב ואפשר לשחרר."
+      : goal === "בדיקת סטטוס"
+        ? "אשמח לעדכון קצר על הסטטוס כשמתאפשר."
+        : contextSuffix;
   const backgroundSuffix = conversationBackground
     ? "זוכר/ת את מה שדיברנו קודם, אז רק רציתי לבדוק אם מתקדם."
     : "רק בודק/ת איפה זה עומד.";
@@ -736,7 +856,7 @@ function buildNoReplyFreeReplies({
       : lastOutgoingMessage;
 
   return [
-    `${openingByTone[tone]} עברו כבר ${duration}. ${contextSuffix}`,
+    `${openingByTone[tone]} עברו כבר ${duration}. ${goalSuffix}`,
     `שולח/ת תזכורת קצרה אחרי ${duration} בלי מענה. ${backgroundSuffix}`,
     `ההודעה האחרונה שלי הייתה: "${compactLastOutgoing}". אם זה עדיין פתוח, נמשיך מכאן?`,
   ];
@@ -778,6 +898,7 @@ function buildInputContent({
   imageUrl,
   context,
   tone,
+  goal,
   continuePreference,
   conversationBackground,
   noReplyMode,
@@ -790,6 +911,7 @@ function buildInputContent({
   imageUrl?: string;
   context?: ContextOption;
   tone?: ToneOption;
+  goal?: GoalOption;
   continuePreference?: ContinuePreferenceOption;
   conversationBackground?: string;
   noReplyMode?: boolean;
@@ -805,6 +927,7 @@ function buildInputContent({
   const details = [
     `הקשר: ${context ?? "כללי"}`,
     `טון רצוי: ${tone ?? "זורם"}`,
+    `מטרת התשובה: ${goal ?? "לא צוין"}`,
     `מסכים/ה עם מה שנאמר: ${continuePreference ?? "לא צוין"}`,
     `מצב לא ענה הרבה זמן: ${noReplyMode ? "כן" : "לא"}`,
     `משך זמן ללא מענה: ${noReplyDurationText}`,
@@ -891,6 +1014,18 @@ function normalizeTone(value?: string): ToneOption | undefined {
   }
 
   throw new AIRequestError("הסגנון שנבחר לא תקין.", 400);
+}
+
+function normalizeGoal(value?: string): GoalOption | undefined {
+  if (value == null) {
+    return undefined;
+  }
+
+  if (typeof value === "string" && (GOAL_OPTIONS as readonly string[]).includes(value)) {
+    return value as GoalOption;
+  }
+
+  throw new AIRequestError("המטרה שנבחרה לא תקינה.", 400);
 }
 
 function normalizeContinuePreference(
@@ -1105,6 +1240,7 @@ function findPresetExampleResult({
   message,
   context,
   tone,
+  goal,
   continuePreference,
   conversationBackground,
   noReplyMode,
@@ -1119,6 +1255,7 @@ function findPresetExampleResult({
   message?: string;
   context?: ContextOption;
   tone?: ToneOption;
+  goal?: GoalOption;
   continuePreference?: ContinuePreferenceOption;
   conversationBackground?: string;
   noReplyMode?: boolean;
@@ -1133,6 +1270,7 @@ function findPresetExampleResult({
   if (
     !message ||
     imageUrl ||
+    goal ||
     action ||
     sourceReply ||
     refineInstruction ||
