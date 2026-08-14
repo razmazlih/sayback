@@ -136,6 +136,129 @@ body {
   }
 }
 
+@keyframes sb-reply-loading-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sb-skeleton-shimmer {
+  from {
+    transform: translateX(115%);
+  }
+
+  to {
+    transform: translateX(-115%);
+  }
+}
+
+@keyframes sb-loading-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes sb-loading-word-in {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 0.88;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+.sb-loading-block {
+  position: relative;
+  overflow: hidden;
+  background: #eee4d8;
+}
+
+.sb-loading-block::after {
+  position: absolute;
+  inset: 0;
+  width: 58%;
+  content: '';
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.72), transparent);
+  transform: translateX(115%);
+}
+
+.sb-loading-word {
+  display: inline-block;
+  opacity: 0.52;
+}
+
+.sb-reply-card,
+.sb-reply-loading-card {
+  min-height: 196px;
+}
+
+.sb-reply-loading-card {
+  height: 196px;
+}
+
+@media (min-width: 640px) {
+  .sb-reply-card,
+  .sb-reply-loading-card {
+    min-height: 184px;
+  }
+
+  .sb-reply-loading-card {
+    height: 184px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sb-replies-loading {
+    animation: sb-reply-loading-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .sb-reply-loading-card {
+    animation: sb-reply-loading-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .sb-reply-loading-card--1 {
+    animation-delay: 90ms;
+  }
+
+  .sb-reply-loading-card--2 {
+    animation-delay: 190ms;
+  }
+
+  .sb-reply-loading-card--3 {
+    animation-delay: 290ms;
+  }
+
+  .sb-loading-block::after {
+    animation: sb-skeleton-shimmer 1.7s ease-in-out infinite;
+  }
+
+  .sb-loading-pulse-dot {
+    animation: sb-loading-pulse 1.25s ease-in-out infinite;
+  }
+
+  .sb-loading-word {
+    animation: sb-loading-word-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .sb-accordion-content {
     display: grid;
@@ -215,8 +338,14 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .sb-option-card,
-  .sb-option-card__illustration {
+  .sb-option-card__illustration,
+  .sb-replies-loading,
+  .sb-reply-loading-card,
+  .sb-loading-block::after,
+  .sb-loading-pulse-dot,
+  .sb-loading-word {
     transition: none;
+    animation: none;
   }
 
   .sb-option-card,

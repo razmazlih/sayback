@@ -1619,7 +1619,7 @@ function ReplyCard({
   const displayedReply = isEditing ? draftReply : reply;
 
   return (
-    <article className="relative w-full min-w-0 overflow-hidden rounded-[24px] border border-[#ded2c3] bg-[#fffdfa] p-3.5 pr-5 shadow-[0_12px_30px_rgba(49,23,13,0.07)] sm:p-4 sm:pr-5">
+    <article className="sb-reply-card relative w-full min-w-0 overflow-hidden rounded-[24px] border border-[#ded2c3] bg-[#fffdfa] p-3.5 pr-5 shadow-[0_12px_30px_rgba(49,23,13,0.07)] sm:p-4 sm:pr-5">
       <div className="absolute inset-y-0 right-0 w-1.5 bg-gradient-to-b from-[#ff5a2a] via-[#ff8b67] to-[#ffc4b5]" aria-hidden="true" />
       <div className="mb-3 flex items-center justify-between gap-2">
         <span className="rounded-full border border-[#e4d8c8] bg-[#f8f3eb] px-3 py-1 text-xs font-black text-[#7a6e64]">
@@ -1660,6 +1660,88 @@ function ReplyCard({
         />
       </div>
     </article>
+  );
+}
+
+const LOADING_REPLY_STATUSES = [
+  'קוראים את הווייב',
+  'מלטשים ניסוח טבעי',
+  'בוחרים 3 אפשרויות טובות',
+] as const;
+
+const LOADING_REPLY_PREVIEWS = [
+  'נשמע טוב, אני זורם עם זה.',
+  'חחח לגמרי, מתי נוח לך?',
+  'אהבתי, בואי נדבר בערב.',
+] as const;
+
+function LoadingReplies({ isNoReplyMode }: { isNoReplyMode: boolean }) {
+  const [statusIndex, setStatusIndex] = useState(0);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setStatusIndex((currentIndex) => (currentIndex + 1) % LOADING_REPLY_STATUSES.length);
+    }, 1900);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  const title = isNoReplyMode ? 'מכינים פולו־אפ קצר' : 'מרכיבים לך תשובות טובות';
+  const description = isNoReplyMode
+    ? 'בודקים מה שלחת, כמה זמן עבר, ואיך להחזיר את השיחה בלי לחץ.'
+    : 'מנסחים עכשיו 3 תשובות קצרות וטבעיות שאפשר להעתיק מיד.';
+
+  return (
+    <div className="sb-replies-loading w-full min-w-0 rounded-[26px] border border-[#d8cab9] bg-[#fbf7f1] p-4 shadow-[0_14px_36px_rgba(49,23,13,0.06)] sm:p-5">
+      <div className="sb-loading-intent min-h-[164px] rounded-[24px] border border-[#e2d7c8] bg-[#f8f3eb] p-4 sm:min-h-[146px]">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7a6e64]">בדיוק בשבילך</p>
+              <span className="sb-loading-block h-6 w-16 rounded-full" aria-hidden="true" />
+            </div>
+            <h3 className="mt-2 text-xl font-black text-[#181411] sm:text-2xl">{title}</h3>
+            <p className="mt-1 text-sm font-bold leading-6 text-[#6d6259]">{description}</p>
+          </div>
+          <div className="inline-flex min-h-[36px] shrink-0 items-center self-start rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1 text-xs font-black text-[#7a2d19] sm:self-auto">
+            <span className="sb-loading-pulse-dot ml-2 h-2 w-2 rounded-full bg-[#ff5a2a]" aria-hidden="true" />
+            <span aria-hidden="true">{LOADING_REPLY_STATUSES[statusIndex]}</span>
+            <span className="sr-only">מכינים שלוש תשובות. הפעולה עדיין מתבצעת.</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-3" aria-hidden="true">
+        {[0, 1, 2].map((index) => (
+          <article
+            key={index}
+            className={`sb-reply-loading-card sb-reply-loading-card--${index + 1} relative overflow-hidden rounded-[24px] border border-[#ded2c3] bg-[#fffdfa] p-3.5 pr-5 shadow-[0_12px_30px_rgba(49,23,13,0.06)] sm:p-4 sm:pr-5`}
+          >
+            <div className="absolute inset-y-0 right-0 w-1.5 bg-gradient-to-b from-[#ff5a2a] via-[#ff8b67] to-[#ffc4b5]" />
+            <div className="flex items-center justify-between gap-2">
+              <span className="rounded-full border border-[#e4d8c8] bg-[#f8f3eb] px-3 py-1 text-xs font-black text-[#7a6e64]">אפשרות {index + 1}</span>
+              <span className="sb-loading-block h-6 w-16 rounded-full" />
+            </div>
+            <p className="mt-4 text-[1.05rem] leading-8 font-black text-[#8c8075] sm:text-lg">
+              {LOADING_REPLY_PREVIEWS[index].split(' ').map((word, wordIndex) => (
+                <span
+                  key={`${word}-${wordIndex}`}
+                  className="sb-loading-word"
+                  style={{ animationDelay: `${220 + index * 220 + wordIndex * 115}ms` }}
+                >
+                  {word}{' '}
+                </span>
+              ))}
+            </p>
+            <div className="mt-3 flex gap-1.5">
+              <span className="sb-loading-block h-[42px] w-20 rounded-full" />
+              <span className="sb-loading-block h-[42px] w-[76px] rounded-full" />
+              <span className="sb-loading-block h-[42px] w-16 rounded-full" />
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -2563,6 +2645,7 @@ export default function Home({
   const [showDeepLinkPrefillBanner, setShowDeepLinkPrefillBanner] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [result, setResult] = useState<GenerateResponse | null>(null);
+  const [hasSentFirstGeneration, setHasSentFirstGeneration] = useState(false);
   const [freeUsed, setFreeUsed] = useState(0);
   const [initialFreeLimit, setInitialFreeLimit] = useState(FREE_LIMIT);
   const [freeRemaining, setFreeRemaining] = useState(FREE_LIMIT);
@@ -3915,6 +3998,7 @@ export default function Home({
     if (isReplyUpdate) {
       setBusyReplyIndex(requestedReplyIndex);
     } else {
+      setHasSentFirstGeneration(true);
       setIsLoading(true);
 
       if (isCompactViewport()) {
@@ -5061,45 +5145,33 @@ export default function Home({
                   ))}
                 </div>
                 </div>
+              ) : isLoading ? (
+                <LoadingReplies isNoReplyMode={isNoReplyMode} />
               ) : (
                 <div className="flex w-full min-w-0 min-h-72 flex-col justify-center rounded-[26px] border border-dashed border-[#d8cab9] bg-[#fbf7f1] p-5 sm:min-h-80">
                   <h3 className="text-2xl font-black text-[#181411]">
-                    {isLoading
-                      ? isNoReplyMode
-                        ? 'מכינים פולו-אפ קצר'
-                        : 'עוד רגע זה מוכן'
-                      : 'כאן יופיעו 3 תשובות מוכנות להעתקה'}
+                    כאן יופיעו 3 תשובות מוכנות להעתקה
                   </h3>
                   <p className="mt-3 max-w-md text-sm font-bold leading-6 text-[#6d6259]">
-                    {isLoading
-                      ? isNoReplyMode
-                        ? 'בודקים מה שלחת, כמה זמן עבר, ואיך להחזיר את השיחה בלי לחץ.'
-                        : 'מנסחים עכשיו 3 תשובות קצרות וטבעיות שאפשר להעתיק מיד.'
-                      : 'בחרו מצב כתיבה, מלאו את השדה הראשי ותוך רגע יופיעו 3 תשובות מוכנות להעתקה.'}
+                    בחרו מצב כתיבה, מלאו את השדה הראשי ותוך רגע יופיעו 3 תשובות מוכנות להעתקה.
                   </p>
-                  {isLoading ? (
-                    <p className="mt-4 inline-flex min-h-[36px] items-center self-start rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1 text-xs font-black text-[#7a2d19]">
-                      עובדים על זה עכשיו...
-                    </p>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMobilePrimaryView('compose');
-                        scrollToMobileSection('compose', { source: 'navigation' });
-                      }}
-                      className={`mt-4 min-h-[44px] w-full rounded-full border border-[#ded2c3] bg-white px-4 py-2 text-sm font-black text-[#241d18] sm:hidden ${lightSurfaceFocusClass}`}
-                    >
-                      לחזור לשלב 1: מילוי
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobilePrimaryView('compose');
+                      scrollToMobileSection('compose', { source: 'navigation' });
+                    }}
+                    className={`mt-4 min-h-[44px] w-full rounded-full border border-[#ded2c3] bg-white px-4 py-2 text-sm font-black text-[#241d18] sm:hidden ${lightSurfaceFocusClass}`}
+                  >
+                    לחזור לשלב 1: מילוי
+                  </button>
                 </div>
               )}
             </div>
           </div>
         </section>
 
-        <QuickStartStrip />
+        {!hasSentFirstGeneration && <QuickStartStrip />}
 
         {!billingBypassEnabled ? (
           <section
