@@ -47,7 +47,7 @@ const FOLLOW_UP_GOAL_OPTIONS = ["תזכורת עדינה", "בדיקת סטטו�
 const REPLY_ACTION_OPTIONS = ["softer", "sharper", "retry"] as const;
 const NO_REPLY_DURATION_UNITS = ["minutes", "hours", "days"] as const;
 
-const DEFAULT_MODEL = process.env.OPENAI_MODEL?.trim() || "gpt-5.3-chat-latest";
+const DEFAULT_MODEL = process.env.OPENAI_MODEL?.trim() || "gpt-4.1-mini";
 const OPENAI_URL = "https://api.openai.com/v1/responses";
 const FREE_AI_MODE_ENABLED = process.env.LOCAL_FREE_AI?.trim().toLowerCase() === "true";
 const MAX_MESSAGE_LENGTH = MAX_INCOMING_MESSAGE_LENGTH;
@@ -410,6 +410,11 @@ async function generateRepliesViaOpenAI({
   lastOutgoingMessage?: string;
   refineInstruction?: string;
 }): Promise<GenerateRepliesResult> {
+  const reasoning = DEFAULT_MODEL.startsWith("gpt-5")
+    ? {
+        effort: "medium",
+      }
+    : undefined;
   const response = await fetch(OPENAI_URL, {
     method: "POST",
     headers: {
@@ -419,9 +424,7 @@ async function generateRepliesViaOpenAI({
     body: JSON.stringify({
       model: DEFAULT_MODEL,
       store: false,
-      reasoning: {
-        effort: "medium",
-      },
+      ...(reasoning ? { reasoning } : {}),
       max_output_tokens: 350,
       instructions: buildInstructions(),
       input: [

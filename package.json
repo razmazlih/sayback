@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test:identity": "node scripts/run-identity-tests.mjs",
     "check": "npm run lint && npm run typecheck && npm run build"
   },
   "dependencies": {

@@ -14,6 +14,7 @@ import {
 } from "@/lib/local-usage-logs";
 import { persistUsageLog, type PersistedUsageLogStatus } from "@/lib/persisted-usage-logs";
 import { consumeRateLimit } from "@/lib/rate-limit";
+import { readVisitorIdentity, resolveUserId } from "@/lib/visitor-identity";
 import { MAX_NO_REPLY_DURATION_VALUE } from "@/lib/message-limits";
 import { after } from "next/server";
 import { isIP } from "node:net";
@@ -59,6 +60,9 @@ interface GenerateRequestBody {
 
 type PersistedUsageLogBase = {
   uid: string;
+  userId: string | null;
+  visitorId: string | null;
+  sessionId: string | null;
   messageLength: number | null;
   messageText: string | null;
   hasImage: boolean;
@@ -82,6 +86,7 @@ export async function POST(request: Request) {
   let body: GenerateRequestBody;
   let authenticatedUserUid: string | null = null;
   let authenticatedUserEmail: string | null = null;
+  let authenticatedUserIsAnonymous = true;
   let consumption: GenerationConsumption | null = null;
   let localUsageLogId: string | null = null;
   let persistedUsageLogBase: PersistedUsageLogBase | null = null;
@@ -90,6 +95,7 @@ export async function POST(request: Request) {
     const authenticatedUser = await requireAuthenticatedUser(request);
     authenticatedUserUid = authenticatedUser.uid;
     authenticatedUserEmail = authenticatedUser.email;
+    authenticatedUserIsAnonymous = authenticatedUser.isAnonymous;
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       return noStoreJson(
@@ -148,8 +154,17 @@ export async function POST(request: Request) {
   }
 
   if (authenticatedUserUid) {
+    const visitorIdentity = readVisitorIdentity(request);
+    const userId = resolveUserId({
+      uid: authenticatedUserUid,
+      isAnonymous: authenticatedUserIsAnonymous,
+    });
+
     localUsageLogId = startLocalUsageLog({
       uid: authenticatedUserUid,
+      userId,
+      visitorId: visitorIdentity?.visitorId ?? null,
+      sessionId: visitorIdentity?.sessionId ?? null,
       messageLength: readOptionalTextLength(body.message),
       messageText: body.message,
       hasImage: typeof body.imageBase64 === "string" && body.imageBase64.length > 0,
@@ -170,6 +185,9 @@ export async function POST(request: Request) {
     });
     persistedUsageLogBase = {
       uid: authenticatedUserUid,
+      userId,
+      visitorId: visitorIdentity?.visitorId ?? null,
+      sessionId: visitorIdentity?.sessionId ?? null,
       messageLength: readOptionalTextLength(body.message),
       messageText: normalizeOptionalText(body.message, 1600),
       hasImage: typeof body.imageBase64 === "string" && body.imageBase64.length > 0,

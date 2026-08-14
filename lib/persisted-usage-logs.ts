@@ -16,6 +16,9 @@ export type PersistedUsageLogStatus = "success" | "error" | "blocked";
 
 export type PersistedUsageLogInput = {
   uid: string;
+  userId?: string | null;
+  visitorId?: string | null;
+  sessionId?: string | null;
   messageLength?: number | null;
   messageText?: string | null;
   hasImage: boolean;
@@ -48,6 +51,9 @@ export type PersistedUsageLogEntry = {
   id: string;
   createdAt: string;
   uid: string;
+  userId: string | null;
+  visitorId: string | null;
+  sessionId: string | null;
   messageLength: number | null;
   messageText: string | null;
   hasImage: boolean;
@@ -137,6 +143,9 @@ export async function persistUsageLog(input: PersistedUsageLogInput) {
     createdAt: now.toISOString(),
     createdAtMs: now.getTime(),
     uid: normalizeText(input.uid, 200) ?? "unknown",
+    userId: normalizeText(input.userId ?? null, 200),
+    visitorId: normalizeText(input.visitorId ?? null, 64),
+    sessionId: normalizeText(input.sessionId ?? null, 64),
     messageLength: normalizeLength(input.messageLength),
     messageText: normalizeText(input.messageText ?? null, MESSAGE_TEXT_LIMIT),
     hasImage: input.hasImage === true,
@@ -212,6 +221,9 @@ function normalizeEntry(id: string, data: unknown): PersistedUsageLogEntry | nul
     id,
     createdAt: createdAt ?? new Date(createdAtMs ?? Date.now()).toISOString(),
     uid: readString(document.uid) ?? "unknown",
+    userId: readString(document.userId),
+    visitorId: readString(document.visitorId),
+    sessionId: readString(document.sessionId),
     messageLength: normalizeLength(document.messageLength) ?? readLegacyTextLength(document.message),
     messageText: normalizeText(document.messageText ?? document.message, MESSAGE_TEXT_LIMIT),
     hasImage: document.hasImage === true,

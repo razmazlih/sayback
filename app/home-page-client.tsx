@@ -3145,6 +3145,9 @@ export default function Home({
       const nextToken = await userCredential.user.getIdToken(true);
 
       syncAuthState(nextToken);
+      void fetchWithAuth('/api/identity/link', { method: 'POST' }).catch((linkError) => {
+        console.error('Failed to link the current browser visitor to the account', linkError);
+      });
       setAccountEmail(normalizedEmail);
       setIsRecoverableAccount(true);
       setAuthEmailInput(normalizedEmail);
@@ -3191,7 +3194,7 @@ export default function Home({
     } finally {
       setIsCompletingEmailLink(false);
     }
-  }, [authEmailInput, getClientFirebaseAuth, refreshBillingStatus, syncAuthState]);
+  }, [authEmailInput, fetchWithAuth, getClientFirebaseAuth, refreshBillingStatus, syncAuthState]);
 
   const handleAuthEmailInputChange = useCallback((value: string) => {
     setAuthEmailInput(value);

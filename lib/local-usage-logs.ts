@@ -29,6 +29,9 @@ export interface LocalUsageLogEntry {
   completedAt: string | null;
   durationMs: number | null;
   uid: string;
+  userId: string | null;
+  visitorId: string | null;
+  sessionId: string | null;
   messageText: string | null;
   conversationBackgroundText: string | null;
   lastOutgoingMessageText: string | null;
@@ -59,6 +62,9 @@ export interface LocalUsageLogEntry {
 
 type StartLocalUsageLogInput = {
   uid: string;
+  userId?: string | null;
+  visitorId?: string | null;
+  sessionId?: string | null;
   messageLength?: number | null;
   messageText?: string | null;
   hasImage?: boolean;
@@ -108,6 +114,9 @@ export function startLocalUsageLog(input: StartLocalUsageLogInput) {
     completedAt: null,
     durationMs: null,
     uid: normalizeText(input.uid, 200) ?? "unknown",
+    userId: normalizeText(input.userId, 200),
+    visitorId: normalizeText(input.visitorId, 64),
+    sessionId: normalizeText(input.sessionId, 64),
     messageText: normalizeText(input.messageText, LOCAL_MESSAGE_PREVIEW_LIMIT),
     messageLength: normalizeLength(input.messageLength),
     hasImage: input.hasImage === true,

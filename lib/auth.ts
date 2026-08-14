@@ -12,6 +12,7 @@ export class UnauthorizedError extends Error {
 export type AuthenticatedUser = {
   uid: string;
   email: string | null;
+  isAnonymous: boolean;
 };
 
 export async function requireAuthenticatedUser(
@@ -42,6 +43,7 @@ export async function requireAuthenticatedUser(
     return {
       uid,
       email: readString(decodedToken.email),
+      isAnonymous: readSignInProvider(decodedToken) === "anonymous",
     };
   } catch (error) {
     if (error instanceof UnauthorizedError) {
@@ -50,6 +52,16 @@ export async function requireAuthenticatedUser(
 
     throw new UnauthorizedError("לא הצלחנו לאמת את ההתחברות. נסו שוב.");
   }
+}
+
+function readSignInProvider(decodedToken: Record<string, unknown>) {
+  const firebase = decodedToken.firebase;
+
+  if (!firebase || typeof firebase !== "object") {
+    return null;
+  }
+
+  return readString((firebase as Record<string, unknown>).sign_in_provider);
 }
 
 function readString(value: unknown) {
