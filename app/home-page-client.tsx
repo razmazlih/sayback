@@ -182,6 +182,7 @@ type CouponRedeemResponse = {
 
 const FREE_LIMIT = 3;
 const MAX_IMAGE_UPLOAD_BYTES = 4 * 1024 * 1024;
+const MIN_LOADING_DISPLAY_MS = 1200;
 const AUTH_EMAIL_STORAGE_KEY = 'sayback.auth.email';
 const AUTH_EMAIL_INTENT_STORAGE_KEY = 'sayback.auth.intent';
 const AUTH_EMAIL_PLAN_STORAGE_KEY = 'sayback.auth.checkoutPlan';
@@ -1615,11 +1616,18 @@ function ReplyCard({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftReply, setDraftReply] = useState(reply);
+  const [lastReply, setLastReply] = useState(reply);
+
+  if (lastReply !== reply) {
+    setLastReply(reply);
+    setDraftReply(reply);
+    setIsEditing(false);
+  }
 
   const displayedReply = isEditing ? draftReply : reply;
 
   return (
-    <article className="sb-reply-card relative w-full min-w-0 overflow-hidden rounded-[24px] border border-[#ded2c3] bg-[#fffdfa] p-3.5 pr-5 shadow-[0_12px_30px_rgba(49,23,13,0.07)] sm:p-4 sm:pr-5">
+    <article className={`sb-reply-card sb-reply-card--${index + 1} relative w-full min-w-0 overflow-hidden rounded-[24px] border border-[#ded2c3] bg-[#fffdfa] p-3.5 pr-5 shadow-[0_12px_30px_rgba(49,23,13,0.07)] sm:p-4 sm:pr-5`}>
       <div className="absolute inset-y-0 right-0 w-1.5 bg-gradient-to-b from-[#ff5a2a] via-[#ff8b67] to-[#ffc4b5]" aria-hidden="true" />
       <div className="mb-3 flex items-center justify-between gap-2">
         <span className="rounded-full border border-[#e4d8c8] bg-[#f8f3eb] px-3 py-1 text-xs font-black text-[#7a6e64]">
@@ -1637,7 +1645,20 @@ function ReplyCard({
           className={`min-h-28 w-full resize-none rounded-[20px] border border-[#ded2c3] bg-white px-3 py-3 text-[1.05rem] leading-8 font-black text-[#241d18] outline-none sm:text-lg ${whiteSurfaceFocusClass}`}
         />
       ) : (
-        <p className="text-[1.05rem] leading-8 font-black text-[#241d18] sm:text-lg">{reply}</p>
+        <p className="text-[1.05rem] leading-8 font-black text-[#241d18] sm:text-lg">
+          <span className="sr-only">{reply}</span>
+          <span aria-hidden="true" key={reply}>
+            {reply.split(' ').map((word, wordIndex) => (
+              <span
+                key={`${word}-${wordIndex}`}
+                className="sb-reply-word"
+                style={{ animationDelay: `${180 + index * 150 + wordIndex * 95}ms` }}
+              >
+                {word}{' '}
+              </span>
+            ))}
+          </span>
+        </p>
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5 text-sm font-bold">
@@ -1670,30 +1691,20 @@ const LOADING_REPLY_STATUSES = [
 ] as const;
 
 const LOADING_REPLY_PREVIEWS = [
-  'נשמע טוב, אני זורם עם זה.',
-  'חחח לגמרי, מתי נוח לך?',
-  'אהבתי, בואי נדבר בערב.',
+  'מבינים את ההודעה ואת הכיוון...',
+  'מכוונים את הטון שירגיש טבעי...',
+  'בוחרים שלוש תשובות טובות...',
 ] as const;
 
 function LoadingReplies({ isNoReplyMode }: { isNoReplyMode: boolean }) {
-  const [statusIndex, setStatusIndex] = useState(0);
-
-  useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      setStatusIndex((currentIndex) => (currentIndex + 1) % LOADING_REPLY_STATUSES.length);
-    }, 1900);
-
-    return () => window.clearInterval(intervalId);
-  }, []);
-
   const title = isNoReplyMode ? 'מכינים פולו־אפ קצר' : 'מרכיבים לך תשובות טובות';
   const description = isNoReplyMode
     ? 'בודקים מה שלחת, כמה זמן עבר, ואיך להחזיר את השיחה בלי לחץ.'
     : 'מנסחים עכשיו 3 תשובות קצרות וטבעיות שאפשר להעתיק מיד.';
 
   return (
-    <div className="sb-replies-loading w-full min-w-0 rounded-[26px] border border-[#d8cab9] bg-[#fbf7f1] p-4 shadow-[0_14px_36px_rgba(49,23,13,0.06)] sm:p-5">
-      <div className="sb-loading-intent min-h-[164px] rounded-[24px] border border-[#e2d7c8] bg-[#f8f3eb] p-4 sm:min-h-[146px]">
+    <div className="sb-replies-loading w-full min-w-0 space-y-3">
+      <div className="sb-result-intent-card sb-loading-intent relative overflow-hidden rounded-[24px] border border-[#e2d7c8] bg-[#f8f3eb] p-4 shadow-[0_14px_36px_rgba(49,23,13,0.07)]">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -1703,15 +1714,30 @@ function LoadingReplies({ isNoReplyMode }: { isNoReplyMode: boolean }) {
             <h3 className="mt-2 text-xl font-black text-[#181411] sm:text-2xl">{title}</h3>
             <p className="mt-1 text-sm font-bold leading-6 text-[#6d6259]">{description}</p>
           </div>
-          <div className="inline-flex min-h-[36px] shrink-0 items-center self-start rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1 text-xs font-black text-[#7a2d19] sm:self-auto">
+          <div className="inline-flex min-h-[36px] min-w-[154px] shrink-0 items-center self-start rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1 text-xs font-black text-[#7a2d19] sm:self-auto">
             <span className="sb-loading-pulse-dot ml-2 h-2 w-2 rounded-full bg-[#ff5a2a]" aria-hidden="true" />
-            <span aria-hidden="true">{LOADING_REPLY_STATUSES[statusIndex]}</span>
+            <span className="sb-loading-status-stack" aria-hidden="true">
+              {LOADING_REPLY_STATUSES.map((status, index) => (
+                <span
+                  className={`sb-loading-status-text sb-loading-status-text--${index + 1}`}
+                  key={status}
+                >
+                  {status}
+                </span>
+              ))}
+            </span>
             <span className="sr-only">מכינים שלוש תשובות. הפעולה עדיין מתבצעת.</span>
           </div>
         </div>
+        <div className="mt-3 flex flex-wrap gap-1.5" aria-hidden="true">
+          <span className="sb-loading-block h-[40px] w-20 rounded-full" />
+          <span className="sb-loading-block h-[40px] w-24 rounded-full" />
+          <span className="sb-loading-block h-[40px] w-20 rounded-full" />
+        </div>
+        <span className="sb-loading-block mt-3 block h-4 w-52 max-w-full rounded-full" aria-hidden="true" />
       </div>
 
-      <div className="mt-4 space-y-3" aria-hidden="true">
+      <div className="space-y-3" aria-hidden="true">
         {[0, 1, 2].map((index) => (
           <article
             key={index}
@@ -1727,16 +1753,18 @@ function LoadingReplies({ isNoReplyMode }: { isNoReplyMode: boolean }) {
                 <span
                   key={`${word}-${wordIndex}`}
                   className="sb-loading-word"
-                  style={{ animationDelay: `${220 + index * 220 + wordIndex * 115}ms` }}
+                  style={{ animationDelay: `${420 + index * 320 + wordIndex * 170}ms` }}
                 >
                   {word}{' '}
                 </span>
               ))}
             </p>
-            <div className="mt-3 flex gap-1.5">
+            <div className="mt-3 flex flex-wrap gap-1.5">
               <span className="sb-loading-block h-[42px] w-20 rounded-full" />
               <span className="sb-loading-block h-[42px] w-[76px] rounded-full" />
               <span className="sb-loading-block h-[42px] w-16 rounded-full" />
+              <span className="sb-loading-block h-[42px] w-20 rounded-full" />
+              <span className="sb-loading-block h-[42px] w-full rounded-[18px] sm:min-w-[11rem] sm:flex-1" />
             </div>
           </article>
         ))}
@@ -3994,6 +4022,7 @@ export default function Home({
 
     const requestedReplyIndex = options?.replyIndex;
     const isReplyUpdate = typeof requestedReplyIndex === 'number';
+    const loadingStartedAt = isReplyUpdate ? null : window.performance.now();
 
     if (isReplyUpdate) {
       setBusyReplyIndex(requestedReplyIndex);
@@ -4062,6 +4091,14 @@ export default function Home({
       }
 
       const replyIndex = requestedReplyIndex;
+
+      if (typeof replyIndex !== 'number' && loadingStartedAt !== null) {
+        const remainingLoadingTime = MIN_LOADING_DISPLAY_MS - (window.performance.now() - loadingStartedAt);
+
+        if (remainingLoadingTime > 0) {
+          await new Promise((resolve) => window.setTimeout(resolve, remainingLoadingTime));
+        }
+      }
 
       if (typeof replyIndex === 'number') {
         setResult((currentResult) => {
@@ -5083,10 +5120,17 @@ export default function Home({
               </div>
             </div>
 
-            <div aria-live="polite" aria-busy={isGenerating} className="space-y-3">
+            <div aria-busy={isGenerating} className="space-y-3">
+              <p className="sr-only" role="status" aria-live="polite">
+                {isLoading
+                  ? 'מכינים שלוש תשובות. הפעולה עדיין מתבצעת.'
+                  : result
+                    ? 'שלוש התשובות מוכנות.'
+                    : 'אזור התשובות מוכן.'}
+              </p>
               {result && !isLoading ? (
-                <div className="w-full min-w-0 space-y-3">
-                <div className="w-full min-w-0 rounded-[24px] border border-[#e2d7c8] bg-[#f8f3eb] p-4 shadow-[0_14px_36px_rgba(49,23,13,0.07)]">
+                <div className="sb-results-ready w-full min-w-0 space-y-3">
+                <div className="sb-result-intent-card sb-result-intent-ready w-full min-w-0 rounded-[24px] border border-[#e2d7c8] bg-[#f8f3eb] p-4 shadow-[0_14px_36px_rgba(49,23,13,0.07)]">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -5130,7 +5174,7 @@ export default function Home({
                 <div className="w-full min-w-0 space-y-3">
                   {result.replies.map((reply, index) => (
                     <ReplyCard
-                      key={`${index}-${reply}`}
+                      key={index}
                       reply={reply}
                       index={index}
                       isBusy={isGenerating}
