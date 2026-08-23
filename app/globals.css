@@ -245,13 +245,13 @@ body {
   transform: translateX(260%) skewX(-10deg);
 }
 
-.sb-loading-word {
-  display: inline-block;
-  opacity: 0.52;
-}
-
+.sb-loading-word,
 .sb-reply-word {
   display: inline-block;
+}
+
+.sb-loading-word {
+  opacity: 0.52;
 }
 
 .sb-loading-status-stack {

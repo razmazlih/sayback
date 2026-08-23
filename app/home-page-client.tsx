@@ -1695,15 +1695,19 @@ function ReplyCard({
         <p className="text-[1.05rem] leading-8 font-black text-[#241d18] sm:text-lg">
           <span className="sr-only">{reply}</span>
           <span aria-hidden="true" key={reply}>
-            {reply.split(' ').map((word, wordIndex) => (
-              <span
-                key={`${word}-${wordIndex}`}
-                className="sb-reply-word"
-                style={{ animationDelay: `${180 + index * 150 + wordIndex * 95}ms` }}
-              >
-                {word}{' '}
-              </span>
-            ))}
+            {reply.split(/(\s+)/).map((segment, segmentIndex) =>
+              /^\s+$/.test(segment) ? (
+                segment
+              ) : (
+                <span
+                  key={`${segment}-${segmentIndex}`}
+                  className="sb-reply-word"
+                  style={{ animationDelay: `${180 + index * 150 + Math.floor(segmentIndex / 2) * 95}ms` }}
+                >
+                  {segment}
+                </span>
+              ),
+            )}
           </span>
         </p>
       )}
@@ -1796,15 +1800,19 @@ function LoadingReplies({ isNoReplyMode }: { isNoReplyMode: boolean }) {
               <span className="sb-loading-block h-6 w-16 rounded-full" />
             </div>
             <p className="mt-4 text-[1.05rem] leading-8 font-black text-[#8c8075] sm:text-lg">
-              {LOADING_REPLY_PREVIEWS[index].split(' ').map((word, wordIndex) => (
-                <span
-                  key={`${word}-${wordIndex}`}
-                  className="sb-loading-word"
-                  style={{ animationDelay: `${420 + index * 320 + wordIndex * 170}ms` }}
-                >
-                  {word}{' '}
-                </span>
-              ))}
+              {LOADING_REPLY_PREVIEWS[index].split(/(\s+)/).map((segment, segmentIndex) =>
+                /^\s+$/.test(segment) ? (
+                  segment
+                ) : (
+                  <span
+                    key={`${segment}-${segmentIndex}`}
+                    className="sb-loading-word"
+                    style={{ animationDelay: `${420 + index * 320 + Math.floor(segmentIndex / 2) * 170}ms` }}
+                  >
+                    {segment}
+                  </span>
+                ),
+              )}
             </p>
             <div className="mt-3 flex flex-wrap gap-1.5">
               <span className="sb-loading-block h-[42px] w-20 rounded-full" />
@@ -5039,10 +5047,12 @@ export default function Home({
                     maxLength={MAX_INCOMING_MESSAGE_LENGTH}
                     className={`min-h-28 w-full resize-none rounded-[22px] rounded-bl-[14px] border border-[#ded2c3] bg-white px-4 py-3 text-base leading-7 font-medium text-[#241d18] outline-none transition placeholder:text-[#9b8f83] focus:bg-[#fffdfa] sm:min-h-40 sm:py-4 ${lightSurfaceFocusClass}`}
                   />
-                  <p className="text-xs font-bold text-[#6d6259]">
-                    עד {MAX_INCOMING_MESSAGE_LENGTH} תווים להודעה ({messageLength}/
-                    {MAX_INCOMING_MESSAGE_LENGTH}).
-                  </p>
+                  {messageLength > MAX_INCOMING_MESSAGE_LENGTH ? (
+                    <p className="text-xs font-bold text-[#b42318]" role="alert">
+                      עד {MAX_INCOMING_MESSAGE_LENGTH} תווים להודעה ({messageLength}/
+                      {MAX_INCOMING_MESSAGE_LENGTH}).
+                    </p>
+                  ) : null}
 
                   <input
                     ref={fileInputRef}
