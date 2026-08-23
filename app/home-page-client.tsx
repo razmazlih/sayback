@@ -5609,12 +5609,12 @@ export default function Home({
       </div>
 
       {canReturnToGeneratorFromResults ? (
-        <div className="pointer-events-none fixed inset-x-3 bottom-0 z-30 flex justify-center pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:hidden">
+        <div className="fixed bottom-0 left-1/2 z-30 -translate-x-1/2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:hidden">
           <button
             type="button"
             aria-controls="compose-section"
             onClick={handleReturnToGenerator}
-            className={`pointer-events-auto inline-flex min-h-[48px] items-center justify-center gap-2 whitespace-nowrap rounded-full border border-[#e2d7c8] bg-[#fffdfa]/95 px-4 py-2 text-sm font-black text-[#241d18] shadow-[0_8px_24px_rgba(49,23,13,0.16)] backdrop-blur transition hover:border-[#ffb29f] hover:bg-white ${lightSurfaceFocusClass}`}
+            className={`inline-flex min-h-[48px] items-center justify-center gap-2 whitespace-nowrap rounded-full border border-[#e2d7c8] bg-[#fffdfa]/95 px-4 py-2 text-sm font-black text-[#241d18] shadow-[0_8px_24px_rgba(49,23,13,0.16)] backdrop-blur transition hover:border-[#ffb29f] hover:bg-white ${lightSurfaceFocusClass}`}
           >
             <svg
               aria-hidden="true"
