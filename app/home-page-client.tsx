@@ -5609,21 +5609,28 @@ export default function Home({
       </div>
 
       {canReturnToGeneratorFromResults ? (
-        <div className="fixed inset-x-3 bottom-0 z-30 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:hidden">
-          <div className="mx-auto max-w-md rounded-[20px] border border-[#e2d7c8] bg-[#fffdfa]/95 p-2 shadow-[0_12px_32px_rgba(49,23,13,0.18)] backdrop-blur">
-            <button
-              type="button"
-              aria-controls="compose-section"
-              onClick={handleReturnToGenerator}
-              className={`flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[15px] border border-[#ffc4b5] bg-[#fff0ea] px-4 py-2 text-[#7a2d19] transition hover:bg-[#ffe3da] ${lightSurfaceFocusClass}`}
+        <div className="pointer-events-none fixed inset-x-3 bottom-0 z-30 flex justify-center pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:hidden">
+          <button
+            type="button"
+            aria-controls="compose-section"
+            onClick={handleReturnToGenerator}
+            className={`pointer-events-auto inline-flex min-h-[48px] items-center justify-center gap-2 whitespace-nowrap rounded-full border border-[#e2d7c8] bg-[#fffdfa]/95 px-4 py-2 text-sm font-black text-[#241d18] shadow-[0_8px_24px_rgba(49,23,13,0.16)] backdrop-blur transition hover:border-[#ffb29f] hover:bg-white ${lightSurfaceFocusClass}`}
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4 shrink-0 text-[#ff623d]"
             >
-              <span aria-hidden="true" className="text-xl leading-none">↩</span>
-              <span className="min-w-0 text-right">
-                <span className="block text-sm font-black">חזרה להודעה ולכיוונים</span>
-                <span className="block text-[11px] font-bold text-[#8f5a4a]">הטקסט והבחירות שלך נשמרו</span>
-              </span>
-            </button>
-          </div>
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
+            </svg>
+            <span>עריכת ההודעה והכיוונים</span>
+          </button>
         </div>
       ) : mobilePrimaryView === 'compose' && canUseStickyGenerate ? (
         <div className="fixed inset-x-3 bottom-0 z-30 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:hidden">
