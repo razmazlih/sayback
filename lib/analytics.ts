@@ -1,5 +1,12 @@
 type AnalyticsPrimitive = string | number | boolean | null | undefined;
 type AnalyticsPayload = Record<string, AnalyticsPrimitive>;
+type GeneratorFlowVersion = "simplified_v1";
+type GeneratorComposeMode = "incoming" | "no_reply";
+type GeneratorActivationTiming = {
+  flow_version?: GeneratorFlowVersion;
+  time_from_page_load_ms?: number;
+  time_from_input_start_ms?: number;
+};
 
 export type RefineAction = "softer" | "sharper" | "retry";
 export type CheckoutPlan = "credits_50" | "unlimited_monthly";
@@ -9,6 +16,9 @@ export type AnalyticsEventName =
   | "example_click"
   | "message_paste"
   | "screenshot_upload"
+  | "generator_input_start"
+  | "generator_advanced_open"
+  | "compose_mode_change"
   | "situation_select"
   | "tone_select"
   | "goal_select"
@@ -64,6 +74,20 @@ type AnalyticsPayloadMap = {
   example_click: AnalyticsPayload;
   message_paste: AnalyticsPayload;
   screenshot_upload: AnalyticsPayload;
+  generator_input_start: AnalyticsPayload & {
+    source: "typing" | "paste" | "screenshot";
+    compose_mode: GeneratorComposeMode;
+    flow_version: GeneratorFlowVersion;
+  };
+  generator_advanced_open: AnalyticsPayload & {
+    compose_mode: GeneratorComposeMode;
+    flow_version: GeneratorFlowVersion;
+  };
+  compose_mode_change: AnalyticsPayload & {
+    from_mode: GeneratorComposeMode;
+    to_mode: GeneratorComposeMode;
+    flow_version: GeneratorFlowVersion;
+  };
   situation_select: AnalyticsPayload & {
     value?: string;
   };
@@ -76,10 +100,10 @@ type AnalyticsPayloadMap = {
   agrees_select: AnalyticsPayload & {
     value?: string;
   };
-  generate_click: AnalyticsPayload;
-  generate_success: AnalyticsPayload;
-  generate_error: AnalyticsPayload;
-  generate_blocked_402: AnalyticsPayload;
+  generate_click: AnalyticsPayload & GeneratorActivationTiming;
+  generate_success: AnalyticsPayload & GeneratorActivationTiming;
+  generate_error: AnalyticsPayload & GeneratorActivationTiming;
+  generate_blocked_402: AnalyticsPayload & GeneratorActivationTiming;
   reply_copy: AnalyticsPayload;
   refine_click: AnalyticsPayload & {
     action: RefineAction;
