@@ -2802,6 +2802,8 @@ export default function Home({
   const canUseStickyGenerate = isNoReplyMode
     ? Boolean(trimmedLastOutgoingMessage) && Number.isInteger(parsedNoReplyDuration) && parsedNoReplyDuration >= 1
     : Boolean(trimmedMessage || imageBase64);
+  const canReturnToGeneratorFromResults =
+    isGeneratorPrimaryMode && mobilePrimaryView === 'results' && Boolean(result) && !isGenerating;
   const heroGenerateCtaLabel = 'יאללה, מתחילים לענות';
   const heroStartUsingCtaLabel = 'התחילו להשתמש עכשיו';
   const mobileComposeHelper = useMemo(() => {
@@ -2988,6 +2990,19 @@ export default function Home({
       (messageInputRef.current ?? lastOutgoingInputRef.current)?.focus();
     });
   }, [scrollToMobileSection]);
+
+  const handleReturnToGenerator = useCallback(() => {
+    setMobilePrimaryView('compose');
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        composeSectionRef.current?.scrollIntoView({
+          behavior: getPreferredScrollBehavior(),
+          block: 'start',
+        });
+      });
+    });
+  }, []);
 
   const handleHeroStartUsingClick = useCallback(() => {
     trackEvent('hero_cta_click', { cta_text: heroStartUsingCtaLabel, target: 'incoming_message' });
@@ -5593,7 +5608,24 @@ export default function Home({
         </footer>
       </div>
 
-      {canUseStickyGenerate ? (
+      {canReturnToGeneratorFromResults ? (
+        <div className="fixed inset-x-3 bottom-0 z-30 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:hidden">
+          <div className="mx-auto max-w-md rounded-[20px] border border-[#e2d7c8] bg-[#fffdfa]/95 p-2 shadow-[0_12px_32px_rgba(49,23,13,0.18)] backdrop-blur">
+            <button
+              type="button"
+              aria-controls="compose-section"
+              onClick={handleReturnToGenerator}
+              className={`flex min-h-[56px] w-full items-center justify-center gap-3 rounded-[15px] border border-[#ffc4b5] bg-[#fff0ea] px-4 py-2 text-[#7a2d19] transition hover:bg-[#ffe3da] ${lightSurfaceFocusClass}`}
+            >
+              <span aria-hidden="true" className="text-xl leading-none">↩</span>
+              <span className="min-w-0 text-right">
+                <span className="block text-sm font-black">חזרה להודעה ולכיוונים</span>
+                <span className="block text-[11px] font-bold text-[#8f5a4a]">הטקסט והבחירות שלך נשמרו</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      ) : mobilePrimaryView === 'compose' && canUseStickyGenerate ? (
         <div className="fixed inset-x-3 bottom-0 z-30 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:hidden">
           <div className="mx-auto flex max-w-md items-center gap-2 rounded-[20px] border border-[#e2d7c8] bg-[#fffdfa]/95 p-2 shadow-[0_12px_32px_rgba(49,23,13,0.18)] backdrop-blur">
             <p className="min-w-0 flex-1 truncate px-1 text-xs font-black text-[#5b4d42]">
