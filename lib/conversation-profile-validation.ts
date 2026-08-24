@@ -4,7 +4,11 @@ import {
   type ContextOption,
   type ToneOption,
 } from "./generator-options";
-import { MAX_CONVERSATION_LABEL_LENGTH } from "./conversation-profile-types";
+import {
+  MAX_CONVERSATION_LABEL_LENGTH,
+  MAX_CONVERSATION_LAST_INTENT_LENGTH,
+  MAX_CONVERSATION_MEMORY_NOTE_LENGTH,
+} from "./conversation-profile-types";
 
 const PROFILE_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 
@@ -55,6 +59,41 @@ export function normalizeConversationTone(value: unknown): ToneOption {
   return value;
 }
 
+export function normalizeConversationMemoryNote(value: unknown): string | null {
+  return normalizeOptionalBoundedText(
+    value,
+    MAX_CONVERSATION_MEMORY_NOTE_LENGTH,
+    `מה שחשוב לזכור יכול להכיל עד ${MAX_CONVERSATION_MEMORY_NOTE_LENGTH} תווים.`,
+  );
+}
+
+export function normalizeConversationLastIntent(value: unknown): string | null {
+  return normalizeOptionalBoundedText(
+    value,
+    MAX_CONVERSATION_LAST_INTENT_LENGTH,
+    "התקציר האחרון של השיחה אינו תקין.",
+  );
+}
+
 export function isConversationProfileId(value: unknown): value is string {
   return typeof value === "string" && PROFILE_ID_PATTERN.test(value);
+}
+
+function normalizeOptionalBoundedText(value: unknown, maxLength: number, errorMessage: string) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    throw new ConversationProfileError(errorMessage, 400);
+  }
+
+  const normalized = value.trim().replace(/\s+/g, " ");
+  if (normalized.length === 0) {
+    return null;
+  }
+  if (normalized.length > maxLength) {
+    throw new ConversationProfileError(errorMessage, 400);
+  }
+  return normalized;
 }

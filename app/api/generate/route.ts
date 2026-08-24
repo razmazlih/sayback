@@ -14,6 +14,12 @@ import {
 } from "@/lib/local-usage-logs";
 import { persistUsageLog, type PersistedUsageLogStatus } from "@/lib/persisted-usage-logs";
 import { consumeRateLimit } from "@/lib/rate-limit";
+import {
+  ConversationProfileError,
+  getConversationProfile,
+  updateConversationProfileAfterGeneration,
+} from "@/lib/conversation-profiles";
+import type { ConversationProfile } from "@/lib/conversation-profile-types";
 import { readVisitorIdentity, resolveUserId } from "@/lib/visitor-identity";
 import { MAX_NO_REPLY_DURATION_VALUE } from "@/lib/message-limits";
 import { after } from "next/server";
@@ -56,6 +62,7 @@ interface GenerateRequestBody {
   refineInstruction?: string;
   action?: string;
   sourceReply?: string;
+  conversationId?: unknown;
 }
 
 type PersistedUsageLogBase = {
@@ -90,6 +97,7 @@ export async function POST(request: Request) {
   let consumption: GenerationConsumption | null = null;
   let localUsageLogId: string | null = null;
   let persistedUsageLogBase: PersistedUsageLogBase | null = null;
+  let savedConversation: ConversationProfile | null = null;
 
   try {
     const authenticatedUser = await requireAuthenticatedUser(request);
@@ -217,6 +225,13 @@ export async function POST(request: Request) {
       throw new UnauthorizedError();
     }
 
+    if (body.conversationId !== undefined && body.conversationId !== null) {
+      if (typeof body.conversationId !== "string") {
+        throw new ConversationProfileError("השיחה שבחרת לא תקינה.", 400);
+      }
+      savedConversation = await getConversationProfile(authenticatedUserUid, body.conversationId);
+    }
+
     const access = await consumeGenerationAccess(authenticatedUserUid);
 
     if (!access.allowed) {
@@ -255,8 +270,40 @@ export async function POST(request: Request) {
       }
     }
 
-    const generated = await generateRepliesWithModelSource(body);
+    const effectiveContext = body.context ?? savedConversation?.context ?? undefined;
+    const effectiveTone = body.tone ?? savedConversation?.tone;
+    const generated = await generateRepliesWithModelSource({
+      ...body,
+      context: effectiveContext,
+      tone: effectiveTone,
+      savedConversationMemory: savedConversation
+        ? {
+            label: savedConversation.label,
+            context: savedConversation.context,
+            tone: savedConversation.tone,
+            memoryNote: savedConversation.memoryNote,
+            lastIntent: savedConversation.lastIntent,
+          }
+        : undefined,
+    });
     const result = generated.result;
+
+    if (savedConversation && isNewConversationTurn(body)) {
+      try {
+        await updateConversationProfileAfterGeneration(
+          authenticatedUserUid,
+          savedConversation.id,
+          {
+            lastIntent: result.intent,
+            context: effectiveContext,
+            tone: effectiveTone,
+          },
+        );
+      } catch (memoryUpdateError) {
+        // A transient memory write must not discard a valid, already-paid generation.
+        console.error("Failed to update saved conversation memory", memoryUpdateError);
+      }
+    }
     const billing = await getBillingSnapshot(authenticatedUserUid, {
       accountEmail: authenticatedUserEmail,
     });
@@ -322,6 +369,15 @@ export async function POST(request: Request) {
       );
     }
 
+    if (error instanceof ConversationProfileError) {
+      return noStoreJson(
+        {
+          error: error.message,
+        },
+        error.status,
+      );
+    }
+
     console.error("Unhandled generate route error", error);
 
     return noStoreJson(
@@ -331,6 +387,10 @@ export async function POST(request: Request) {
       500,
     );
   }
+}
+
+function isNewConversationTurn(body: GenerateRequestBody) {
+  return !body.action && !body.sourceReply && !body.refineInstruction;
 }
 
 function withAccountIdentity<T extends { accountEmail: string | null; isRecoverableAccount: boolean }>(

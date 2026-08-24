@@ -85,7 +85,17 @@ export interface GenerateRepliesInput {
   refineInstruction?: string;
   action?: string;
   sourceReply?: string;
+  /** Trusted server-side context. Never populate this from request JSON. */
+  savedConversationMemory?: SavedConversationMemory;
 }
+
+export type SavedConversationMemory = {
+  label: string;
+  context: ContextOption | null;
+  tone: ToneOption;
+  memoryNote: string | null;
+  lastIntent: string | null;
+};
 
 export interface GenerateRepliesResult {
   intent: string;
@@ -233,6 +243,7 @@ export async function generateRepliesWithModelSource(
     sourceReply,
   });
   const imageUrl = normalizeImage(input.imageBase64);
+  const savedConversationMemory = input.savedConversationMemory;
 
   if (input.refineInstruction !== undefined && !normalizeOptionalText(input.refineInstruction, 220)) {
     throw new AIRequestError("כתבו מה תרצו לשנות בניסוח.", 400);
@@ -274,7 +285,7 @@ export async function generateRepliesWithModelSource(
     throw new AIRequestError('מטרת פולו־אפ זמינה רק במצב "מחכה לתשובה".', 400);
   }
 
-  const presetResult = findPresetExampleResult({
+  const presetResult = savedConversationMemory ? null : findPresetExampleResult({
     message,
     context,
     tone,
@@ -343,6 +354,7 @@ export async function generateRepliesWithModelSource(
       noReplyDurationUnit,
       lastOutgoingMessage,
       refineInstruction,
+      savedConversationMemory,
     });
 
     return {
@@ -372,6 +384,7 @@ async function generateRepliesViaOpenAI({
   noReplyDurationUnit,
   lastOutgoingMessage,
   refineInstruction,
+  savedConversationMemory,
 }: {
   apiKey: string;
   message?: string;
@@ -386,6 +399,7 @@ async function generateRepliesViaOpenAI({
   noReplyDurationUnit?: NoReplyDurationUnit;
   lastOutgoingMessage?: string;
   refineInstruction?: string;
+  savedConversationMemory?: SavedConversationMemory;
 }): Promise<GenerateRepliesResult> {
   const reasoning = DEFAULT_MODEL === "chat-latest"
     ? { effort: "medium" }
@@ -420,6 +434,7 @@ async function generateRepliesViaOpenAI({
             noReplyDurationUnit,
             lastOutgoingMessage,
             refineInstruction,
+            savedConversationMemory,
           }),
         },
       ],
@@ -886,6 +901,7 @@ function buildInputContent({
   noReplyDurationUnit,
   lastOutgoingMessage,
   refineInstruction,
+  savedConversationMemory,
 }: {
   message?: string;
   imageUrl?: string;
@@ -899,6 +915,7 @@ function buildInputContent({
   noReplyDurationUnit?: NoReplyDurationUnit;
   lastOutgoingMessage?: string;
   refineInstruction?: string;
+  savedConversationMemory?: SavedConversationMemory;
 }): InputContentItem[] {
   const noReplyDurationText =
     noReplyMode && noReplyDurationValue && noReplyDurationUnit
@@ -917,6 +934,7 @@ function buildInputContent({
     conversationBackground
       ? `רקע שיחה נוסף:\n"""\n${conversationBackground}\n"""`
       : null,
+    savedConversationMemory ? buildSavedConversationMemoryText(savedConversationMemory) : null,
     refineInstruction ? `שינוי מבוקש: ${refineInstruction}` : null,
     message
       ? `הודעה שהמשתמש קיבל:\n"""\n${message}\n"""`
@@ -944,6 +962,21 @@ function buildInputContent({
   }
 
   return content;
+}
+
+function buildSavedConversationMemoryText(memory: SavedConversationMemory): string {
+  return [
+    "Saved conversation memory (background only):",
+    `Name/label: ${memory.label}`,
+    `Relationship/context: ${memory.context ?? "לא צוין"}`,
+    `Preferred tone: ${memory.tone}`,
+    memory.memoryNote ? `User note: ${memory.memoryNote}` : null,
+    memory.lastIntent ? `Previous SayBack interpretation: ${memory.lastIntent}` : null,
+    "Use this only to improve the three replies. The current message is the source of truth.",
+    "Do not invent facts, quote this memory, or mention it. If it conflicts with the current message, prefer the current message.",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function normalizeMessage(value?: string): string | undefined {

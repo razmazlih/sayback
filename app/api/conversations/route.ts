@@ -41,11 +41,13 @@ export async function POST(request: Request) {
     }
 
     const body = await readObjectBody(request);
-    assertExactKeys(body, ["label", "context", "tone"]);
+    assertExactKeys(body, ["label", "context", "tone", "memoryNote", "lastIntent"]);
     const conversation = await createConversationProfile(user.uid, {
       label: body.label,
       context: body.context,
       tone: body.tone,
+      memoryNote: body.memoryNote,
+      lastIntent: body.lastIntent,
     });
 
     return json({ conversation }, 201);

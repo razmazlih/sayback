@@ -65,6 +65,8 @@ export type AnalyticsEventName =
   | "conversation_selected"
   | "conversation_reused_generate"
   | "conversation_manage_open"
+  | "conversation_memory_view"
+  | "conversation_memory_edit"
   | "conversation_renamed"
   | "conversation_deleted"
   // Compatibility aliases used by existing page instrumentation.
@@ -159,6 +161,8 @@ type AnalyticsPayloadMap = {
   conversation_selected: AnalyticsPayload;
   conversation_reused_generate: AnalyticsPayload;
   conversation_manage_open: AnalyticsPayload;
+  conversation_memory_view: AnalyticsPayload;
+  conversation_memory_edit: AnalyticsPayload;
   conversation_renamed: AnalyticsPayload;
   conversation_deleted: AnalyticsPayload;
   generate: AnalyticsPayload;

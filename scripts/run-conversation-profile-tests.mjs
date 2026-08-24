@@ -27,6 +27,7 @@ try {
       "lib/generator-options.ts",
       "lib/conversation-profile-types.ts",
       "lib/conversation-profile-validation.ts",
+      "lib/conversation-profile-parser.ts",
       "tests/conversation-profile-validation.test.ts",
     ],
     { stdio: "inherit" },

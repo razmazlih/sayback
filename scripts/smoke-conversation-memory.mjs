@@ -53,7 +53,13 @@ try {
   console.log("smoke: creating and listing a profile");
   const created = await api(userA.idToken, "/api/conversations", {
     method: "POST",
-    body: JSON.stringify({ label: `בדיקת שיחה ${Date.now()}`, context: "קראש", tone: "זורם" }),
+    body: JSON.stringify({
+      label: `בדיקת שיחה ${Date.now()}`,
+      context: "קראש",
+      tone: "זורם",
+      memoryNote: "מדברים שבועיים והיה דייט אחד",
+      lastIntent: "לשמור על עניין בלי להישמע לחוץ",
+    }),
   });
   assert.equal(created.response.status, 201);
   assert.ok(created.data.conversation?.id);
@@ -104,13 +110,51 @@ try {
   });
   assertGeneration(validNoReply);
 
-  console.log("smoke: checking reuse, ownership, rename, and stored schema");
-  const reused = await api(userA.idToken, `/api/conversations/${profileId}`, {
-    method: "PATCH",
-    body: JSON.stringify({ operation: "mark_used" }),
+  console.log("smoke: checking reuse, ownership, memory update, and stored schema");
+  const reused = await api(userA.idToken, "/api/generate", {
+    method: "POST",
+    body: JSON.stringify({
+      message: "היא כתבה שהיה לה כיף אבל שהיא רוצה להתקדם לאט",
+      context: "קראש",
+      tone: "זורם",
+      conversationId: profileId,
+    }),
   });
-  assert.equal(reused.response.status, 200);
-  assert.equal(reused.data.conversation.usageCount, 1);
+  assertGeneration(reused);
+
+  const afterReuse = await api(userA.idToken, "/api/conversations");
+  const reusedProfile = afterReuse.data.conversations.find((profile) => profile.id === profileId);
+  assert.equal(reusedProfile.usageCount, 1);
+  assert.equal(reusedProfile.lastIntent, reused.data.intent);
+
+  const refinedWithMemory = await api(userA.idToken, "/api/generate", {
+    method: "POST",
+    body: JSON.stringify({
+      message: "היא כתבה שהיה לה כיף אבל שהיא רוצה להתקדם לאט",
+      context: "קראש",
+      tone: "זורם",
+      conversationId: profileId,
+      action: "softer",
+      sourceReply: reused.data.replies[0],
+    }),
+  });
+  assertGeneration(refinedWithMemory);
+  const afterRefine = await api(userA.idToken, "/api/conversations");
+  const refinedProfile = afterRefine.data.conversations.find((profile) => profile.id === profileId);
+  assert.equal(refinedProfile.usageCount, 1);
+  assert.equal(refinedProfile.lastIntent, reused.data.intent);
+
+  const invalidConversationId = await api(userA.idToken, "/api/generate", {
+    method: "POST",
+    body: JSON.stringify({ message: "בדיקה", tone: "זורם", conversationId: "../other" }),
+  });
+  assert.equal(invalidConversationId.response.status, 400);
+
+  const otherUserGeneration = await api(userB.idToken, "/api/generate", {
+    method: "POST",
+    body: JSON.stringify({ message: "בדיקה", tone: "זורם", conversationId: profileId }),
+  });
+  assert.equal(otherUserGeneration.response.status, 404);
 
   const otherUserMutation = await api(userB.idToken, `/api/conversations/${profileId}`, {
     method: "PATCH",
@@ -120,10 +164,15 @@ try {
 
   const renamed = await api(userA.idToken, `/api/conversations/${profileId}`, {
     method: "PATCH",
-    body: JSON.stringify({ operation: "update", label: "בדיקת שם חדש" }),
+    body: JSON.stringify({
+      operation: "update",
+      label: "בדיקת שם חדש",
+      memoryNote: "פרט קצר ומעודכן",
+    }),
   });
   assert.equal(renamed.response.status, 200);
   assert.equal(renamed.data.conversation.label, "בדיקת שם חדש");
+  assert.equal(renamed.data.conversation.memoryNote, "פרט קצר ומעודכן");
 
   const rawProfile = await firestore
     .collection("conversation_profiles")
@@ -133,7 +182,7 @@ try {
     .get();
   const rawData = rawProfile.data();
   assert.deepEqual(Object.keys(rawData).sort(), [
-    "context", "createdAt", "label", "lastUsedAt", "tone", "updatedAt", "usageCount", "version",
+    "context", "createdAt", "label", "lastIntent", "lastUsedAt", "memoryNote", "tone", "updatedAt", "usageCount", "version",
   ]);
   assert.ok(rawData.createdAt instanceof Timestamp);
   assert.ok(rawData.updatedAt instanceof Timestamp);
@@ -165,6 +214,8 @@ try {
     refineActions: ["softer", "sharper", "retry"],
     noReply: "ok",
     ownershipIsolation: "ok",
+    savedConversationGeneration: "ok",
+    refineDidNotUpdateMemory: "ok",
     persistedProfileKeys: Object.keys(rawData).sort(),
     maxProfiles: 20,
   }, null, 2));

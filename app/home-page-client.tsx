@@ -17,6 +17,7 @@ import {
 import dynamic from 'next/dynamic';
 import Image, { type StaticImageData } from 'next/image';
 import {
+  ConversationMemoryDialog,
   ManageConversationsDialog,
   SaveConversationDialog,
   SavedConversationsRow,
@@ -118,12 +119,16 @@ type GenerateRequest = {
   refineInstruction?: string;
   action?: ReplyAction;
   sourceReply?: string;
+  conversationId?: string;
 };
 
 type SuccessfulConversationDefaults = {
   context: ContextOption | null;
   tone: ToneOption;
+  lastIntent: string;
 };
+
+type ConversationDefaults = Omit<SuccessfulConversationDefaults, 'lastIntent'>;
 
 type BillingSnapshot = {
   freeLimit: number;
@@ -2753,7 +2758,8 @@ export default function Home({
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [conversationProfilesError, setConversationProfilesError] = useState<string | null>(null);
   const [conversationNotice, setConversationNotice] = useState<string | null>(null);
-  const [conversationDialog, setConversationDialog] = useState<'save' | 'manage' | null>(null);
+  const [conversationDialog, setConversationDialog] = useState<'save' | 'manage' | 'memory' | null>(null);
+  const [conversationManageEditId, setConversationManageEditId] = useState<string | null>(null);
   const [conversationMutationError, setConversationMutationError] = useState<string | null>(null);
   const [isSavingConversation, setIsSavingConversation] = useState(false);
   const [conversationBusyId, setConversationBusyId] = useState<string | null>(null);
@@ -4201,19 +4207,6 @@ export default function Home({
     setActiveConversationId(profile.id);
     setContext(resolvedDefaults.context);
     setTone(resolvedDefaults.tone);
-    setMessage('');
-    setLastOutgoingMessage('');
-    setNoReplyDurationValue('');
-    setNoReplyDurationUnit('hours');
-    setConversationBackground('');
-    setImageBase64(null);
-    setImageName(null);
-    setImageError(null);
-    setGoal(null);
-    setContinuePreference(null);
-    setResult(null);
-    setRequestError(null);
-    setLastSuccessfulConversationDefaults(null);
     setConversationNotice(
       contextLocked || toneLocked
         ? 'חלק מההגדרות בשיחה הזו זמינות במסלול החודשי. השארנו ברירת מחדל זמינה.'
@@ -4236,8 +4229,21 @@ export default function Home({
     setConversationNotice(null);
   }
 
+  function openConversationMemory(profile: ConversationProfile) {
+    setActiveConversationId(profile.id);
+    setConversationMutationError(null);
+    setConversationDialog('memory');
+    trackEvent('conversation_memory_view', {
+      access_state: accessState,
+      compose_mode: composeMode,
+      has_memory_note: Boolean(profile.memoryNote),
+      has_last_intent: Boolean(profile.lastIntent),
+    });
+  }
+
   function openConversationManagement() {
     setConversationMutationError(null);
+    setConversationManageEditId(null);
     setConversationDialog('manage');
     trackEvent('conversation_manage_open', {
       access_state: accessState,
@@ -4262,7 +4268,7 @@ export default function Home({
     });
   }
 
-  async function saveConversation(label: string) {
+  async function saveConversation(label: string, memoryNote: string | null) {
     if (!lastSuccessfulConversationDefaults || isSavingConversation) {
       return;
     }
@@ -4278,6 +4284,8 @@ export default function Home({
           label,
           context: lastSuccessfulConversationDefaults.context,
           tone: lastSuccessfulConversationDefaults.tone,
+          memoryNote,
+          lastIntent: lastSuccessfulConversationDefaults.lastIntent,
         }),
       });
       const data = (await response.json()) as { conversation?: ConversationProfile; error?: string };
@@ -4300,6 +4308,7 @@ export default function Home({
         context: data.conversation.context ?? 'unspecified',
         tone: data.conversation.tone,
         profile_count: Math.min(conversationProfiles.length + 1, 20),
+        has_memory_note: Boolean(memoryNote),
       });
     } catch (error) {
       setConversationMutationError(
@@ -4310,7 +4319,7 @@ export default function Home({
     }
   }
 
-  async function renameConversation(profile: ConversationProfile, label: string) {
+  async function updateConversation(profile: ConversationProfile, label: string, memoryNote: string | null) {
     if (conversationBusyId) return;
     setConversationBusyId(profile.id);
     setConversationMutationError(null);
@@ -4318,17 +4327,28 @@ export default function Home({
       const response = await fetchWithAuth(`/api/conversations/${encodeURIComponent(profile.id)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ operation: 'update', label }),
+        body: JSON.stringify({ operation: 'update', label, memoryNote }),
       });
       const data = (await response.json()) as { conversation?: ConversationProfile; error?: string };
       if (!response.ok || !data.conversation) throw new Error(data.error ?? 'שינוי השם נכשל.');
       setConversationProfiles((profiles) =>
         profiles.map((item) => item.id === profile.id ? data.conversation! : item),
       );
-      trackEvent('conversation_renamed', {
-        access_state: accessState,
-        profile_count: conversationProfiles.length,
-      });
+      const changedLabel = label !== profile.label;
+      const changedMemory = memoryNote !== profile.memoryNote;
+      if (changedLabel) {
+        trackEvent('conversation_renamed', {
+          access_state: accessState,
+          profile_count: conversationProfiles.length,
+        });
+      }
+      if (changedMemory) {
+        trackEvent('conversation_memory_edit', {
+          access_state: accessState,
+          profile_count: conversationProfiles.length,
+          has_memory_note: Boolean(memoryNote),
+        });
+      }
     } catch (error) {
       setConversationMutationError(
         mapApiErrorMessage(error instanceof Error ? error.message : 'שינוי השם נכשל.'),
@@ -4368,10 +4388,11 @@ export default function Home({
 
   function recordSuccessfulConversationGeneration(
     conversationId: string | null,
-    defaults: SuccessfulConversationDefaults,
+    defaults: ConversationDefaults,
+    lastIntent: string,
     payloadComposeMode: ComposeMode,
   ) {
-    setLastSuccessfulConversationDefaults(defaults);
+    setLastSuccessfulConversationDefaults({ ...defaults, lastIntent });
 
     if (!conversationId) {
       return;
@@ -4385,30 +4406,7 @@ export default function Home({
       profile_count: conversationProfiles.length,
     });
 
-    void fetchWithAuth(`/api/conversations/${encodeURIComponent(conversationId)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ operation: 'mark_used' }),
-    })
-      .then(async (response) => {
-        const data = (await response.json()) as { conversation?: ConversationProfile };
-        if (response.ok && data.conversation) {
-          setConversationProfiles((profiles) => [
-            data.conversation!,
-            ...profiles.filter((profile) => profile.id !== conversationId),
-          ]);
-          return;
-        }
-
-        if (response.status === 404) {
-          setActiveConversationId((currentId) => currentId === conversationId ? null : currentId);
-          setConversationNotice('השיחה השמורה כבר לא קיימת. אפשר לשמור אותה מחדש.');
-          void refreshConversationProfiles();
-        }
-      })
-      .catch((error) => {
-        console.error('Failed to update saved conversation usage metadata', error);
-      });
+    void refreshConversationProfiles();
   }
 
   async function runGeneration(
@@ -4416,7 +4414,7 @@ export default function Home({
     options?: {
       replyIndex?: number;
       conversationIdForReuse?: string | null;
-      normalDefaults?: SuccessfulConversationDefaults;
+      normalDefaults?: ConversationDefaults;
     },
   ) {
     setRequestError(null);
@@ -4556,6 +4554,7 @@ export default function Home({
         recordSuccessfulConversationGeneration(
           options.conversationIdForReuse ?? null,
           options.normalDefaults,
+          nextIntent,
           payloadComposeMode,
         );
       }
@@ -4580,6 +4579,7 @@ export default function Home({
         has_text: Boolean(payload.message.trim()),
         has_background: payloadHasBackground,
         has_last_outgoing: payloadHasLastOutgoing,
+        has_saved_conversation: Boolean(payload.conversationId),
         no_reply_duration_value: payload.noReplyDurationValue ?? null,
         no_reply_duration_unit: payload.noReplyDurationUnit ?? null,
       });
@@ -4684,6 +4684,7 @@ export default function Home({
       has_text: !isNoReplyMode && Boolean(trimmedMessage),
       has_background: Boolean(allowedConversationBackground),
       has_last_outgoing: Boolean(trimmedLastOutgoingMessage),
+      has_saved_conversation: Boolean(activeConversationId),
       no_reply_duration_value: Number.isInteger(parsedNoReplyDuration) ? parsedNoReplyDuration : null,
       no_reply_duration_unit: isNoReplyMode ? noReplyDurationUnit : null,
     });
@@ -4700,6 +4701,7 @@ export default function Home({
       noReplyDurationValue: isNoReplyMode ? parsedNoReplyDuration : undefined,
       noReplyDurationUnit: isNoReplyMode ? noReplyDurationUnit : undefined,
       lastOutgoingMessage: isNoReplyMode ? trimmedLastOutgoingMessage : undefined,
+      conversationId: activeConversationId ?? undefined,
     }, {
         conversationIdForReuse: activeConversationId,
         normalDefaults: { context, tone },
@@ -4766,6 +4768,7 @@ export default function Home({
         lastOutgoingMessage: isNoReplyMode ? trimmedLastOutgoingMessage : undefined,
         action,
         sourceReply: result.replies[index],
+        conversationId: activeConversationId ?? undefined,
       },
       { replyIndex: index },
     );
@@ -4804,6 +4807,7 @@ export default function Home({
         lastOutgoingMessage: isNoReplyMode ? trimmedLastOutgoingMessage : undefined,
         refineInstruction: refineInstruction.trim().slice(0, 220),
         sourceReply: result.replies[index],
+        conversationId: activeConversationId ?? undefined,
       },
       { replyIndex: index },
     );
@@ -4864,7 +4868,12 @@ export default function Home({
       await navigator.clipboard.writeText(reply);
       setCopiedReplyIndex(index);
       setHasCopiedAllReplies(false);
-      trackEvent('reply_copy', { index, context, tone });
+      trackEvent('reply_copy', {
+        index,
+        context,
+        tone,
+        has_saved_conversation: Boolean(activeConversationId),
+      });
     } catch {
       setRequestError('ההעתקה נכשלה. נסה שוב.');
     }
@@ -4931,6 +4940,7 @@ export default function Home({
       setHasCopiedAllReplies(true);
       trackEvent('reply_copy_all', {
         reply_count: result.replies.length,
+        has_saved_conversation: Boolean(activeConversationId),
       });
     } catch {
       setRequestError('העתקת כל התשובות נכשלה. נסה שוב.');
@@ -5178,6 +5188,7 @@ export default function Home({
               onSelect={handleConversationSelect}
               onClear={handleConversationClear}
               onManage={openConversationManagement}
+              onViewMemory={openConversationMemory}
               onRetry={() => void refreshConversationProfiles()}
             />
 
@@ -5686,15 +5697,23 @@ export default function Home({
                 </div>
                 <div className="rounded-2xl border border-[#e2d7c8] bg-[#fffdf8] px-3 py-2.5 text-sm">
                   {activeConversation ? (
-                    <p className="font-black text-[#5b4d42]">שיחה שמורה: {activeConversation.label}</p>
+                    <p className="font-black text-[#5b4d42]">עונים ל{activeConversation.label} · SayBack זוכר את ההקשר</p>
                   ) : lastSuccessfulConversationDefaults ? (
-                    <button
-                      type="button"
-                      onClick={openConversationSave}
-                      className={`min-h-[42px] w-full rounded-full border border-[#ded2c3] bg-white px-3 py-2 text-sm font-black text-[#5b4d42] transition hover:border-[#ffb29f] hover:text-[#7a2d19] ${whiteSurfaceFocusClass}`}
-                    >
-                      לשמור את השיחה לפעם הבאה
-                    </button>
+                    <div>
+                      <p className="mb-2 text-center text-xs font-bold text-[#6d6259]">מדברים שוב עם אותו אדם?</p>
+                      <button
+                        type="button"
+                        onClick={openConversationSave}
+                        className={[
+                          `min-h-[42px] w-full rounded-full border px-3 py-2 text-sm font-black transition ${whiteSurfaceFocusClass}`,
+                          copiedReplyIndex !== null || hasCopiedAllReplies
+                            ? 'border-[#ff9c83] bg-[#fff0ea] text-[#7a2d19]'
+                            : 'border-[#ded2c3] bg-white text-[#5b4d42] hover:border-[#ffb29f] hover:text-[#7a2d19]',
+                        ].join(' ')}
+                      >
+                        זכור את השיחה לפעם הבאה
+                      </button>
+                    </div>
                   ) : null}
                 </div>
                 </div>
@@ -5965,19 +5984,32 @@ export default function Home({
       />
 
       <ManageConversationsDialog
-        key={conversationDialog === 'manage' ? 'manage-open' : 'manage-closed'}
+        key={conversationDialog === 'manage' ? `manage-${conversationManageEditId ?? 'open'}` : 'manage-closed'}
         open={conversationDialog === 'manage'}
         profiles={conversationProfiles}
         busyId={conversationBusyId}
         error={conversationMutationError}
+        editProfile={conversationProfiles.find((profile) => profile.id === conversationManageEditId) ?? null}
         onClose={() => {
           if (!conversationBusyId) {
             setConversationDialog(null);
             setConversationMutationError(null);
           }
         }}
-        onRename={renameConversation}
+        onUpdate={updateConversation}
         onDelete={deleteConversation}
+      />
+
+      <ConversationMemoryDialog
+        key={conversationDialog === 'memory' ? `memory-${activeConversationId}` : 'memory-closed'}
+        open={conversationDialog === 'memory'}
+        profile={activeConversation}
+        onClose={() => setConversationDialog(null)}
+        onEdit={(profile) => {
+          setConversationManageEditId(profile.id);
+          setConversationDialog('manage');
+        }}
+        onManage={openConversationManagement}
       />
 
       {!billingBypassEnabled ? (

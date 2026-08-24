@@ -72,7 +72,7 @@ function parsePatch(body: Record<string, unknown>): ConversationProfilePatch {
     throw new ConversationProfileError("פעולת העדכון לא תקינה.", 400);
   }
 
-  assertExactKeys(body, ["operation", "label", "context", "tone"]);
+  assertExactKeys(body, ["operation", "label", "context", "tone", "memoryNote"]);
   const patch: ConversationProfilePatch = {};
 
   if (Object.prototype.hasOwnProperty.call(body, "label")) {
@@ -83,6 +83,9 @@ function parsePatch(body: Record<string, unknown>): ConversationProfilePatch {
   }
   if (Object.prototype.hasOwnProperty.call(body, "tone")) {
     patch.tone = body.tone as ConversationProfilePatch["tone"];
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "memoryNote")) {
+    patch.memoryNote = body.memoryNote as ConversationProfilePatch["memoryNote"];
   }
 
   if (Object.keys(patch).length === 0) {

@@ -1,25 +1,30 @@
-import { FieldValue, type Firestore, type Timestamp } from "firebase-admin/firestore";
+import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import { getFirestore } from "@/lib/firebase-admin";
 import {
   type ContextOption,
   type ToneOption,
 } from "@/lib/generator-options";
 import {
-  MAX_CONVERSATION_LABEL_LENGTH,
   MAX_CONVERSATION_PROFILES,
   type ConversationProfile,
 } from "@/lib/conversation-profile-types";
+import {
+  CONVERSATION_PROFILE_VERSION,
+  parseStoredConversationProfile,
+} from "@/lib/conversation-profile-parser";
 import {
   ConversationProfileError,
   isConversationProfileId,
   normalizeConversationContext,
   normalizeConversationLabel,
+  normalizeConversationLastIntent,
+  normalizeConversationMemoryNote,
   normalizeConversationTone,
 } from "@/lib/conversation-profile-validation";
 
 export { ConversationProfileError } from "@/lib/conversation-profile-validation";
 
-export const CONVERSATION_PROFILE_VERSION = 1;
+export { CONVERSATION_PROFILE_VERSION } from "@/lib/conversation-profile-parser";
 
 export type ConversationProfileDefaults = {
   context: ContextOption | null;
@@ -28,18 +33,8 @@ export type ConversationProfileDefaults = {
 
 export type ConversationProfilePatch = Partial<ConversationProfileDefaults> & {
   label?: string;
+  memoryNote?: string | null;
   markUsed?: boolean;
-};
-
-type StoredConversationProfile = {
-  version?: unknown;
-  label?: unknown;
-  context?: unknown;
-  tone?: unknown;
-  createdAt?: unknown;
-  updatedAt?: unknown;
-  lastUsedAt?: unknown;
-  usageCount?: unknown;
 };
 
 export async function listConversationProfiles(uid: string): Promise<ConversationProfile[]> {
@@ -50,18 +45,26 @@ export async function listConversationProfiles(uid: string): Promise<Conversatio
     .get();
 
   return snapshot.docs.flatMap((document) => {
-    const profile = parseStoredProfile(document.id, document.data());
+    const profile = parseStoredConversationProfile(document.id, document.data());
     return profile ? [profile] : [];
   });
 }
 
 export async function createConversationProfile(
   uid: string,
-  input: { label: unknown; context: unknown; tone: unknown },
+  input: {
+    label: unknown;
+    context: unknown;
+    tone: unknown;
+    memoryNote?: unknown;
+    lastIntent?: unknown;
+  },
 ): Promise<ConversationProfile> {
   const label = normalizeConversationLabel(input.label);
   const context = normalizeConversationContext(input.context);
   const tone = normalizeConversationTone(input.tone);
+  const memoryNote = normalizeConversationMemoryNote(input.memoryNote);
+  const lastIntent = normalizeConversationLastIntent(input.lastIntent);
   const firestore = (await getFirestore()) as unknown as Firestore;
   const ownerRef = firestore.collection("conversation_profiles").doc(uid);
   const profileRef = ownerRef.collection("items").doc();
@@ -83,6 +86,8 @@ export async function createConversationProfile(
       label,
       context,
       tone,
+      memoryNote,
+      lastIntent,
       createdAt: now,
       updatedAt: now,
       lastUsedAt: now,
@@ -100,7 +105,7 @@ export async function createConversationProfile(
   });
 
   const created = await profileRef.get();
-  const profile = parseStoredProfile(created.id, created.data());
+  const profile = parseStoredConversationProfile(created.id, created.data());
 
   if (!profile) {
     throw new Error("Conversation profile was created with an invalid shape.");
@@ -136,6 +141,10 @@ export async function updateConversationProfile(
     updates.tone = normalizeConversationTone(patch.tone);
   }
 
+  if (patch.memoryNote !== undefined) {
+    updates.memoryNote = normalizeConversationMemoryNote(patch.memoryNote);
+  }
+
   if (patch.markUsed === true) {
     updates.lastUsedAt = FieldValue.serverTimestamp();
     updates.usageCount = FieldValue.increment(1);
@@ -152,13 +161,71 @@ export async function updateConversationProfile(
   });
 
   const updated = await profileRef.get();
-  const profile = parseStoredProfile(updated.id, updated.data());
+  const profile = parseStoredConversationProfile(updated.id, updated.data());
 
   if (!profile) {
     throw new Error("Conversation profile was updated with an invalid shape.");
   }
 
   return profile;
+}
+
+export async function getConversationProfile(
+  uid: string,
+  id: string,
+): Promise<ConversationProfile> {
+  if (!isConversationProfileId(id)) {
+    throw new ConversationProfileError("השיחה שבחרת לא תקינה.", 400);
+  }
+
+  const firestore = (await getFirestore()) as unknown as Firestore;
+  const snapshot = await profilesCollection(firestore, uid).doc(id).get();
+  const profile = snapshot.exists
+    ? parseStoredConversationProfile(snapshot.id, snapshot.data())
+    : null;
+
+  if (!profile) {
+    throw new ConversationProfileError("השיחה השמורה כבר לא קיימת.", 404);
+  }
+  return profile;
+}
+
+export async function updateConversationProfileAfterGeneration(
+  uid: string,
+  id: string,
+  input: { lastIntent: unknown; context?: unknown; tone?: unknown },
+): Promise<void> {
+  if (!isConversationProfileId(id)) {
+    throw new ConversationProfileError("השיחה שבחרת לא תקינה.", 400);
+  }
+
+  const lastIntent = normalizeConversationLastIntent(input.lastIntent);
+  if (!lastIntent) {
+    throw new ConversationProfileError("התקציר האחרון של השיחה אינו תקין.", 400);
+  }
+
+  const updates: Record<string, unknown> = {
+    lastIntent,
+    lastUsedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+    usageCount: FieldValue.increment(1),
+  };
+  if (input.context !== undefined) {
+    updates.context = normalizeConversationContext(input.context);
+  }
+  if (input.tone !== undefined) {
+    updates.tone = normalizeConversationTone(input.tone);
+  }
+
+  const firestore = (await getFirestore()) as unknown as Firestore;
+  const profileRef = profilesCollection(firestore, uid).doc(id);
+  await firestore.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(profileRef);
+    if (!snapshot.exists) {
+      throw new ConversationProfileError("השיחה השמורה כבר לא קיימת.", 404);
+    }
+    transaction.update(profileRef, updates);
+  });
 }
 
 export async function deleteConversationProfile(uid: string, id: string): Promise<void> {
@@ -195,76 +262,6 @@ export async function deleteConversationProfile(uid: string, id: string): Promis
 
 function profilesCollection(firestore: Firestore, uid: string) {
   return firestore.collection("conversation_profiles").doc(uid).collection("items");
-}
-
-function parseStoredProfile(id: string, value: unknown): ConversationProfile | null {
-  if (!isConversationProfileId(id) || !value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-
-  const stored = value as StoredConversationProfile;
-  const label = typeof stored.label === "string" ? stored.label.trim() : "";
-  const context = stored.context === null ? null : stored.context;
-
-  if (
-    stored.version !== CONVERSATION_PROFILE_VERSION ||
-    label.length < 1 ||
-    label.length > MAX_CONVERSATION_LABEL_LENGTH ||
-    (context !== null && !safeContext(context)) ||
-    !safeTone(stored.tone)
-  ) {
-    return null;
-  }
-
-  const createdAt = timestampToIso(stored.createdAt);
-  const updatedAt = timestampToIso(stored.updatedAt);
-  const lastUsedAt = timestampToIso(stored.lastUsedAt);
-
-  if (!createdAt || !updatedAt || !lastUsedAt) {
-    return null;
-  }
-
-  return {
-    id,
-    version: CONVERSATION_PROFILE_VERSION,
-    label,
-    context: context as ContextOption | null,
-    tone: stored.tone,
-    createdAt,
-    updatedAt,
-    lastUsedAt,
-    usageCount: readNonNegativeInteger(stored.usageCount),
-  };
-}
-
-function safeContext(value: unknown): value is ContextOption {
-  try {
-    return normalizeConversationContext(value) !== null;
-  } catch {
-    return false;
-  }
-}
-
-function safeTone(value: unknown): value is ToneOption {
-  try {
-    normalizeConversationTone(value);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function timestampToIso(value: unknown) {
-  if (!value || typeof value !== "object" || !("toDate" in value)) {
-    return null;
-  }
-
-  try {
-    const date = (value as Timestamp).toDate();
-    return Number.isFinite(date.getTime()) ? date.toISOString() : null;
-  } catch {
-    return null;
-  }
 }
 
 function readNonNegativeInteger(value: unknown) {
