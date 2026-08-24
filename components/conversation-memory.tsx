@@ -306,7 +306,7 @@ export function ManageConversationsDialog({
                       onClick={() => { setEditingId(profile.id); setDraft(profile.label); setMemoryDraft(profile.memoryNote ?? ''); setConfirmDeleteId(null); }}
                       className={`min-h-[40px] rounded-full px-2 text-xs font-black text-[#5b4d42] disabled:opacity-50 ${focusClass}`}
                     >
-                      עריכת זיכרון
+                      עריכת מה שזוכרים
                     </button>
                     <button
                       type="button"
@@ -346,7 +346,7 @@ export function ConversationMemoryDialog({
   if (!open || !profile) return null;
 
   return (
-    <DialogShell title="מה SayBack זוכר?" onClose={onClose} closeDisabled={false}>
+    <DialogShell title={`מה זוכרים על ${profile.label}?`} onClose={onClose} closeDisabled={false}>
       <div className="space-y-4">
         <div>
           <h3 className="text-xl font-black text-[#181411]">{profile.label}</h3>
@@ -354,21 +354,18 @@ export function ConversationMemoryDialog({
             {profile.context ?? 'ללא מצב'} · וייב {profile.tone}
           </p>
         </div>
-        <section aria-labelledby="saved-memory-note" className="rounded-2xl border border-[#e2d7c8] bg-white p-3">
-          <h4 id="saved-memory-note" className="text-sm font-black text-[#241d18]">מה ביקשת שנזכור</h4>
+        <section aria-labelledby="saved-memory-note" className="rounded-2xl border border-[#f7cf76] bg-[#fff6d8] p-3">
+          <h4 id="saved-memory-note" className="text-sm font-black text-[#241d18]">הסיכום הכללי שחשוב לזכור</h4>
           <p className="mt-1 text-sm font-bold leading-6 text-[#5b4d42]">
-            {profile.memoryNote ?? 'עדיין לא הוספת פרט קבוע על השיחה.'}
+            {profile.memoryNote ?? `עדיין לא כתבת מה חשוב לזכור על ${profile.label}.`}
           </p>
         </section>
-        {profile.lastIntent ? (
-          <section aria-labelledby="saved-last-intent" className="rounded-2xl border border-[#f7cf76] bg-[#fff6d8] p-3">
-            <h4 id="saved-last-intent" className="text-sm font-black text-[#241d18]">מה SayBack הבין בפעם האחרונה</h4>
-            <p className="mt-1 text-sm font-bold leading-6 text-[#5b4d42]">{profile.lastIntent}</p>
-          </section>
-        ) : null}
+        <p className="text-xs font-bold leading-5 text-[#7a6e64]">
+          זה הסיכום הקבוע על האדם והקשר ביניכם — לא סיכום של ההודעה האחרונה.
+        </p>
         <div className="flex flex-col gap-2 sm:flex-row">
           <button type="button" onClick={() => onEdit(profile)} className={`min-h-[44px] flex-1 rounded-full bg-[#181411] px-4 text-sm font-black text-white ${focusClass}`}>
-            {profile.memoryNote ? 'עריכת זיכרון' : 'להוסיף פרט'}
+            {profile.memoryNote ? 'עריכת מה שחשוב לזכור' : 'לכתוב מה חשוב לזכור'}
           </button>
           <button type="button" onClick={onManage} className={`min-h-[44px] flex-1 rounded-full border border-[#ded2c3] bg-white px-4 text-sm font-black text-[#5b4d42] ${focusClass}`}>
             ניהול שיחות
