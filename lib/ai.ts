@@ -4,33 +4,12 @@ import {
   MAX_LAST_OUTGOING_MESSAGE_LENGTH,
   MAX_NO_REPLY_DURATION_VALUE,
 } from "@/lib/message-limits";
-
-const CONTEXT_OPTIONS = [
-  "קראש",
-  "אקס",
-  "ידיד",
-  "לקוח",
-  "בוס",
-  "יד2",
-  "בן/בת זוג",
-  "דייט",
-  "קולגה",
-  "משפחה",
-  "שותף/ה לדירה",
-  "שכנים",
-] as const;
-const TONE_OPTIONS = [
-  "עדין",
-  "ישיר",
-  "זורם",
-  "מצחיק",
-  "פלרטטני",
-  "אסרטיבי",
-  "רגוע",
-  "רשמי",
-  "קליל",
-  "ענייני",
-] as const;
+import {
+  CONTEXT_OPTIONS,
+  TONE_OPTIONS,
+  type ContextOption,
+  type ToneOption,
+} from "@/lib/generator-options";
 const CONTINUE_PREFERENCE_OPTIONS = ["כן", "לא"] as const;
 export const GOAL_OPTIONS = [
   "להמשיך שיחה",
@@ -53,8 +32,6 @@ const FREE_AI_MODE_ENABLED = process.env.LOCAL_FREE_AI?.trim().toLowerCase() ===
 const MAX_MESSAGE_LENGTH = MAX_INCOMING_MESSAGE_LENGTH;
 const MAX_IMAGE_LENGTH = 10_000_000;
 
-type ContextOption = (typeof CONTEXT_OPTIONS)[number];
-type ToneOption = (typeof TONE_OPTIONS)[number];
 type ContinuePreferenceOption = (typeof CONTINUE_PREFERENCE_OPTIONS)[number];
 export type GoalOption = (typeof GOAL_OPTIONS)[number];
 type FollowUpGoalOption = (typeof FOLLOW_UP_GOAL_OPTIONS)[number];

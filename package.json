@@ -10,6 +10,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test:identity": "node scripts/run-identity-tests.mjs",
+    "test:conversations": "node scripts/run-conversation-profile-tests.mjs",
     "check": "npm run lint && npm run typecheck && npm run build"
   },
   "dependencies": {

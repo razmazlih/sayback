@@ -60,6 +60,13 @@ export type AnalyticsEventName =
   | "answer_detail_cta_click"
   | "billing_status_view"
   | "quota_badge_view"
+  | "conversation_save_click"
+  | "conversation_saved"
+  | "conversation_selected"
+  | "conversation_reused_generate"
+  | "conversation_manage_open"
+  | "conversation_renamed"
+  | "conversation_deleted"
   // Compatibility aliases used by existing page instrumentation.
   | "generate"
   | "copy"
@@ -147,6 +154,13 @@ type AnalyticsPayloadMap = {
   answer_detail_cta_click: AnalyticsPayload;
   billing_status_view: AnalyticsPayload;
   quota_badge_view: AnalyticsPayload;
+  conversation_save_click: AnalyticsPayload;
+  conversation_saved: AnalyticsPayload;
+  conversation_selected: AnalyticsPayload;
+  conversation_reused_generate: AnalyticsPayload;
+  conversation_manage_open: AnalyticsPayload;
+  conversation_renamed: AnalyticsPayload;
+  conversation_deleted: AnalyticsPayload;
   generate: AnalyticsPayload;
   copy: AnalyticsPayload;
   paywall_open: AnalyticsPayload;

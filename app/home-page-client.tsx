@@ -16,8 +16,23 @@ import {
 } from 'react';
 import dynamic from 'next/dynamic';
 import Image, { type StaticImageData } from 'next/image';
+import {
+  ManageConversationsDialog,
+  SaveConversationDialog,
+  SavedConversationsRow,
+} from '@/components/conversation-memory';
 import { trackEvent } from '@/lib/analytics';
+import type { ConversationProfile } from '@/lib/conversation-profile-types';
 import { buildHomeDeepLink } from '@/lib/home-deeplink';
+import {
+  CONTEXT_OPTIONS,
+  FREE_CONTEXT_OPTION_COUNT,
+  FREE_TONE_OPTION_COUNT,
+  TONE_OPTIONS,
+  resolveConversationDefaultsForAccess,
+  type ContextOption,
+  type ToneOption,
+} from '@/lib/generator-options';
 import {
   MAX_CONVERSATION_BACKGROUND_LENGTH,
   MAX_INCOMING_MESSAGE_LENGTH,
@@ -40,30 +55,6 @@ import funnySmileIllustration from '@/public/option-illustrations/funny-smile.we
 import gentleFeatherIllustration from '@/public/option-illustrations/gentle-feather.webp';
 import yad2PriceTagIllustration from '@/public/option-illustrations/yad2-price-tag.webp';
 
-type ContextOption =
-  | 'קראש'
-  | 'אקס'
-  | 'ידיד'
-  | 'לקוח'
-  | 'בוס'
-  | 'יד2'
-  | 'בן/בת זוג'
-  | 'דייט'
-  | 'קולגה'
-  | 'משפחה'
-  | 'שותף/ה לדירה'
-  | 'שכנים';
-type ToneOption =
-  | 'עדין'
-  | 'ישיר'
-  | 'זורם'
-  | 'מצחיק'
-  | 'פלרטטני'
-  | 'אסרטיבי'
-  | 'רגוע'
-  | 'רשמי'
-  | 'קליל'
-  | 'ענייני';
 type ContinuePreference = 'כן' | 'לא';
 type IncomingGoal =
   | 'להמשיך שיחה'
@@ -127,6 +118,11 @@ type GenerateRequest = {
   refineInstruction?: string;
   action?: ReplyAction;
   sourceReply?: string;
+};
+
+type SuccessfulConversationDefaults = {
+  context: ContextOption | null;
+  tone: ToneOption;
 };
 
 type BillingSnapshot = {
@@ -243,32 +239,8 @@ const QUERY_PARAM_MAX_LENGTH = {
   agrees: 8,
 } as const;
 
-const contextOptions: ContextOption[] = [
-  'קראש',
-  'אקס',
-  'ידיד',
-  'לקוח',
-  'בוס',
-  'יד2',
-  'בן/בת זוג',
-  'דייט',
-  'קולגה',
-  'משפחה',
-  'שותף/ה לדירה',
-  'שכנים',
-];
-const toneOptions: ToneOption[] = [
-  'עדין',
-  'ישיר',
-  'זורם',
-  'מצחיק',
-  'פלרטטני',
-  'אסרטיבי',
-  'רגוע',
-  'רשמי',
-  'קליל',
-  'ענייני',
-];
+const contextOptions: ContextOption[] = [...CONTEXT_OPTIONS];
+const toneOptions: ToneOption[] = [...TONE_OPTIONS];
 const incomingGoalOptions: IncomingGoal[] = [
   'להמשיך שיחה',
   'לקבוע זמן',
@@ -287,8 +259,8 @@ const customRefinePresets = [
   'להציב גבול',
   'לקבוע זמן',
 ] as const;
-const CONTEXT_PRIMARY_VISIBLE_COUNT = 6;
-const TONE_PRIMARY_VISIBLE_COUNT = 5;
+const CONTEXT_PRIMARY_VISIBLE_COUNT = FREE_CONTEXT_OPTION_COUNT;
+const TONE_PRIMARY_VISIBLE_COUNT = FREE_TONE_OPTION_COUNT;
 const freeContextOptions = contextOptions.slice(0, CONTEXT_PRIMARY_VISIBLE_COUNT);
 const freeToneOptions = toneOptions.slice(0, TONE_PRIMARY_VISIBLE_COUNT);
 const monthlyOnlyContextOptions = contextOptions.slice(CONTEXT_PRIMARY_VISIBLE_COUNT);
@@ -2779,8 +2751,19 @@ export default function Home({
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isBillingLoading, setIsBillingLoading] = useState(true);
   const [billingBypassEnabled, setBillingBypassEnabled] = useState(initialBillingBypassEnabled);
+  const [conversationProfiles, setConversationProfiles] = useState<ConversationProfile[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [conversationProfilesError, setConversationProfilesError] = useState<string | null>(null);
+  const [conversationNotice, setConversationNotice] = useState<string | null>(null);
+  const [conversationDialog, setConversationDialog] = useState<'save' | 'manage' | null>(null);
+  const [conversationMutationError, setConversationMutationError] = useState<string | null>(null);
+  const [isSavingConversation, setIsSavingConversation] = useState(false);
+  const [conversationBusyId, setConversationBusyId] = useState<string | null>(null);
+  const [lastSuccessfulConversationDefaults, setLastSuccessfulConversationDefaults] =
+    useState<SuccessfulConversationDefaults | null>(null);
   const authRecoveryPromiseRef = useRef<Promise<void> | null>(null);
   const authTokenPromiseRef = useRef<Promise<string> | null>(null);
+  const hasLoadedConversationProfilesRef = useRef(false);
   const hasHydrated = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const isGeneratorPrimaryMode = mode === 'generator';
 
@@ -2882,6 +2865,9 @@ export default function Home({
     dailyFreeRemaining === 0 &&
     dailyFreeLimit > 0;
   const canShowMobileResults = Boolean(result) || isGenerating;
+  const activeConversation = conversationProfiles.find(
+    (profile) => profile.id === activeConversationId,
+  ) ?? null;
 
   useEffect(() => {
     if (isBillingLoading || hasMonthlyFeatureAccess) {
@@ -3303,6 +3289,50 @@ export default function Home({
     response = await sendRequest(true);
     return response;
   }, [getFreshAuthToken]);
+
+  const refreshConversationProfiles = useCallback(async () => {
+    if (!isAuthReady) {
+      return;
+    }
+
+    try {
+      const response = await fetchWithAuth('/api/conversations', {
+        method: 'GET',
+        cache: 'no-store',
+      });
+      const data = (await response.json()) as {
+        conversations?: ConversationProfile[];
+        error?: string;
+      };
+
+      if (!response.ok || !Array.isArray(data.conversations)) {
+        throw new Error(data.error ?? 'לא הצלחנו לטעון את השיחות השמורות.');
+      }
+
+      setConversationProfiles(data.conversations.slice(0, 20));
+      setConversationProfilesError(null);
+      setActiveConversationId((currentId) =>
+        currentId && data.conversations?.some((profile) => profile.id === currentId)
+          ? currentId
+          : null,
+      );
+    } catch (error) {
+      setConversationProfilesError(
+        mapApiErrorMessage(
+          error instanceof Error ? error.message : 'לא הצלחנו לטעון את השיחות השמורות.',
+        ),
+      );
+    }
+  }, [fetchWithAuth, isAuthReady]);
+
+  useEffect(() => {
+    if (!isAuthReady || hasLoadedConversationProfilesRef.current) {
+      return;
+    }
+
+    hasLoadedConversationProfilesRef.current = true;
+    void refreshConversationProfiles();
+  }, [isAuthReady, refreshConversationProfiles]);
 
   const refreshBillingStatus = useCallback(async () => {
     if (!isAuthReady) {
@@ -4158,9 +4188,238 @@ export default function Home({
     await handleCheckout(plan);
   }
 
+  function handleConversationSelect(profile: ConversationProfile) {
+    if (isGenerating || isBillingLoading) {
+      return;
+    }
+
+    const resolvedDefaults = resolveConversationDefaultsForAccess(
+      profile.context,
+      profile.tone,
+      hasMonthlyFeatureAccess,
+    );
+    const { contextLocked, toneLocked } = resolvedDefaults;
+
+    setActiveConversationId(profile.id);
+    setContext(resolvedDefaults.context);
+    setTone(resolvedDefaults.tone);
+    setMessage('');
+    setLastOutgoingMessage('');
+    setNoReplyDurationValue('');
+    setNoReplyDurationUnit('hours');
+    setConversationBackground('');
+    setImageBase64(null);
+    setImageName(null);
+    setImageError(null);
+    setGoal(null);
+    setContinuePreference(null);
+    setResult(null);
+    setRequestError(null);
+    setLastSuccessfulConversationDefaults(null);
+    setConversationNotice(
+      contextLocked || toneLocked
+        ? 'חלק מההגדרות בשיחה הזו זמינות במסלול החודשי. השארנו ברירת מחדל זמינה.'
+        : null,
+    );
+    setMobilePrimaryView('compose');
+    trackEvent('conversation_selected', {
+      access_state: accessState,
+      compose_mode: composeMode,
+      context: contextLocked ? 'locked' : (profile.context ?? 'unspecified'),
+      tone: toneLocked ? 'locked' : profile.tone,
+      profile_count: conversationProfiles.length,
+      locked_context: contextLocked,
+      locked_tone: toneLocked,
+    });
+  }
+
+  function handleConversationClear() {
+    setActiveConversationId(null);
+    setConversationNotice(null);
+  }
+
+  function openConversationManagement() {
+    setConversationMutationError(null);
+    setConversationDialog('manage');
+    trackEvent('conversation_manage_open', {
+      access_state: accessState,
+      profile_count: conversationProfiles.length,
+    });
+    void refreshConversationProfiles();
+  }
+
+  function openConversationSave() {
+    if (!lastSuccessfulConversationDefaults || activeConversation) {
+      return;
+    }
+
+    setConversationMutationError(null);
+    setConversationDialog('save');
+    trackEvent('conversation_save_click', {
+      access_state: accessState,
+      compose_mode: composeMode,
+      context: lastSuccessfulConversationDefaults.context ?? 'unspecified',
+      tone: lastSuccessfulConversationDefaults.tone,
+      profile_count: conversationProfiles.length,
+    });
+  }
+
+  async function saveConversation(label: string) {
+    if (!lastSuccessfulConversationDefaults || isSavingConversation) {
+      return;
+    }
+
+    setIsSavingConversation(true);
+    setConversationMutationError(null);
+
+    try {
+      const response = await fetchWithAuth('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label,
+          context: lastSuccessfulConversationDefaults.context,
+          tone: lastSuccessfulConversationDefaults.tone,
+        }),
+      });
+      const data = (await response.json()) as { conversation?: ConversationProfile; error?: string };
+
+      if (!response.ok || !data.conversation) {
+        throw new Error(data.error ?? 'לא הצלחנו לשמור את השיחה.');
+      }
+
+      setConversationProfiles((profiles) => [
+        data.conversation!,
+        ...profiles.filter((profile) => profile.id !== data.conversation!.id),
+      ].slice(0, 20));
+      setActiveConversationId(data.conversation.id);
+      setLastSuccessfulConversationDefaults(null);
+      setConversationDialog(null);
+      setConversationProfilesError(null);
+      trackEvent('conversation_saved', {
+        access_state: accessState,
+        compose_mode: composeMode,
+        context: data.conversation.context ?? 'unspecified',
+        tone: data.conversation.tone,
+        profile_count: Math.min(conversationProfiles.length + 1, 20),
+      });
+    } catch (error) {
+      setConversationMutationError(
+        mapApiErrorMessage(error instanceof Error ? error.message : 'לא הצלחנו לשמור את השיחה.'),
+      );
+    } finally {
+      setIsSavingConversation(false);
+    }
+  }
+
+  async function renameConversation(profile: ConversationProfile, label: string) {
+    if (conversationBusyId) return;
+    setConversationBusyId(profile.id);
+    setConversationMutationError(null);
+    try {
+      const response = await fetchWithAuth(`/api/conversations/${encodeURIComponent(profile.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operation: 'update', label }),
+      });
+      const data = (await response.json()) as { conversation?: ConversationProfile; error?: string };
+      if (!response.ok || !data.conversation) throw new Error(data.error ?? 'שינוי השם נכשל.');
+      setConversationProfiles((profiles) =>
+        profiles.map((item) => item.id === profile.id ? data.conversation! : item),
+      );
+      trackEvent('conversation_renamed', {
+        access_state: accessState,
+        profile_count: conversationProfiles.length,
+      });
+    } catch (error) {
+      setConversationMutationError(
+        mapApiErrorMessage(error instanceof Error ? error.message : 'שינוי השם נכשל.'),
+      );
+    } finally {
+      setConversationBusyId(null);
+    }
+  }
+
+  async function deleteConversation(profile: ConversationProfile) {
+    if (conversationBusyId) return;
+    setConversationBusyId(profile.id);
+    setConversationMutationError(null);
+    try {
+      const response = await fetchWithAuth(`/api/conversations/${encodeURIComponent(profile.id)}`, {
+        method: 'DELETE',
+      });
+      const data = (await response.json()) as { success?: boolean; error?: string };
+      if (!response.ok || !data.success) throw new Error(data.error ?? 'מחיקת השיחה נכשלה.');
+      setConversationProfiles((profiles) => profiles.filter((item) => item.id !== profile.id));
+      if (activeConversationId === profile.id) {
+        setActiveConversationId(null);
+        setConversationNotice(null);
+      }
+      trackEvent('conversation_deleted', {
+        access_state: accessState,
+        profile_count: Math.max(conversationProfiles.length - 1, 0),
+      });
+    } catch (error) {
+      setConversationMutationError(
+        mapApiErrorMessage(error instanceof Error ? error.message : 'מחיקת השיחה נכשלה.'),
+      );
+    } finally {
+      setConversationBusyId(null);
+    }
+  }
+
+  function recordSuccessfulConversationGeneration(
+    conversationId: string | null,
+    defaults: SuccessfulConversationDefaults,
+    payloadComposeMode: ComposeMode,
+  ) {
+    setLastSuccessfulConversationDefaults(defaults);
+
+    if (!conversationId) {
+      return;
+    }
+
+    trackEvent('conversation_reused_generate', {
+      access_state: accessState,
+      compose_mode: payloadComposeMode,
+      context: defaults.context ?? 'unspecified',
+      tone: defaults.tone,
+      profile_count: conversationProfiles.length,
+    });
+
+    void fetchWithAuth(`/api/conversations/${encodeURIComponent(conversationId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operation: 'mark_used' }),
+    })
+      .then(async (response) => {
+        const data = (await response.json()) as { conversation?: ConversationProfile };
+        if (response.ok && data.conversation) {
+          setConversationProfiles((profiles) => [
+            data.conversation!,
+            ...profiles.filter((profile) => profile.id !== conversationId),
+          ]);
+          return;
+        }
+
+        if (response.status === 404) {
+          setActiveConversationId((currentId) => currentId === conversationId ? null : currentId);
+          setConversationNotice('השיחה השמורה כבר לא קיימת. אפשר לשמור אותה מחדש.');
+          void refreshConversationProfiles();
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to update saved conversation usage metadata', error);
+      });
+  }
+
   async function runGeneration(
     payload: GenerateRequest,
-    options?: { replyIndex?: number },
+    options?: {
+      replyIndex?: number;
+      conversationIdForReuse?: string | null;
+      normalDefaults?: SuccessfulConversationDefaults;
+    },
   ) {
     setRequestError(null);
     setImageError(null);
@@ -4294,6 +4553,14 @@ export default function Home({
         intent: nextIntent,
         replies: nextReplies.slice(0, 3),
       });
+
+      if (options?.normalDefaults) {
+        recordSuccessfulConversationGeneration(
+          options.conversationIdForReuse ?? null,
+          options.normalDefaults,
+          payloadComposeMode,
+        );
+      }
 
       if (isCompactViewport()) {
         setMobilePrimaryView('results');
@@ -4435,7 +4702,11 @@ export default function Home({
       noReplyDurationValue: isNoReplyMode ? parsedNoReplyDuration : undefined,
       noReplyDurationUnit: isNoReplyMode ? noReplyDurationUnit : undefined,
       lastOutgoingMessage: isNoReplyMode ? trimmedLastOutgoingMessage : undefined,
-    });
+    }, {
+        conversationIdForReuse: activeConversationId,
+        normalDefaults: { context, tone },
+    },
+    );
   }
 
   async function handleReplyAction(index: number, action: ReplyAction) {
@@ -4690,12 +4961,18 @@ export default function Home({
     setNoReplyDurationValue('');
     setNoReplyDurationUnit('hours');
     setConversationBackground('');
-    setContext(null);
-    setTone('זורם');
+    const savedDefaults = resolveConversationDefaultsForAccess(
+      activeConversation?.context ?? null,
+      activeConversation?.tone ?? 'זורם',
+      hasMonthlyFeatureAccess,
+    );
+    setContext(savedDefaults.context);
+    setTone(savedDefaults.tone);
     setGoal(null);
     setContinuePreference(null);
     setCopiedReplyIndex(null);
     setHasCopiedAllReplies(false);
+    setLastSuccessfulConversationDefaults(null);
     setMobilePrimaryView('compose');
     if (advancedOptionsRef.current) {
       advancedOptionsRef.current.open = false;
@@ -4724,6 +5001,9 @@ export default function Home({
     setShowDeepLinkPrefillBanner(false);
     setRequestError(null);
     setResult(null);
+    setActiveConversationId(null);
+    setConversationNotice(null);
+    setLastSuccessfulConversationDefaults(null);
 
     const nextUrl = buildHomeDeepLink(
       {
@@ -4891,6 +5171,23 @@ export default function Home({
                 ))}
               </div>
             </div> : null}
+
+            <SavedConversationsRow
+              profiles={conversationProfiles}
+              activeId={activeConversationId}
+              disabled={isGenerating || isBillingLoading}
+              error={conversationProfilesError}
+              onSelect={handleConversationSelect}
+              onClear={handleConversationClear}
+              onManage={openConversationManagement}
+              onRetry={() => void refreshConversationProfiles()}
+            />
+
+            {conversationNotice ? (
+              <p className="rounded-2xl border border-[#f0df9d] bg-[#fff6d8] px-3 py-2 text-xs font-bold leading-5 text-[#5b4d42]">
+                {conversationNotice}
+              </p>
+            ) : null}
 
             <div className="w-full min-w-0 space-y-3 rounded-[24px] border border-[#e2d7c8] bg-white p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:space-y-4 sm:p-5">
               {isGeneratorPrimaryMode ? (
@@ -5397,6 +5694,19 @@ export default function Home({
                     />
                   ))}
                 </div>
+                <div className="rounded-2xl border border-[#e2d7c8] bg-[#fffdf8] px-3 py-2.5 text-sm">
+                  {activeConversation ? (
+                    <p className="font-black text-[#5b4d42]">שיחה שמורה: {activeConversation.label}</p>
+                  ) : lastSuccessfulConversationDefaults ? (
+                    <button
+                      type="button"
+                      onClick={openConversationSave}
+                      className={`min-h-[42px] w-full rounded-full border border-[#ded2c3] bg-white px-3 py-2 text-sm font-black text-[#5b4d42] transition hover:border-[#ffb29f] hover:text-[#7a2d19] ${whiteSurfaceFocusClass}`}
+                    >
+                      לשמור את השיחה לפעם הבאה
+                    </button>
+                  ) : null}
+                </div>
                 </div>
               ) : isLoading ? (
                 <LoadingReplies isNoReplyMode={isNoReplyMode} />
@@ -5647,6 +5957,38 @@ export default function Home({
           </button>
         </div>
       ) : null}
+
+      <SaveConversationDialog
+        key={conversationDialog === 'save' ? 'save-open' : 'save-closed'}
+        open={conversationDialog === 'save'}
+        context={lastSuccessfulConversationDefaults?.context ?? null}
+        tone={lastSuccessfulConversationDefaults?.tone ?? tone}
+        busy={isSavingConversation}
+        error={conversationMutationError}
+        onClose={() => {
+          if (!isSavingConversation) {
+            setConversationDialog(null);
+            setConversationMutationError(null);
+          }
+        }}
+        onSave={saveConversation}
+      />
+
+      <ManageConversationsDialog
+        key={conversationDialog === 'manage' ? 'manage-open' : 'manage-closed'}
+        open={conversationDialog === 'manage'}
+        profiles={conversationProfiles}
+        busyId={conversationBusyId}
+        error={conversationMutationError}
+        onClose={() => {
+          if (!conversationBusyId) {
+            setConversationDialog(null);
+            setConversationMutationError(null);
+          }
+        }}
+        onRename={renameConversation}
+        onDelete={deleteConversation}
+      />
 
       {!billingBypassEnabled ? (
         <PaywallModal
