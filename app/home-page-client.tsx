@@ -2706,6 +2706,7 @@ export default function Home({
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const lastOutgoingInputRef = useRef<HTMLTextAreaElement | null>(null);
   const advancedOptionsRef = useRef<HTMLDetailsElement | null>(null);
+  const toneOptionsRef = useRef<HTMLDetailsElement | null>(null);
   const composeSectionRef = useRef<HTMLDivElement | null>(null);
   const resultsSectionRef = useRef<HTMLDivElement | null>(null);
   const examplesSectionRef = useRef<HTMLElement | null>(null);
@@ -2807,9 +2808,6 @@ export default function Home({
     : isNoReplyMode
       ? 'קבלו 3 פולו-אפים לשליחה'
       : 'תנו לי 3 תשובות';
-  const canUseStickyGenerate = isNoReplyMode
-    ? Boolean(trimmedLastOutgoingMessage) && Number.isInteger(parsedNoReplyDuration) && parsedNoReplyDuration >= 1
-    : Boolean(trimmedMessage || imageBase64);
   const canReturnToGeneratorFromResults =
     isGeneratorPrimaryMode && mobilePrimaryView === 'results' && Boolean(result) && !isGenerating;
   const heroGenerateCtaLabel = 'יאללה, מתחילים לענות';
@@ -5082,34 +5080,83 @@ export default function Home({
                 </div>
               )}
 
+              <div className="space-y-2.5">
+                <button
+                  type="button"
+                  onClick={handleMainSubmit}
+                  disabled={isGenerating || !isSessionReady}
+                  className={`inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-[#ff5a2a] px-5 py-3 text-base font-black text-white shadow-[0_14px_26px_rgba(255,90,42,0.24)] transition duration-150 hover:bg-[#f04d1f] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 ${lightSurfaceFocusClass}`}
+                >
+                  <span className="rounded-full bg-white/20 px-2 py-0.5 text-[0.64rem] font-black uppercase tracking-[0.12em] text-white">
+                    פעולה
+                  </span>
+                  {generateButtonLabel}
+                </button>
+                <p className="text-xs font-black text-[#6d6259]">{accountStatusLine}</p>
+                {paymentNotice ? (
+                  <p className="rounded-2xl border border-[#b8e7df] bg-[#e3fbf7] px-4 py-3 text-sm font-black text-[#123a36]">
+                    {paymentNotice}
+                  </p>
+                ) : null}
+                {requestError ? (
+                  <p
+                    className="rounded-2xl border border-[#ffc4b5] bg-[#fff0ea] px-4 py-3 text-sm font-bold text-[#7a2d19]"
+                    role="alert"
+                  >
+                    {requestError}
+                  </p>
+                ) : null}
+              </div>
+
             </div>
 
             <div className="grid gap-2.5 sm:gap-3">
-              <ChipGroup
-                title="איזה וייב מתאים לך?"
-                description="זורם כבר נבחר. אפשר לשנות בלחיצה אחת."
-                headerAlign="right"
-                illustrations={toneOptionIllustrations}
-                options={shouldShowMonthlyFeatureOptions ? toneOptions : freeToneOptions}
-                primaryVisibleCount={TONE_PRIMARY_VISIBLE_COUNT}
-                primaryColumns={3}
-                moreOptionsLabel="עוד וייבים"
-                lockedOptions={hasUnlimitedAccess ? [] : monthlyOnlyToneOptions}
-                lockedOptionsPreviewLabel="חודשי"
-                lockedOptionsHint="הווייבים המורחבים פתוחים במסלול ללא הגבלה חודשי."
-                lockedOptionsNoticeTitle={MONTHLY_LOCK_COPY.tone.title}
-                lockedOptionsNoticeBody={MONTHLY_LOCK_COPY.tone.body}
-                lockedOptionsNoticeCta="לפתוח ללא הגבלה חודשי"
-                showMoreOptionsSearch={false}
-                onLockedOptionsNoticeCtaClick={openPaywall}
-                value={tone}
-                onChange={(nextValue) => {
-                  if (nextValue) {
-                    trackEvent('tone_select', { value: nextValue });
-                    setTone(nextValue);
-                  }
-                }}
-              />
+              <details
+                ref={toneOptionsRef}
+                className="group rounded-[20px] border border-[#e2d7c8] bg-[#f8f3eb] transition-colors duration-200 open:bg-[#fff8ef]"
+              >
+                <summary
+                  className={`flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm text-[#241d18] marker:content-none ${lightSurfaceFocusClass}`}
+                >
+                  <span className="font-black">וייב: {tone}</span>
+                  <span className="flex items-center gap-2 font-black text-[#8f371e]">
+                    <span>שינוי</span>
+                    <span className="text-xs transition-transform duration-200 group-open:rotate-180">⌄</span>
+                  </span>
+                </summary>
+                <div className="border-t border-[#e2d7c8] px-3 pb-3 pt-2">
+                  <ChipGroup
+                    title="איזה וייב מתאים לך?"
+                    description="זורם נבחר כברירת מחדל. אפשר לבחור וייב אחר."
+                    headerAlign="right"
+                    illustrations={toneOptionIllustrations}
+                    options={shouldShowMonthlyFeatureOptions ? toneOptions : freeToneOptions}
+                    primaryVisibleCount={TONE_PRIMARY_VISIBLE_COUNT}
+                    primaryColumns={3}
+                    moreOptionsLabel="עוד וייבים"
+                    lockedOptions={hasUnlimitedAccess ? [] : monthlyOnlyToneOptions}
+                    lockedOptionsPreviewLabel="חודשי"
+                    lockedOptionsHint="הווייבים המורחבים פתוחים במסלול ללא הגבלה חודשי."
+                    lockedOptionsNoticeTitle={MONTHLY_LOCK_COPY.tone.title}
+                    lockedOptionsNoticeBody={MONTHLY_LOCK_COPY.tone.body}
+                    lockedOptionsNoticeCta="לפתוח ללא הגבלה חודשי"
+                    showMoreOptionsSearch={false}
+                    onLockedOptionsNoticeCtaClick={openPaywall}
+                    value={tone}
+                    onChange={(nextValue) => {
+                      if (nextValue) {
+                        trackEvent('tone_select', { value: nextValue });
+                        setTone(nextValue);
+                        window.requestAnimationFrame(() => {
+                          if (toneOptionsRef.current) {
+                            toneOptionsRef.current.open = false;
+                          }
+                        });
+                      }
+                    }}
+                  />
+                </div>
+              </details>
 
               <details
                 ref={advancedOptionsRef}
@@ -5260,49 +5307,6 @@ export default function Home({
               </details>
             </div>
 
-            <div className="hidden sm:flex sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-              <button
-                type="button"
-                onClick={handleMainSubmit}
-                disabled={isGenerating || !isSessionReady}
-                className={`inline-flex min-h-[56px] items-center justify-center gap-2 rounded-full bg-[#ff5a2a] px-6 py-3 text-base font-black text-white shadow-[0_14px_26px_rgba(255,90,42,0.26)] transition duration-150 hover:-translate-y-0.5 hover:bg-[#f04d1f] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto ${lightSurfaceFocusClass}`}
-              >
-                <span className="rounded-full bg-white/20 px-2 py-0.5 text-[0.64rem] font-black uppercase tracking-[0.12em] text-white">
-                  פעולה
-                </span>
-                {generateButtonLabel}
-              </button>
-              <div className="flex flex-wrap items-center justify-end gap-3 text-sm font-bold text-[#6d6259]">
-                <p>{accountStatusLine}</p>
-              </div>
-            </div>
-
-            <div className="space-y-2.5 sm:hidden">
-              <button
-                type="button"
-                onClick={handleMainSubmit}
-                disabled={isGenerating || !isSessionReady}
-                className={`inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-[#ff5a2a] px-5 py-3 text-base font-black text-white shadow-[0_14px_26px_rgba(255,90,42,0.24)] transition duration-150 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 ${lightSurfaceFocusClass}`}
-              >
-                <span className="rounded-full bg-white/20 px-2 py-0.5 text-[0.64rem] font-black uppercase tracking-[0.12em] text-white">
-                  פעולה
-                </span>
-                {generateButtonLabel}
-              </button>
-              <p className="text-xs font-black text-[#6d6259]">{accountStatusLine}</p>
-            </div>
-
-            {paymentNotice ? (
-              <p className="rounded-2xl border border-[#b8e7df] bg-[#e3fbf7] px-4 py-3 text-sm font-black text-[#123a36]">
-                {paymentNotice}
-              </p>
-            ) : null}
-
-            {requestError ? (
-              <p className="rounded-2xl border border-[#ffc4b5] bg-[#fff0ea] px-4 py-3 text-sm font-bold text-[#7a2d19]">
-                {requestError}
-              </p>
-            ) : null}
           </div>
 
           <div
@@ -5641,31 +5645,6 @@ export default function Home({
             </svg>
             <span>עריכת ההודעה והכיוונים</span>
           </button>
-        </div>
-      ) : mobilePrimaryView === 'compose' && canUseStickyGenerate ? (
-        <div className="fixed inset-x-3 bottom-0 z-30 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:hidden">
-          <div className="mx-auto flex max-w-md items-center gap-2 rounded-[20px] border border-[#e2d7c8] bg-[#fffdfa]/95 p-2 shadow-[0_12px_32px_rgba(49,23,13,0.18)] backdrop-blur">
-            <p className="min-w-0 flex-1 truncate px-1 text-xs font-black text-[#5b4d42]">
-              {[context, goal, tone].filter(Boolean).join(' · ')}
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                trackEvent('sticky_generate_click', {
-                  context: context ?? 'unspecified',
-                  goal: goal ?? 'unspecified',
-                  tone,
-                  compose_mode: composeMode,
-                  flow_version: GENERATOR_FLOW_VERSION,
-                });
-                void handleMainSubmit();
-              }}
-              disabled={isGenerating || !isSessionReady}
-              className={`min-h-[48px] shrink-0 rounded-[15px] bg-[#ff5a2a] px-4 py-2 text-sm font-black text-white shadow-[0_8px_18px_rgba(255,90,42,0.24)] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
-            >
-              {isLoading ? 'מכינים...' : 'תנו לי 3 תשובות'}
-            </button>
-          </div>
         </div>
       ) : null}
 
