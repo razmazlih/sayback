@@ -264,10 +264,6 @@ body {
   opacity: 0;
 }
 
-.sb-result-intent-card {
-  min-height: 276px;
-}
-
 .sb-reply-card,
 .sb-reply-loading-card {
   min-height: 288px;
@@ -278,10 +274,6 @@ body {
 }
 
 @media (min-width: 640px) {
-  .sb-result-intent-card {
-    min-height: 196px;
-  }
-
   .sb-reply-card,
   .sb-reply-loading-card {
     min-height: 196px;
