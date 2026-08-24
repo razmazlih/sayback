@@ -529,8 +529,6 @@ const whiteSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-
 const darkSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-[#181411]`;
 const interactiveBadgeClass =
   'inline-flex min-h-[28px] items-center rounded-full border border-[#d8cab9] bg-[#181411] px-2.5 py-1 text-[0.62rem] font-black uppercase tracking-[0.12em] text-[#fffdfa]';
-const readOnlyBadgeClass =
-  'inline-flex min-h-[28px] items-center rounded-full border border-[#ded2c3] bg-[#f4eee6] px-2.5 py-1 text-[0.62rem] font-black uppercase tracking-[0.12em] text-[#463b33]';
 const focusableSelector =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), details summary, [tabindex]:not([tabindex="-1"])';
 
@@ -5636,18 +5634,14 @@ export default function Home({
               </p>
               {result && !isLoading ? (
                 <div className="sb-results-ready w-full min-w-0 space-y-3">
-                <div className="sb-result-intent-card sb-result-intent-ready w-full min-w-0 rounded-[24px] border border-[#e2d7c8] bg-[#f8f3eb] p-4 shadow-[0_14px_36px_rgba(49,23,13,0.07)]">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7a6e64]">
-                          {isNoReplyMode ? 'מה הפולו-אפ צריך לשדר' : 'מה הם כנראה מנסים להגיד'}
-                        </p>
-                        <span className={readOnlyBadgeClass}>לקריאה</span>
-                      </div>
-                      <p className="mt-2 text-base font-bold leading-7 text-[#241d18]">{result.intent}</p>
-                    </div>
-                    <div className="flex shrink-0 flex-wrap gap-1.5">
+                <div className="sb-result-intent-card sb-result-intent-ready w-full min-w-0 rounded-[22px] border border-[#e2d7c8] bg-[#f8f3eb] p-3.5 shadow-[0_10px_28px_rgba(49,23,13,0.06)] sm:p-4">
+                  <div className="min-w-0">
+                    <p className="text-xs font-black tracking-[0.08em] text-[#7a6e64]">
+                      {isNoReplyMode ? 'הכיוון להודעת ההמשך' : 'מה ההודעה אומרת'}
+                    </p>
+                    <p className="mt-1.5 text-base font-bold leading-6 text-[#241d18]">{result.intent}</p>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-[#e7dccf] pt-3">
                       <button
                         type="button"
                         onClick={handleCopyAllReplies}
@@ -5661,7 +5655,7 @@ export default function Home({
                         disabled={isGenerating}
                         className={`min-h-[40px] rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1.5 text-xs font-black text-[#7a2d19] transition disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
                       >
-                        ליצור 3 נוספות
+                        עוד 3 תשובות · שימוש אחד
                       </button>
                       <button
                         type="button"
@@ -5670,11 +5664,7 @@ export default function Home({
                       >
                         הודעה חדשה
                       </button>
-                    </div>
                   </div>
-                  <p className="mt-3 text-xs font-bold leading-5 text-[#6d6259]">
-                    יצירת 3 נוספות או שיפור ניסוח משתמשים בשימוש אחד.
-                  </p>
                 </div>
 
                 <div className="w-full min-w-0 space-y-3">
