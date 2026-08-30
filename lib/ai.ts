@@ -87,6 +87,8 @@ export interface GenerateRepliesInput {
   sourceReply?: string;
   /** Trusted server-side context. Never populate this from request JSON. */
   savedConversationMemory?: SavedConversationMemory;
+  /** Trusted server-side style hint derived from metadata-only My Voice counters. */
+  myVoiceInstruction?: string;
 }
 
 export type SavedConversationMemory = {
@@ -244,6 +246,7 @@ export async function generateRepliesWithModelSource(
   });
   const imageUrl = normalizeImage(input.imageBase64);
   const savedConversationMemory = input.savedConversationMemory;
+  const myVoiceInstruction = normalizeOptionalText(input.myVoiceInstruction, 500);
 
   if (input.refineInstruction !== undefined && !normalizeOptionalText(input.refineInstruction, 220)) {
     throw new AIRequestError("כתבו מה תרצו לשנות בניסוח.", 400);
@@ -355,6 +358,7 @@ export async function generateRepliesWithModelSource(
       lastOutgoingMessage,
       refineInstruction,
       savedConversationMemory,
+      myVoiceInstruction,
     });
 
     return {
@@ -385,6 +389,7 @@ async function generateRepliesViaOpenAI({
   lastOutgoingMessage,
   refineInstruction,
   savedConversationMemory,
+  myVoiceInstruction,
 }: {
   apiKey: string;
   message?: string;
@@ -400,6 +405,7 @@ async function generateRepliesViaOpenAI({
   lastOutgoingMessage?: string;
   refineInstruction?: string;
   savedConversationMemory?: SavedConversationMemory;
+  myVoiceInstruction?: string;
 }): Promise<GenerateRepliesResult> {
   const reasoning = DEFAULT_MODEL === "chat-latest"
     ? { effort: "medium" }
@@ -435,6 +441,7 @@ async function generateRepliesViaOpenAI({
             lastOutgoingMessage,
             refineInstruction,
             savedConversationMemory,
+            myVoiceInstruction,
           }),
         },
       ],
@@ -902,6 +909,7 @@ function buildInputContent({
   lastOutgoingMessage,
   refineInstruction,
   savedConversationMemory,
+  myVoiceInstruction,
 }: {
   message?: string;
   imageUrl?: string;
@@ -916,6 +924,7 @@ function buildInputContent({
   lastOutgoingMessage?: string;
   refineInstruction?: string;
   savedConversationMemory?: SavedConversationMemory;
+  myVoiceInstruction?: string;
 }): InputContentItem[] {
   const noReplyDurationText =
     noReplyMode && noReplyDurationValue && noReplyDurationUnit
@@ -935,6 +944,7 @@ function buildInputContent({
       ? `רקע שיחה נוסף:\n"""\n${conversationBackground}\n"""`
       : null,
     savedConversationMemory ? buildSavedConversationMemoryText(savedConversationMemory) : null,
+    myVoiceInstruction ?? null,
     refineInstruction ? `שינוי מבוקש: ${refineInstruction}` : null,
     message
       ? `הודעה שהמשתמש קיבל:\n"""\n${message}\n"""`

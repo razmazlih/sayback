@@ -23,8 +23,9 @@ import {
   SavedConversationsRow,
 } from '@/components/conversation-memory';
 import { trackEvent } from '@/lib/analytics';
+import { captureAndStoreAttribution } from '@/lib/attribution';
 import type { ConversationProfile } from '@/lib/conversation-profile-types';
-import { buildHomeDeepLink } from '@/lib/home-deeplink';
+import { buildHomeDeepLink, parseHomeDeeplinkParams } from '@/lib/home-deeplink';
 import {
   CONTEXT_OPTIONS,
   FREE_CONTEXT_OPTION_COUNT,
@@ -91,17 +92,26 @@ type ExampleScenario = {
 type HomeDeepLinkPrefill = {
   hasValidState: boolean;
   shouldFocusMessage: boolean;
+  mode?: ComposeMode;
   exampleId?: ExampleId;
-  message?: string;
   context?: ContextOption;
   tone?: ToneOption;
   continuePreference?: ContinuePreference;
 };
 
+type ClientProductEventName =
+  | 'page_view_home'
+  | 'generator_input_start'
+  | 'reply_copy'
+  | 'conversation_selected'
+  | 'paywall_view';
+
 type GenerateResponse = {
   intent: string;
   replies: string[];
   billing?: BillingSnapshot;
+  personalizationApplied?: boolean;
+  savedConversationUnavailable?: boolean;
 };
 
 type GenerateRequest = {
@@ -236,14 +246,6 @@ const MONTHLY_LOCK_COPY = {
   },
 } as const;
 const DEEP_LINK_PREFILL_BANNER_TEXT = 'מילאנו לך התחלה. אפשר לערוך לפני שמייצרים.';
-const QUERY_PARAM_MAX_LENGTH = {
-  example: 64,
-  message: MAX_INCOMING_MESSAGE_LENGTH,
-  situation: 24,
-  tone: 24,
-  agrees: 8,
-} as const;
-
 const contextOptions: ContextOption[] = [...CONTEXT_OPTIONS];
 const toneOptions: ToneOption[] = [...TONE_OPTIONS];
 const incomingGoalOptions: IncomingGoal[] = [
@@ -465,67 +467,7 @@ const examples: ExampleScenario[] = [
   },
 ];
 
-const exampleIds = new Set<ExampleId>(examples.map((scenario) => scenario.id));
-const contextAliases: Record<string, ContextOption> = {
-  קראש: 'קראש',
-  crush: 'קראש',
-  אקס: 'אקס',
-  ex: 'אקס',
-  ידיד: 'ידיד',
-  friend: 'ידיד',
-  לקוח: 'לקוח',
-  client: 'לקוח',
-  בוס: 'בוס',
-  boss: 'בוס',
-  יד2: 'יד2',
-  yad2: 'יד2',
-  'בן/בת זוג': 'בן/בת זוג',
-  partner: 'בן/בת זוג',
-  דייט: 'דייט',
-  date: 'דייט',
-  קולגה: 'קולגה',
-  colleague: 'קולגה',
-  משפחה: 'משפחה',
-  family: 'משפחה',
-  'שותף/ה לדירה': 'שותף/ה לדירה',
-  roommate: 'שותף/ה לדירה',
-  שכנים: 'שכנים',
-  neighbors: 'שכנים',
-  neighbours: 'שכנים',
-};
-const toneAliases: Record<string, ToneOption> = {
-  עדין: 'עדין',
-  soft: 'עדין',
-  ישיר: 'ישיר',
-  direct: 'ישיר',
-  זורם: 'זורם',
-  flow: 'זורם',
-  מצחיק: 'מצחיק',
-  funny: 'מצחיק',
-  פלרטטני: 'פלרטטני',
-  flirty: 'פלרטטני',
-  אסרטיבי: 'אסרטיבי',
-  assertive: 'אסרטיבי',
-  רגוע: 'רגוע',
-  calm: 'רגוע',
-  רשמי: 'רשמי',
-  formal: 'רשמי',
-  קליל: 'קליל',
-  casual: 'קליל',
-  ענייני: 'ענייני',
-  business: 'ענייני',
-  matteroffact: 'ענייני',
-};
-const continuePreferenceAliases: Record<string, ContinuePreference> = {
-  כן: 'כן',
-  yes: 'כן',
-  true: 'כן',
-  '1': 'כן',
-  לא: 'לא',
-  no: 'לא',
-  false: 'לא',
-  '0': 'לא',
-};
+const exampleIds = examples.map((scenario) => scenario.id);
 
 const focusRingBaseClass =
   'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#20d6c7]/40 focus-visible:ring-offset-2';
@@ -755,60 +697,22 @@ function readFirebaseErrorCode(error: unknown) {
   return typeof code === 'string' && code.trim().length > 0 ? code.trim() : null;
 }
 
-function isExampleId(value: string): value is ExampleId {
-  return exampleIds.has(value as ExampleId);
-}
-
-function sanitizeIncomingToken(value: string | null, maxLength: number) {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value
-    .replace(/[\u0000-\u001F\u007F]/g, '')
-    .trim()
-    .slice(0, maxLength);
-
-  return normalized.length > 0 ? normalized : null;
-}
-
-function sanitizeIncomingMessage(value: string | null) {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value
-    .replace(/\r\n/g, '\n')
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
-    .trim()
-    .slice(0, QUERY_PARAM_MAX_LENGTH.message);
-
-  return normalized.length > 0 ? normalized : null;
-}
-
 function parseHomeDeepLinkPrefill(searchParams: URLSearchParams): HomeDeepLinkPrefill {
-  const rawExample = sanitizeIncomingToken(searchParams.get('example'), QUERY_PARAM_MAX_LENGTH.example);
-  const rawSituation = sanitizeIncomingToken(searchParams.get('situation'), QUERY_PARAM_MAX_LENGTH.situation);
-  const rawTone = sanitizeIncomingToken(searchParams.get('tone'), QUERY_PARAM_MAX_LENGTH.tone);
-  const rawAgrees = sanitizeIncomingToken(searchParams.get('agrees'), QUERY_PARAM_MAX_LENGTH.agrees);
-  const message = sanitizeIncomingMessage(searchParams.get('message')) ?? undefined;
-
-  const exampleCandidate = rawExample?.toLowerCase();
-  const exampleId = exampleCandidate && isExampleId(exampleCandidate) ? exampleCandidate : undefined;
-  const context = rawSituation ? contextAliases[rawSituation.toLowerCase()] : undefined;
-  const tone = rawTone ? toneAliases[rawTone.toLowerCase()] : undefined;
-  const continuePreference = rawAgrees ? continuePreferenceAliases[rawAgrees.toLowerCase()] : undefined;
-
-  const hasValidState = Boolean(exampleId || message || context || tone || continuePreference);
+  const parsed = parseHomeDeeplinkParams(searchParams, {
+    examples: exampleIds,
+    situations: CONTEXT_OPTIONS,
+    tones: TONE_OPTIONS,
+    agrees: continuePreferenceOptions,
+  });
 
   return {
-    hasValidState,
-    shouldFocusMessage: Boolean(message || exampleId),
-    exampleId,
-    message,
-    context,
-    tone,
-    continuePreference,
+    hasValidState: parsed.hasPrefill,
+    shouldFocusMessage: parsed.shouldFocusMessage,
+    mode: parsed.prefill.mode ?? undefined,
+    exampleId: parsed.prefill.example ?? undefined,
+    context: parsed.prefill.situation ?? undefined,
+    tone: parsed.prefill.tone ?? undefined,
+    continuePreference: parsed.prefill.agrees ?? undefined,
   };
 }
 
@@ -2690,6 +2594,13 @@ export default function Home({
   const hasTrackedBillingStatusViewRef = useRef(false);
   const hasTrackedGeneratorInputStartRef = useRef(false);
   const hasTrackedAdvancedOpenRef = useRef(false);
+  const hasRecordedProductLandingRef = useRef(false);
+  const productEventCounterRef = useRef(0);
+  const recordProductEventRef = useRef<(
+    eventName: ClientProductEventName,
+    metadata: Record<string, string | number | boolean | null>,
+  ) => void>(() => {});
+  const personalizationActiveRef = useRef(false);
   const pageLoadedAtRef = useRef<number | null>(null);
   const inputStartedAtRef = useRef<number | null>(null);
   const [composeMode, setComposeMode] = useState<ComposeMode>('incoming');
@@ -3027,6 +2938,11 @@ export default function Home({
         compose_mode: composeMode,
         flow_version: GENERATOR_FLOW_VERSION,
       });
+      void recordProductEventRef.current('generator_input_start', {
+        source,
+        compose_mode: composeMode,
+        flow_version: GENERATOR_FLOW_VERSION,
+      });
     },
     [composeMode],
   );
@@ -3093,12 +3009,13 @@ export default function Home({
       return;
     }
 
-    const scenarioFromExample = deepLinkPrefill.exampleId
+    const nextComposeMode = deepLinkPrefill.mode ?? 'incoming';
+    const scenarioFromExample = nextComposeMode === 'incoming' && deepLinkPrefill.exampleId
       ? examples.find((scenario) => scenario.id === deepLinkPrefill.exampleId)
       : null;
 
-    setComposeMode('incoming');
-    setMessage((deepLinkPrefill.message ?? scenarioFromExample?.message ?? '').slice(0, MAX_INCOMING_MESSAGE_LENGTH));
+    setComposeMode(nextComposeMode);
+    setMessage((scenarioFromExample?.message ?? '').slice(0, MAX_INCOMING_MESSAGE_LENGTH));
     setLastOutgoingMessage('');
     setNoReplyDurationValue('');
     setNoReplyDurationUnit('hours');
@@ -3118,7 +3035,7 @@ export default function Home({
 
     trackEvent('deep_link_prefill_applied', {
       from_example: Boolean(deepLinkPrefill.exampleId),
-      has_message: Boolean(deepLinkPrefill.message),
+      compose_mode: nextComposeMode,
       has_context: Boolean(deepLinkPrefill.context),
       has_tone: Boolean(deepLinkPrefill.tone),
       has_continue_preference: Boolean(deepLinkPrefill.continuePreference),
@@ -3127,7 +3044,9 @@ export default function Home({
     window.requestAnimationFrame(() => {
       scrollToComposeSection();
 
-      if (deepLinkPrefill.shouldFocusMessage) {
+      if (nextComposeMode === 'no_reply') {
+        lastOutgoingInputRef.current?.focus();
+      } else if (deepLinkPrefill.shouldFocusMessage || deepLinkPrefill.mode === 'incoming') {
         messageInputRef.current?.focus();
       }
     });
@@ -3293,6 +3212,36 @@ export default function Home({
     response = await sendRequest(true);
     return response;
   }, [getFreshAuthToken]);
+
+  const recordProductEvent = useCallback(async (
+    eventName: ClientProductEventName,
+    metadata: Record<string, string | number | boolean | null>,
+  ) => {
+    try {
+      const attribution = captureAndStoreAttribution(
+        window.localStorage,
+        new URLSearchParams(window.location.search),
+      );
+      productEventCounterRef.current += 1;
+      const dedupeKey = `${eventName}:${Date.now().toString(36)}:${productEventCounterRef.current}`;
+      await fetchWithAuth('/api/product-events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventName, metadata, dedupeKey, attribution }),
+      });
+    } catch (error) {
+      console.error('Failed to record product event', error);
+    }
+  }, [fetchWithAuth]);
+  recordProductEventRef.current = recordProductEvent;
+
+  useEffect(() => {
+    if (!isAuthReady || hasRecordedProductLandingRef.current) return;
+    hasRecordedProductLandingRef.current = true;
+    void recordProductEvent('page_view_home', {
+      flow_version: isGeneratorPrimaryMode ? GENERATOR_FLOW_VERSION : 'standard',
+    });
+  }, [isAuthReady, isGeneratorPrimaryMode, recordProductEvent]);
 
   const refreshConversationProfiles = useCallback(async () => {
     if (!isAuthReady) {
@@ -3952,6 +3901,12 @@ export default function Home({
     setCheckoutSession(null);
     setCheckoutResumePlan(null);
     setCheckoutError(null);
+    void recordProductEvent('paywall_view', {
+      used: initialFreeLimit - freeRemaining,
+      remaining: freeRemaining,
+      daily_remaining: dailyFreeRemaining,
+      access_state: accessState,
+    });
   }
 
   function handleCouponCodeChange(value: string) {
@@ -4222,6 +4177,14 @@ export default function Home({
       locked_context: contextLocked,
       locked_tone: toneLocked,
     });
+    void recordProductEvent('conversation_selected', {
+      compose_mode: composeMode,
+      context: contextLocked ? 'locked' : (profile.context ?? 'unspecified'),
+      tone: toneLocked ? 'locked' : profile.tone,
+      profile_count: conversationProfiles.length,
+      locked_context: contextLocked,
+      locked_tone: toneLocked,
+    });
   }
 
   function handleConversationClear() {
@@ -4285,7 +4248,6 @@ export default function Home({
           context: lastSuccessfulConversationDefaults.context,
           tone: lastSuccessfulConversationDefaults.tone,
           memoryNote,
-          lastIntent: lastSuccessfulConversationDefaults.lastIntent,
         }),
       });
       const data = (await response.json()) as { conversation?: ConversationProfile; error?: string };
@@ -4380,6 +4342,34 @@ export default function Home({
     } catch (error) {
       setConversationMutationError(
         mapApiErrorMessage(error instanceof Error ? error.message : 'מחיקת השיחה נכשלה.'),
+      );
+    } finally {
+      setConversationBusyId(null);
+    }
+  }
+
+  async function clearAllConversations() {
+    if (conversationBusyId) return;
+    setConversationBusyId('__all__');
+    setConversationMutationError(null);
+    try {
+      const response = await fetchWithAuth('/api/conversations', {
+        method: 'DELETE',
+      });
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        throw new Error(data?.error ?? 'מחיקת השיחות השמורות נכשלה.');
+      }
+      setConversationProfiles([]);
+      setActiveConversationId(null);
+      setConversationDialog(null);
+      setConversationManageEditId(null);
+      setConversationNotice('כל השיחות השמורות נמחקו.');
+    } catch (error) {
+      setConversationMutationError(
+        mapApiErrorMessage(
+          error instanceof Error ? error.message : 'מחיקת השיחות השמורות נכשלה.',
+        ),
       );
     } finally {
       setConversationBusyId(null);
@@ -4495,6 +4485,12 @@ export default function Home({
 
       if (!nextIntent || nextReplies.length !== 3) {
         throw new Error('לא קיבלתי תשובות תקינות. נסה שוב.');
+      }
+      personalizationActiveRef.current = data.personalizationApplied === true;
+      if (data.savedConversationUnavailable === true) {
+        setActiveConversationId(null);
+        setConversationNotice('השיחה השמורה כבר לא זמינה, אז המשכנו בלי ההקשר שלה.');
+        void refreshConversationProfiles();
       }
 
       const replyIndex = requestedReplyIndex;
@@ -4874,6 +4870,23 @@ export default function Home({
         tone,
         has_saved_conversation: Boolean(activeConversationId),
       });
+      const hasEmoji = /[\p{Extended_Pictographic}\uFE0F]/u.test(reply);
+      void fetchWithAuth('/api/my-voice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'reply_copied',
+          lengthBucket: reply.trim().length <= 70 ? 'short' : 'medium',
+          hasEmoji,
+        }),
+      }).catch((error) => console.error('Failed to record My Voice copy signal', error));
+      void recordProductEvent('reply_copy', {
+        index,
+        context: context ?? 'unspecified',
+        tone,
+        has_saved_conversation: Boolean(activeConversationId),
+        has_personalization: personalizationActiveRef.current,
+      });
     } catch {
       setRequestError('ההעתקה נכשלה. נסה שוב.');
     }
@@ -5015,8 +5028,8 @@ export default function Home({
 
     const nextUrl = buildHomeDeepLink(
       {
+        mode: 'incoming',
         example: scenario.id,
-        message: scenario.message,
         situation: scenario.context,
         tone: scenario.tone,
         agrees: scenario.continuePreference ?? null,
@@ -5998,6 +6011,7 @@ export default function Home({
         }}
         onUpdate={updateConversation}
         onDelete={deleteConversation}
+        onClearAll={clearAllConversations}
       />
 
       <ConversationMemoryDialog

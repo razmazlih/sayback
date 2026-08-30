@@ -15,6 +15,7 @@ import {
 } from "@/lib/pricing";
 import { StripeConfigError, getStripe, isCheckoutPlan } from "@/lib/stripe";
 import { isIP } from "node:net";
+import { recordServerProductEvent } from "@/lib/product-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -237,13 +238,20 @@ async function reconcilePaidCheckoutSession({
       return getBillingSnapshot(uid, { accountEmail });
     }
 
-    return applyCreditPackPurchase({
+    const billing = await applyCreditPackPurchase({
       uid,
       sessionId: session.id,
       stripeCustomerId,
       amountTotal,
       currency,
-    }).then((billing) => withAccountIdentity(billing, accountEmail));
+    });
+    await recordServerProductEvent({
+      uid,
+      eventName: "credits_purchase",
+      dedupeKey: `checkout-session:${session.id}`,
+      metadata: { plan, amount: amountTotal, currency },
+    });
+    return withAccountIdentity(billing, accountEmail);
   }
 
   if (plan === "unlimited_monthly" && typeof session.subscription === "string") {
@@ -253,6 +261,13 @@ async function reconcilePaidCheckoutSession({
       stripeCustomerId,
       subscriptionId: subscription.id,
       subscriptionStatus: readString(subscription.status),
+    });
+
+    await recordServerProductEvent({
+      uid,
+      eventName: "subscription_started",
+      dedupeKey: `checkout-session:${session.id}`,
+      metadata: { plan, status: readString(subscription.status) },
     });
 
     return withAccountIdentity(billing, accountEmail);

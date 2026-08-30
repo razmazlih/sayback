@@ -1,6 +1,7 @@
 import { isLocalAdminRequest } from "@/lib/local-admin";
 import { getLocalUsageLogs } from "@/lib/local-usage-logs";
 import { listPersistedUsageLogs } from "@/lib/persisted-usage-logs";
+import { aggregateProductEvents, listProductEvents } from "@/lib/product-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,15 +28,21 @@ export async function GET(request: Request) {
   const limit = parseLimit(params.get("limit"));
 
   try {
-    const [localLogs, persistedLogs] = await Promise.all([
+    const [localLogs, persistedLogs, productEventResult] = await Promise.all([
       Promise.resolve(getLocalUsageLogs()),
       listPersistedUsageLogs(limit),
+      listProductEvents(limit),
     ]);
 
     return Response.json(
       {
         localLogs,
         persistedLogs,
+        productEvents: productEventResult.events,
+        growth: {
+          available: productEventResult.available,
+          ...aggregateProductEvents(productEventResult.events),
+        },
       },
       {
         status: 200,

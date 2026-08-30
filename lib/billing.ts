@@ -1,5 +1,9 @@
 import { getFirestore } from "@/lib/firebase-admin";
 import { CREDIT_PACK_PRICE_AGOROT, CREDIT_PACK_USES } from "@/lib/pricing";
+import {
+  selectGenerationEntitlement,
+  type GenerationEntitlement,
+} from "@/lib/entitlements";
 
 export const FREE_LIMIT = 3;
 export const DAILY_FREE_LIMIT = 1;
@@ -14,7 +18,7 @@ const COUPON_CODE_PATTERN = /^[A-Z0-9_-]{3,32}$/;
 const BUILT_IN_COUPON_CODE = "LOVE26";
 const BUILT_IN_COUPON_USES = 5;
 
-type ConsumptionKind = "initial_free" | "daily_free" | "credits" | "unlimited";
+type ConsumptionKind = Exclude<GenerationEntitlement, "blocked">;
 
 type BillingDocument = {
   freeUsed?: number;
@@ -186,15 +190,14 @@ function buildSnapshot(
   const freeRemaining = Math.max(FREE_LIMIT - document.freeUsed, 0);
   const dailyRemaining = Math.max(DAILY_FREE_LIMIT - document.dailyUsed, 0);
   const accountEmail = readString(identity.accountEmail);
-  const nextConsumptionSource: BillingSnapshot["nextConsumptionSource"] = hasUnlimited
-    ? "unlimited"
-    : document.credits > 0
-      ? "credits"
-      : freeRemaining > 0
-        ? "initial_free"
-        : dailyRemaining > 0
-          ? "daily_free"
-          : "blocked";
+  const nextConsumptionSource = selectGenerationEntitlement({
+    hasUnlimited,
+    credits: document.credits,
+    freeUsed: document.freeUsed,
+    freeLimit: FREE_LIMIT,
+    dailyUsed: document.dailyUsed,
+    dailyLimit: DAILY_FREE_LIMIT,
+  });
 
   return {
     freeLimit: FREE_LIMIT,
@@ -347,7 +350,17 @@ export async function consumeGenerationAccess(uid: string): Promise<ConsumptionR
     );
     const updatedAt = nowIso();
 
-    if (currentDocument.unlimited && isUnlimitedStatus(currentDocument.subscriptionStatus)) {
+    const entitlement = selectGenerationEntitlement({
+      hasUnlimited:
+        currentDocument.unlimited && isUnlimitedStatus(currentDocument.subscriptionStatus),
+      credits: currentDocument.credits,
+      freeUsed: currentDocument.freeUsed,
+      freeLimit: FREE_LIMIT,
+      dailyUsed: currentDocument.dailyUsed,
+      dailyLimit: DAILY_FREE_LIMIT,
+    });
+
+    if (entitlement === "unlimited") {
       const nextDocument = {
         ...currentDocument,
         updatedAt,
@@ -362,7 +375,7 @@ export async function consumeGenerationAccess(uid: string): Promise<ConsumptionR
       };
     }
 
-    if (currentDocument.credits > 0) {
+    if (entitlement === "credits") {
       const nextDocument = {
         ...currentDocument,
         credits: currentDocument.credits - 1,
@@ -378,7 +391,7 @@ export async function consumeGenerationAccess(uid: string): Promise<ConsumptionR
       };
     }
 
-    if (currentDocument.freeUsed < FREE_LIMIT) {
+    if (entitlement === "initial_free") {
       const nextDocument = {
         ...currentDocument,
         freeUsed: currentDocument.freeUsed + 1,
@@ -394,7 +407,7 @@ export async function consumeGenerationAccess(uid: string): Promise<ConsumptionR
       };
     }
 
-    if (currentDocument.dailyUsed < DAILY_FREE_LIMIT) {
+    if (entitlement === "daily_free") {
       const nextDocument = {
         ...currentDocument,
         dailyUsed: currentDocument.dailyUsed + 1,

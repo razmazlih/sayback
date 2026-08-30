@@ -1,6 +1,7 @@
 import { getFirestore } from "@/lib/firebase-admin";
 import { isLocalAdminEnabled } from "@/lib/local-admin";
 import type { GenerationConsumption, GenerationModelSource } from "@/lib/local-usage-logs";
+import { metadataOnlyUsageTextFields } from "@/lib/persisted-usage-privacy";
 
 const PERSIST_USAGE_LOGS_ENABLED =
   process.env.PERSIST_USAGE_LOGS?.trim().toLowerCase() === "true";
@@ -138,47 +139,7 @@ export async function persistUsageLog(input: PersistedUsageLogInput) {
     return;
   }
 
-  const now = new Date();
-  const document: PersistedUsageLogDocument = {
-    createdAt: now.toISOString(),
-    createdAtMs: now.getTime(),
-    uid: normalizeText(input.uid, 200) ?? "unknown",
-    userId: normalizeText(input.userId ?? null, 200),
-    visitorId: normalizeText(input.visitorId ?? null, 64),
-    sessionId: normalizeText(input.sessionId ?? null, 64),
-    messageLength: normalizeLength(input.messageLength),
-    messageText: normalizeText(input.messageText ?? null, MESSAGE_TEXT_LIMIT),
-    hasImage: input.hasImage === true,
-    context: normalizeText(input.context ?? null, 80),
-    tone: normalizeText(input.tone ?? null, 80),
-    goal: normalizeText(input.goal ?? null, 80),
-    continuePreference: normalizeText(input.continuePreference ?? null, 24),
-    conversationBackgroundLength: normalizeLength(input.conversationBackgroundLength),
-    conversationBackgroundText: normalizeText(
-      input.conversationBackgroundText ?? null,
-      CONTEXT_TEXT_LIMIT,
-    ),
-    noReplyMode: normalizeBoolean(input.noReplyMode),
-    noReplyDurationValue: normalizeInteger(input.noReplyDurationValue, 1, 999),
-    noReplyDurationUnit: normalizeText(input.noReplyDurationUnit ?? null, 16),
-    lastOutgoingMessageLength: normalizeLength(input.lastOutgoingMessageLength),
-    lastOutgoingMessageText: normalizeText(
-      input.lastOutgoingMessageText ?? null,
-      CONTEXT_TEXT_LIMIT,
-    ),
-    action: normalizeText(input.action ?? null, 24),
-    sourceReplyLength: normalizeLength(input.sourceReplyLength),
-    sourceReplyText: normalizeText(input.sourceReplyText ?? null, CONTEXT_TEXT_LIMIT),
-    status: normalizeStatus(input.status),
-    consumption: normalizeConsumption(input.consumption),
-    intentLength: normalizeLength(input.intentLength),
-    intentText: normalizeText(input.intentText ?? null, INTENT_TEXT_LIMIT),
-    replyCount: normalizeLength(input.replyCount),
-    repliesText: normalizeReplies(input.repliesText),
-    schemaValid: normalizeBoolean(input.schemaValid),
-    error: normalizeText(input.error ?? null, 500),
-    modelSource: normalizeModelSource(input.modelSource),
-  };
+  const document = buildPersistedUsageLogDocument(input);
 
   try {
     const firestore = await getFirestore();
@@ -188,6 +149,43 @@ export async function persistUsageLog(input: PersistedUsageLogInput) {
   } catch (error) {
     console.error("Failed to persist generation usage log", error);
   }
+}
+
+export function buildPersistedUsageLogDocument(
+  input: PersistedUsageLogInput,
+  now = new Date(),
+): PersistedUsageLogDocument {
+  return {
+    createdAt: now.toISOString(),
+    createdAtMs: now.getTime(),
+    uid: normalizeText(input.uid, 200) ?? "unknown",
+    userId: normalizeText(input.userId ?? null, 200),
+    visitorId: normalizeText(input.visitorId ?? null, 64),
+    sessionId: normalizeText(input.sessionId ?? null, 64),
+    messageLength: normalizeLength(input.messageLength),
+    // Persisted usage analytics is metadata-only. Text fields remain in the
+    // reader type solely so older documents can still be displayed locally.
+    ...metadataOnlyUsageTextFields(input),
+    hasImage: input.hasImage === true,
+    context: normalizeText(input.context ?? null, 80),
+    tone: normalizeText(input.tone ?? null, 80),
+    goal: normalizeText(input.goal ?? null, 80),
+    continuePreference: normalizeText(input.continuePreference ?? null, 24),
+    conversationBackgroundLength: normalizeLength(input.conversationBackgroundLength),
+    noReplyMode: normalizeBoolean(input.noReplyMode),
+    noReplyDurationValue: normalizeInteger(input.noReplyDurationValue, 1, 999),
+    noReplyDurationUnit: normalizeText(input.noReplyDurationUnit ?? null, 16),
+    lastOutgoingMessageLength: normalizeLength(input.lastOutgoingMessageLength),
+    action: normalizeText(input.action ?? null, 24),
+    sourceReplyLength: normalizeLength(input.sourceReplyLength),
+    status: normalizeStatus(input.status),
+    consumption: normalizeConsumption(input.consumption),
+    intentLength: normalizeLength(input.intentLength),
+    replyCount: normalizeLength(input.replyCount),
+    schemaValid: normalizeBoolean(input.schemaValid),
+    error: normalizeText(input.error ?? null, 500),
+    modelSource: normalizeModelSource(input.modelSource),
+  };
 }
 
 export async function listPersistedUsageLogs(limit = 200): Promise<PersistedUsageLogEntry[]> {

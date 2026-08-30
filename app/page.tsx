@@ -5,6 +5,7 @@ import {
   CREDIT_PACK_PRICE_AGOROT,
   CREDIT_PACK_REPLIES_PER_USE,
   CREDIT_PACK_USES,
+  UNLIMITED_MONTHLY_PRICE_AGOROT,
 } from "@/lib/pricing";
 import { createMarketingMetadata, SITE_LANGUAGE, SITE_NAME, toSafeJsonLd } from "@/lib/seo";
 import { resolveSiteUrl } from "@/lib/site-url";
@@ -12,7 +13,7 @@ import { resolveSiteUrl } from "@/lib/site-url";
 const HOME_TITLE = "SayBack | מה לענות עכשיו";
 const HOME_DESCRIPTION =
   "SayBack עוזר לך לדעת מה לענות בהודעות. מדביקים הודעה, בוחרים סגנון, ומקבלים 3 תשובות קצרות וטבעיות בעברית.";
-const UNLIMITED_MONTHLY_PRICE_ILS = "24.90";
+const UNLIMITED_MONTHLY_PRICE_ILS = (UNLIMITED_MONTHLY_PRICE_AGOROT / 100).toFixed(2);
 const BILLING_BYPASS_ENABLED =
   process.env.BILLING_BYPASS?.trim().toLowerCase() === "true";
 const PUBLIC_BILLING_BYPASS_ENABLED =

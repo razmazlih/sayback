@@ -1,4 +1,5 @@
 import { FieldValue, type Firestore } from "firebase-admin/firestore";
+import "server-only";
 import { getFirestore } from "@/lib/firebase-admin";
 import {
   type ContextOption,
@@ -57,14 +58,12 @@ export async function createConversationProfile(
     context: unknown;
     tone: unknown;
     memoryNote?: unknown;
-    lastIntent?: unknown;
   },
 ): Promise<ConversationProfile> {
   const label = normalizeConversationLabel(input.label);
   const context = normalizeConversationContext(input.context);
   const tone = normalizeConversationTone(input.tone);
   const memoryNote = normalizeConversationMemoryNote(input.memoryNote);
-  const lastIntent = normalizeConversationLastIntent(input.lastIntent);
   const firestore = (await getFirestore()) as unknown as Firestore;
   const ownerRef = firestore.collection("conversation_profiles").doc(uid);
   const profileRef = ownerRef.collection("items").doc();
@@ -87,7 +86,8 @@ export async function createConversationProfile(
       context,
       tone,
       memoryNote,
-      lastIntent,
+      // Internal generation memory is never accepted from the client.
+      lastIntent: null,
       createdAt: now,
       updatedAt: now,
       lastUsedAt: now,
@@ -190,6 +190,33 @@ export async function getConversationProfile(
   return profile;
 }
 
+/**
+ * Resolve optional saved context without making personalization a dependency
+ * of core generation. Invalid ids remain request errors; missing, foreign,
+ * deleted, malformed, or temporarily unavailable profiles safely become null.
+ */
+export async function getConversationProfileSafely(
+  uid: string,
+  id: string,
+): Promise<ConversationProfile | null> {
+  if (!isConversationProfileId(id)) {
+    throw new ConversationProfileError("השיחה שבחרת לא תקינה.", 400);
+  }
+
+  try {
+    return await getConversationProfile(uid, id);
+  } catch (error) {
+    if (error instanceof ConversationProfileError && error.status === 400) {
+      throw error;
+    }
+
+    if (!(error instanceof ConversationProfileError && error.status === 404)) {
+      console.error("Failed to load saved conversation. Continuing without saved context.", error);
+    }
+    return null;
+  }
+}
+
 export async function updateConversationProfileAfterGeneration(
   uid: string,
   id: string,
@@ -258,6 +285,15 @@ export async function deleteConversationProfile(uid: string, id: string): Promis
       { merge: true },
     );
   });
+}
+
+export async function clearConversationProfiles(uid: string): Promise<void> {
+  const firestore = (await getFirestore()) as unknown as Firestore;
+  const ownerRef = firestore.collection("conversation_profiles").doc(uid);
+
+  // recursiveDelete removes the exact authenticated owner's document and all
+  // nested items. Deleting only the parent would leave orphaned subcollection data.
+  await firestore.recursiveDelete(ownerRef);
 }
 
 function profilesCollection(firestore: Firestore, uid: string) {

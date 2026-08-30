@@ -1,16 +1,18 @@
-import { MAX_INCOMING_MESSAGE_LENGTH } from '@/lib/message-limits';
+export const HOME_DEEPLINK_MODES = ['incoming', 'no_reply'] as const;
+
+export type HomeDeeplinkMode = (typeof HOME_DEEPLINK_MODES)[number];
 
 export const HOME_DEEPLINK_QUERY_KEYS = {
+  mode: 'mode',
   example: 'example',
-  message: 'message',
   situation: 'situation',
   tone: 'tone',
   agrees: 'agrees',
 } as const;
 
 export const HOME_DEEPLINK_LIMITS = {
+  mode: 16,
   example: 64,
-  message: MAX_INCOMING_MESSAGE_LENGTH,
   situation: 24,
   tone: 24,
   agrees: 8,
@@ -22,8 +24,8 @@ export type HomeDeeplinkPayload<
   TTone extends string = string,
   TAgrees extends string = string,
 > = {
+  mode?: HomeDeeplinkMode | null;
   example?: TExample | null;
-  message?: string | null;
   situation?: TSituation | null;
   tone?: TTone | null;
   agrees?: TAgrees | null;
@@ -54,23 +56,6 @@ export type ParsedHomeDeeplink<
   hasEnoughStateToScroll: boolean;
   shouldFocusMessage: boolean;
 };
-
-function sanitizeMessageParam(value: string | null, maxLength: number) {
-  if (typeof value !== 'string') {
-    return null;
-  }
-
-  const normalized = value
-    .replace(/\r\n?/g, '\n')
-    .replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, '')
-    .trim();
-
-  if (!normalized) {
-    return null;
-  }
-
-  return normalized.slice(0, maxLength);
-}
 
 function sanitizeTokenParam(value: string | null, maxLength: number) {
   if (typeof value !== 'string') {
@@ -112,14 +97,15 @@ export function parseHomeDeeplinkParams<
   searchParams: SearchParamReader,
   options: ParseHomeDeeplinkOptions<TExample, TSituation, TTone, TAgrees>,
 ): ParsedHomeDeeplink<TExample, TSituation, TTone, TAgrees> {
+  const mode = getValidOption(
+    searchParams.get(HOME_DEEPLINK_QUERY_KEYS.mode),
+    HOME_DEEPLINK_MODES,
+    HOME_DEEPLINK_LIMITS.mode,
+  );
   const example = getValidOption(
     searchParams.get(HOME_DEEPLINK_QUERY_KEYS.example),
     options.examples,
     HOME_DEEPLINK_LIMITS.example,
-  );
-  const message = sanitizeMessageParam(
-    searchParams.get(HOME_DEEPLINK_QUERY_KEYS.message),
-    HOME_DEEPLINK_LIMITS.message,
   );
   const situation = getValidOption(
     searchParams.get(HOME_DEEPLINK_QUERY_KEYS.situation),
@@ -137,19 +123,13 @@ export function parseHomeDeeplinkParams<
     HOME_DEEPLINK_LIMITS.agrees,
   );
 
-  const hasPrefill = Boolean(example || message || situation || tone || agrees);
+  const hasPrefill = Boolean(mode || example || situation || tone || agrees);
 
   return {
-    prefill: {
-      example,
-      message,
-      situation,
-      tone,
-      agrees,
-    },
+    prefill: { mode, example, situation, tone, agrees },
     hasPrefill,
     hasEnoughStateToScroll: hasPrefill,
-    shouldFocusMessage: Boolean(message || example),
+    shouldFocusMessage: Boolean(example),
   };
 }
 
@@ -164,31 +144,17 @@ export function buildHomeDeeplink<
 ) {
   const searchParams = new URLSearchParams();
   const basePath = options?.basePath ?? '/';
+  const mode = getValidOption(payload.mode ?? null, HOME_DEEPLINK_MODES, HOME_DEEPLINK_LIMITS.mode);
   const example = sanitizeTokenParam(payload.example ?? null, HOME_DEEPLINK_LIMITS.example);
-  const message = sanitizeMessageParam(payload.message ?? null, HOME_DEEPLINK_LIMITS.message);
   const situation = sanitizeTokenParam(payload.situation ?? null, HOME_DEEPLINK_LIMITS.situation);
   const tone = sanitizeTokenParam(payload.tone ?? null, HOME_DEEPLINK_LIMITS.tone);
   const agrees = sanitizeTokenParam(payload.agrees ?? null, HOME_DEEPLINK_LIMITS.agrees);
 
-  if (example) {
-    searchParams.set(HOME_DEEPLINK_QUERY_KEYS.example, example);
-  }
-
-  if (message) {
-    searchParams.set(HOME_DEEPLINK_QUERY_KEYS.message, message);
-  }
-
-  if (situation) {
-    searchParams.set(HOME_DEEPLINK_QUERY_KEYS.situation, situation);
-  }
-
-  if (tone) {
-    searchParams.set(HOME_DEEPLINK_QUERY_KEYS.tone, tone);
-  }
-
-  if (agrees) {
-    searchParams.set(HOME_DEEPLINK_QUERY_KEYS.agrees, agrees);
-  }
+  if (mode) searchParams.set(HOME_DEEPLINK_QUERY_KEYS.mode, mode);
+  if (example) searchParams.set(HOME_DEEPLINK_QUERY_KEYS.example, example);
+  if (situation) searchParams.set(HOME_DEEPLINK_QUERY_KEYS.situation, situation);
+  if (tone) searchParams.set(HOME_DEEPLINK_QUERY_KEYS.tone, tone);
+  if (agrees) searchParams.set(HOME_DEEPLINK_QUERY_KEYS.agrees, agrees);
 
   const query = searchParams.toString();
   return query ? `${basePath}?${query}` : basePath;

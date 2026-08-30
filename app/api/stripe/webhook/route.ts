@@ -16,6 +16,7 @@ import {
   hasExpectedCreditPackMetadata,
 } from "@/lib/pricing";
 import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
+import { recordServerProductEvent } from "@/lib/product-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -145,6 +146,12 @@ export async function POST(request: Request) {
                 : null,
             currency: readString(session.currency),
           });
+          await recordServerProductEvent({
+            uid,
+            eventName: "credits_purchase",
+            dedupeKey: `stripe:${event.id}`,
+            metadata: { plan, amount: session.amount_total ?? null, currency: readString(session.currency) },
+          });
         }
 
         if (plan === "unlimited_monthly" && typeof session.subscription === "string") {
@@ -158,6 +165,12 @@ export async function POST(request: Request) {
               stripeCustomerId,
               subscriptionId: subscription.id,
               subscriptionStatus: readString(subscription.status),
+            });
+            await recordServerProductEvent({
+              uid: subscriptionUserId,
+              eventName: "subscription_started",
+              dedupeKey: `stripe:${event.id}`,
+              metadata: { plan, status: readString(subscription.status) },
             });
           }
         }
@@ -180,8 +193,33 @@ export async function POST(request: Request) {
             subscriptionId: subscription.id,
             subscriptionStatus: readString(subscription.status),
           });
+          if (event.type === "customer.subscription.deleted") {
+            await recordServerProductEvent({
+              uid,
+              eventName: "subscription_canceled",
+              dedupeKey: `stripe:${event.id}`,
+              metadata: { status: readString(subscription.status) },
+            });
+          }
         }
 
+        break;
+      }
+
+      case "invoice.paid": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const stripeCustomerId = readString(invoice.customer);
+        const uid = stripeCustomerId
+          ? await findUserIdByStripeCustomerId(stripeCustomerId)
+          : null;
+        if (uid && readString(invoice.billing_reason) === "subscription_cycle") {
+          await recordServerProductEvent({
+            uid,
+            eventName: "subscription_renewed",
+            dedupeKey: `stripe:${event.id}`,
+            metadata: { amount: invoice.amount_paid ?? null, currency: readString(invoice.currency) },
+          });
+        }
         break;
       }
 

@@ -7,6 +7,31 @@ export const CREDIT_PACK_PRICE_AGOROT = 990;
 export const CREDIT_PACK_CURRENCY = "ils" as const;
 export const CREDIT_PACK_PRICE_LABEL = `${(CREDIT_PACK_PRICE_AGOROT / 100).toFixed(2)}₪`;
 
+export const UNLIMITED_MONTHLY_PLAN_ID = "unlimited_monthly" as const;
+export const UNLIMITED_MONTHLY_BILLING_TYPE = "subscription" as const;
+export const UNLIMITED_MONTHLY_PRICE_AGOROT = 2490;
+export const UNLIMITED_MONTHLY_CURRENCY = "ils" as const;
+export const UNLIMITED_MONTHLY_PRICE_LABEL = `${(
+  UNLIMITED_MONTHLY_PRICE_AGOROT / 100
+).toFixed(2)}₪`;
+
+export const CURRENT_PRODUCT_CATALOG = {
+  [CREDIT_PACK_PLAN_ID]: {
+    planId: CREDIT_PACK_PLAN_ID,
+    billingType: CREDIT_PACK_BILLING_TYPE,
+    unitAmount: CREDIT_PACK_PRICE_AGOROT,
+    currency: CREDIT_PACK_CURRENCY,
+    uses: CREDIT_PACK_USES,
+  },
+  [UNLIMITED_MONTHLY_PLAN_ID]: {
+    planId: UNLIMITED_MONTHLY_PLAN_ID,
+    billingType: UNLIMITED_MONTHLY_BILLING_TYPE,
+    unitAmount: UNLIMITED_MONTHLY_PRICE_AGOROT,
+    currency: UNLIMITED_MONTHLY_CURRENCY,
+    interval: "month",
+  },
+} as const;
+
 export function getCreditPackCheckoutMetadata() {
   return {
     plan: CREDIT_PACK_PLAN_ID,
@@ -16,6 +41,16 @@ export function getCreditPackCheckoutMetadata() {
     maxReplies: String(CREDIT_PACK_MAX_REPLIES),
     unitAmount: String(CREDIT_PACK_PRICE_AGOROT),
     currency: CREDIT_PACK_CURRENCY,
+  };
+}
+
+export function getUnlimitedMonthlyCheckoutMetadata() {
+  return {
+    plan: UNLIMITED_MONTHLY_PLAN_ID,
+    billing: UNLIMITED_MONTHLY_BILLING_TYPE,
+    unitAmount: String(UNLIMITED_MONTHLY_PRICE_AGOROT),
+    currency: UNLIMITED_MONTHLY_CURRENCY,
+    interval: "month",
   };
 }
 

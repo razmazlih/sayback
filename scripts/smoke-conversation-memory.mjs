@@ -154,7 +154,9 @@ try {
     method: "POST",
     body: JSON.stringify({ message: "בדיקה", tone: "זורם", conversationId: profileId }),
   });
-  assert.equal(otherUserGeneration.response.status, 404);
+  // Ownership is not disclosed: a foreign/stale profile falls back to ordinary generation.
+  assertGeneration(otherUserGeneration);
+  assert.equal(otherUserGeneration.data.savedConversationUnavailable, true);
 
   const otherUserMutation = await api(userB.idToken, `/api/conversations/${profileId}`, {
     method: "PATCH",
@@ -189,6 +191,16 @@ try {
   assert.ok(rawData.lastUsedAt instanceof Timestamp);
   assert.equal(rawData.usageCount, 1);
 
+  console.log("smoke: checking delete, stale fallback, and clear-all");
+  const deleted = await api(userA.idToken, `/api/conversations/${profileId}`, { method: "DELETE" });
+  assert.equal(deleted.response.status, 200);
+  const afterDelete = await api(userA.idToken, "/api/generate", {
+    method: "POST",
+    body: JSON.stringify({ message: "בדיקה אחרי מחיקה", tone: "זורם", conversationId: profileId }),
+  });
+  assertGeneration(afterDelete);
+  assert.equal(afterDelete.data.savedConversationUnavailable, true);
+
   console.log("smoke: checking the 20-profile limit");
   for (let index = 1; index < 20; index += 1) {
     const extra = await api(userA.idToken, "/api/conversations", {
@@ -207,6 +219,10 @@ try {
   const ordered = await api(userA.idToken, "/api/conversations");
   assert.equal(ordered.response.status, 200);
   assert.equal(ordered.data.conversations.length, 20);
+  const cleared = await api(userA.idToken, "/api/conversations", { method: "DELETE" });
+  assert.equal(cleared.response.status, 200);
+  const afterClear = await api(userA.idToken, "/api/conversations");
+  assert.equal(afterClear.data.conversations.length, 0);
 
   console.log(JSON.stringify({
     billing: "ok",
@@ -218,6 +234,7 @@ try {
     refineDidNotUpdateMemory: "ok",
     persistedProfileKeys: Object.keys(rawData).sort(),
     maxProfiles: 20,
+    deleteAndClear: "ok",
   }, null, 2));
 } finally {
   for (const profileId of createdProfileIds) {

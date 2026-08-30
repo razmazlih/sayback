@@ -6,6 +6,10 @@ import {
   CREDIT_PACK_REPLIES_PER_USE,
   CREDIT_PACK_USES,
   getCreditPackCheckoutMetadata,
+  getUnlimitedMonthlyCheckoutMetadata,
+  UNLIMITED_MONTHLY_CURRENCY,
+  UNLIMITED_MONTHLY_PLAN_ID,
+  UNLIMITED_MONTHLY_PRICE_AGOROT,
 } from "@/lib/pricing";
 
 const APP_NAME = "SayBack";
@@ -29,18 +33,15 @@ export const checkoutPlans = {
       },
     },
   },
-  unlimited_monthly: {
+  [UNLIMITED_MONTHLY_PLAN_ID]: {
     mode: "subscription",
     displayName: "Unlimited monthly",
-    metadata: {
-      plan: "unlimited_monthly",
-      billing: "subscription",
-    },
+    metadata: getUnlimitedMonthlyCheckoutMetadata(),
     lineItem: {
       quantity: 1,
       price_data: {
-        currency: CURRENCY,
-        unit_amount: 2490,
+        currency: UNLIMITED_MONTHLY_CURRENCY,
+        unit_amount: UNLIMITED_MONTHLY_PRICE_AGOROT,
         recurring: {
           interval: "month",
         },

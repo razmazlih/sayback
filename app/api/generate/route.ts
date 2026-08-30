@@ -20,8 +20,14 @@ import {
   updateConversationProfileAfterGeneration,
 } from "@/lib/conversation-profiles";
 import type { ConversationProfile } from "@/lib/conversation-profile-types";
+import { buildMyVoiceInstruction } from "@/lib/my-voice-logic";
+import {
+  loadMyVoicePreferencesSafely,
+  recordSuccessfulRefineSignal,
+} from "@/lib/my-voice";
 import { readVisitorIdentity, resolveUserId } from "@/lib/visitor-identity";
 import { MAX_NO_REPLY_DURATION_VALUE } from "@/lib/message-limits";
+import { recordServerProductEvent } from "@/lib/product-events";
 import { after } from "next/server";
 import { isIP } from "node:net";
 
@@ -98,6 +104,7 @@ export async function POST(request: Request) {
   let localUsageLogId: string | null = null;
   let persistedUsageLogBase: PersistedUsageLogBase | null = null;
   let savedConversation: ConversationProfile | null = null;
+  let profileUnavailable = false;
 
   try {
     const authenticatedUser = await requireAuthenticatedUser(request);
@@ -174,22 +181,22 @@ export async function POST(request: Request) {
       visitorId: visitorIdentity?.visitorId ?? null,
       sessionId: visitorIdentity?.sessionId ?? null,
       messageLength: readOptionalTextLength(body.message),
-      messageText: body.message,
+      messageText: null,
       hasImage: typeof body.imageBase64 === "string" && body.imageBase64.length > 0,
       context: body.context,
       tone: body.tone,
       goal: body.goal ?? null,
       continuePreference: body.continuePreference ?? null,
       conversationBackgroundLength: readOptionalTextLength(body.conversationBackground),
-      conversationBackgroundText: body.conversationBackground,
+      conversationBackgroundText: null,
       noReplyMode: body.noReplyMode,
       noReplyDurationValue: body.noReplyDurationValue,
       noReplyDurationUnit: body.noReplyDurationUnit,
       lastOutgoingMessageLength: readOptionalTextLength(body.lastOutgoingMessage),
-      lastOutgoingMessageText: body.lastOutgoingMessage,
+      lastOutgoingMessageText: null,
       action: body.action,
       sourceReplyLength: readOptionalTextLength(body.sourceReply),
-      sourceReplyText: body.sourceReply,
+      sourceReplyText: null,
     });
     persistedUsageLogBase = {
       uid: authenticatedUserUid,
@@ -197,14 +204,14 @@ export async function POST(request: Request) {
       visitorId: visitorIdentity?.visitorId ?? null,
       sessionId: visitorIdentity?.sessionId ?? null,
       messageLength: readOptionalTextLength(body.message),
-      messageText: normalizeOptionalText(body.message, 1600),
+      messageText: null,
       hasImage: typeof body.imageBase64 === "string" && body.imageBase64.length > 0,
       context: normalizeOptionalText(body.context, 80),
       tone: normalizeOptionalText(body.tone, 80),
       goal: normalizeOptionalText(body.goal, 80),
       continuePreference: normalizeOptionalText(body.continuePreference ?? null, 24),
       conversationBackgroundLength: readOptionalTextLength(body.conversationBackground),
-      conversationBackgroundText: normalizeOptionalText(body.conversationBackground, 500),
+      conversationBackgroundText: null,
       noReplyMode: normalizeOptionalBoolean(body.noReplyMode),
       noReplyDurationValue: normalizeOptionalInteger(
         body.noReplyDurationValue,
@@ -213,10 +220,10 @@ export async function POST(request: Request) {
       ),
       noReplyDurationUnit: normalizeOptionalText(body.noReplyDurationUnit, 16),
       lastOutgoingMessageLength: readOptionalTextLength(body.lastOutgoingMessage),
-      lastOutgoingMessageText: normalizeOptionalText(body.lastOutgoingMessage, 500),
+      lastOutgoingMessageText: null,
       action: normalizeOptionalText(body.action, 24),
       sourceReplyLength: readOptionalTextLength(body.sourceReply),
-      sourceReplyText: normalizeOptionalText(body.sourceReply, 500),
+      sourceReplyText: null,
     };
   }
 
@@ -229,7 +236,17 @@ export async function POST(request: Request) {
       if (typeof body.conversationId !== "string") {
         throw new ConversationProfileError("השיחה שבחרת לא תקינה.", 400);
       }
-      savedConversation = await getConversationProfile(authenticatedUserUid, body.conversationId);
+      try {
+        savedConversation = await getConversationProfile(authenticatedUserUid, body.conversationId);
+      } catch (error) {
+        if (error instanceof ConversationProfileError && error.status === 400) {
+          throw error;
+        }
+        // Do not disclose whether a missing ID belongs to another user. A stale profile
+        // must never block an otherwise valid generation.
+        profileUnavailable = true;
+        console.warn("Saved conversation unavailable; continuing without it.", error);
+      }
     }
 
     const access = await consumeGenerationAccess(authenticatedUserUid);
@@ -270,6 +287,10 @@ export async function POST(request: Request) {
       }
     }
 
+    const myVoicePreferences = await loadMyVoicePreferencesSafely(authenticatedUserUid);
+    const myVoiceInstruction = myVoicePreferences
+      ? buildMyVoiceInstruction(myVoicePreferences)
+      : null;
     const effectiveContext = body.context ?? savedConversation?.context ?? undefined;
     const effectiveTone = body.tone ?? savedConversation?.tone;
     const generated = await generateRepliesWithModelSource({
@@ -285,6 +306,7 @@ export async function POST(request: Request) {
             lastIntent: savedConversation.lastIntent,
           }
         : undefined,
+      myVoiceInstruction: myVoiceInstruction ?? undefined,
     });
     const result = generated.result;
 
@@ -304,6 +326,41 @@ export async function POST(request: Request) {
         console.error("Failed to update saved conversation memory", memoryUpdateError);
       }
     }
+    if (body.action) {
+      after(async () => {
+        try {
+          await recordSuccessfulRefineSignal(authenticatedUserUid!, body.action);
+        } catch (signalError) {
+          console.error("Failed to update My Voice refine signal", signalError);
+        }
+      });
+    }
+    after(async () => {
+      try {
+        await recordServerProductEvent({
+          uid: authenticatedUserUid!,
+          eventName: "generation_success",
+          dedupeKey: `generation:${crypto.randomUUID()}`,
+          metadata: {
+            mode: body.noReplyMode ? "no_reply" : "incoming",
+            context: effectiveContext ?? "unspecified",
+            has_saved_context: Boolean(savedConversation),
+            personalization_active: Boolean(myVoiceInstruction),
+            refine: Boolean(body.action),
+          },
+        });
+        if (body.action) {
+          await recordServerProductEvent({
+            uid: authenticatedUserUid!,
+            eventName: "refine_used",
+            dedupeKey: `refine:${crypto.randomUUID()}`,
+            metadata: { action: body.action },
+          });
+        }
+      } catch (eventError) {
+        console.error("Failed to record generation product event", eventError);
+      }
+    });
     const billing = await getBillingSnapshot(authenticatedUserUid, {
       accountEmail: authenticatedUserEmail,
     });
@@ -326,6 +383,8 @@ export async function POST(request: Request) {
       {
         ...result,
         billing,
+        personalizationApplied: Boolean(myVoiceInstruction),
+        savedConversationUnavailable: profileUnavailable,
       },
       200,
     );
@@ -448,9 +507,9 @@ function buildOutputLogMetadata(intent: string, replies: [string, string, string
 
   return {
     intentLength,
-    intentText: intent,
+    intentText: null,
     replyCount: replies.length,
-    repliesText: replies,
+    repliesText: null,
     schemaValid:
       intentLength !== null &&
       replies.length === 3 &&

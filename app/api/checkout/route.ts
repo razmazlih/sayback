@@ -14,6 +14,7 @@ import {
   isCheckoutPlan,
 } from "@/lib/stripe";
 import { isIP } from "node:net";
+import { recordServerProductEvent } from "@/lib/product-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -190,6 +191,13 @@ export async function POST(request: NextRequest) {
     if (!session.client_secret) {
       throw new Error("לא הצלחנו להכין את התשלום. נסו שוב.");
     }
+
+    void recordServerProductEvent({
+      uid: authenticatedUser.uid,
+      eventName: "checkout_started",
+      dedupeKey: `checkout:${session.id}`,
+      metadata: { plan: body.plan },
+    }).catch((error) => console.error("Failed to record checkout event", error));
 
     return json(
       {
