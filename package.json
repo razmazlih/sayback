@@ -19,6 +19,7 @@
   "dependencies": {
     "@stripe/react-stripe-js": "^6.1.0",
     "@stripe/stripe-js": "^9.0.1",
+    "@vercel/analytics": "^1.5.0",
     "firebase": "^12.11.0",
     "firebase-admin": "^13.7.0",
     "next": "16.2.1",
