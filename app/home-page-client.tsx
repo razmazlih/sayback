@@ -1202,9 +1202,7 @@ function HomeHero({
       <div className="relative flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 space-y-2 sm:space-y-3">
           <div className="flex items-center justify-center lg:justify-start">
-            <span className="inline-flex min-h-[30px] items-center rounded-full bg-[#181411] px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-white shadow-[0_10px_22px_rgba(24,20,17,0.12)] sm:min-h-[34px] sm:px-4 sm:py-1.5 sm:text-xs">
-              SayBack
-            </span>
+            <SayBackBrand />
           </div>
           <div className="max-w-3xl text-center lg:text-right">
             <h1 className="text-[3.25rem] leading-none font-black text-[#181411] sm:text-[4.5rem] lg:text-[5.5rem]">
@@ -1250,9 +1248,7 @@ function GeneratorHeader({ accountStatusLine }: { accountStatusLine: string }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="inline-flex min-h-[28px] items-center rounded-full bg-[#181411] px-3 py-1 text-[0.66rem] font-black uppercase tracking-[0.16em] text-white">
-              SayBack
-            </span>
+            <SayBackBrand compact />
             <span className="text-[0.68rem] font-black text-[#8f371e]">3 תשובות. בלי להסתבך.</span>
           </div>
           <h1 className="mt-2 text-[1.9rem] leading-tight font-black text-[#181411] sm:text-[2.4rem]">
@@ -1267,6 +1263,28 @@ function GeneratorHeader({ accountStatusLine }: { accountStatusLine: string }) {
         </span>
       </div>
     </header>
+  );
+}
+
+function SayBackBrand({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className="inline-flex items-center gap-2" aria-label="SayBack">
+      <Image
+        src="/favicon.svg"
+        alt=""
+        width={compact ? 32 : 40}
+        height={compact ? 32 : 40}
+        className={`${compact ? 'size-8' : 'size-9 sm:size-10'} shrink-0`}
+        priority={!compact}
+      />
+      <span
+        className={`${
+          compact ? 'text-base tracking-[0.08em]' : 'text-lg tracking-[0.1em] sm:text-xl'
+        } font-black text-[#181411]`}
+      >
+        SayBack
+      </span>
+    </div>
   );
 }
 
