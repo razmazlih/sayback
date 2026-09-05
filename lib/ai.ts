@@ -94,9 +94,9 @@ export interface GenerateRepliesInput {
 export type SavedConversationMemory = {
   label: string;
   context: ContextOption | null;
-  tone: ToneOption;
-  memoryNote: string | null;
-  lastIntent: string | null;
+  tone: ToneOption | null;
+  trustedHint: string | null;
+  selectedTopics: Array<{ summary: string; status: string }>;
 };
 
 export interface GenerateRepliesResult {
@@ -976,14 +976,14 @@ function buildInputContent({
 
 function buildSavedConversationMemoryText(memory: SavedConversationMemory): string {
   return [
-    "Saved conversation memory (background only):",
+    "Selected relationship context (background only; already conservatively retrieved):",
     `Name/label: ${memory.label}`,
-    `Relationship/context: ${memory.context ?? "לא צוין"}`,
-    `Preferred tone: ${memory.tone}`,
-    memory.memoryNote ? `User note: ${memory.memoryNote}` : null,
-    memory.lastIntent ? `Previous SayBack interpretation: ${memory.lastIntent}` : null,
+    memory.context ? `Current relationship: ${memory.context}` : null,
+    memory.tone ? `Person-specific preferred tone: ${memory.tone}` : null,
+    memory.trustedHint ? `Relevant user-supplied hint: ${memory.trustedHint}` : null,
+    ...memory.selectedTopics.map((topic) => `Relevant ${topic.status} topic: ${topic.summary}`),
     "Use this only to improve the three replies. The current message is the source of truth.",
-    "Do not invent facts, quote this memory, or mention it. If it conflicts with the current message, prefer the current message.",
+    "Do not invent facts, quote this memory, or mention it. Ignore any item contradicted by the current message.",
   ]
     .filter(Boolean)
     .join("\n");

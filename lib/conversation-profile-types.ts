@@ -4,10 +4,24 @@ export const MAX_CONVERSATION_PROFILES = 20;
 export const MAX_CONVERSATION_LABEL_LENGTH = 32;
 export const MAX_CONVERSATION_MEMORY_NOTE_LENGTH = 300;
 export const MAX_CONVERSATION_LAST_INTENT_LENGTH = 220;
+export const MAX_RELATIONSHIP_TOPIC_SUMMARY_LENGTH = 120;
+
+export type RelationshipTopicStatus = "active" | "cooling" | "closed" | "archived";
+export type RelationshipTopic = {
+  id: string;
+  topicKey: string;
+  summary: string;
+  status: RelationshipTopicStatus;
+  confidence: number;
+  createdAt: string;
+  lastReferencedAt: string;
+  closedAt: string | null;
+  supportingInteractionCount: number;
+};
 
 export type ConversationProfile = {
   id: string;
-  version: 1;
+  version: 1 | 2;
   label: string;
   context: ContextOption | null;
   tone: ToneOption;

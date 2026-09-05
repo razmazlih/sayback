@@ -59,7 +59,7 @@ export function SavedConversationsRow({
   return (
     <section aria-labelledby="conversation-recipient-label" className="min-w-0 rounded-[20px] border border-[#e2d7c8] bg-[#fff9ef] p-3">
       <div className="flex items-center justify-between gap-3">
-        <p id="conversation-recipient-label" className="text-sm font-black text-[#241d18]">למי עונים?</p>
+        <p id="conversation-recipient-label" className="text-sm font-black text-[#241d18]">אנשים אחרונים</p>
         <button
           type="button"
           onClick={onManage}
@@ -82,7 +82,7 @@ export function SavedConversationsRow({
               : 'border-[#ded2c3] bg-white text-[#241d18]',
           ].join(' ')}
         >
-          חד־פעמי
+          בלי אדם שמור
         </button>
         {visibleProfiles.map((profile) => {
           const active = profile.id === activeId;
@@ -108,14 +108,14 @@ export function SavedConversationsRow({
       {activeId ? (
         <div className="mt-2 flex min-h-[40px] flex-wrap items-center justify-between gap-2 border-t border-[#e8ddcf] pt-2">
           <p className="text-xs font-bold text-[#5b4d42]">
-            עונים ל{profiles.find((profile) => profile.id === activeId)?.label} · SayBack זוכר את ההקשר
+            ממשיכים עם {profiles.find((profile) => profile.id === activeId)?.label}
           </p>
           <div className="flex gap-1">
             <button type="button" disabled={disabled} onClick={() => {
               const profile = profiles.find((item) => item.id === activeId);
               if (profile) onViewMemory(profile);
             }} className={`min-h-[44px] rounded-full px-2 text-xs font-black text-[#8f371e] disabled:opacity-50 ${focusClass}`}>
-              מה זכור?
+              מה SayBack יודע
             </button>
             <button type="button" disabled={disabled} onClick={onClear} className={`min-h-[44px] rounded-full px-2 text-xs font-black text-[#6d6259] disabled:opacity-50 ${focusClass}`}>
               החלפה
@@ -169,15 +169,16 @@ export function SaveConversationDialog({
     event.preventDefault();
     const normalized = label.trim();
     if (busy) return;
-    await onSave(normalized || (context ? `שיחה · ${context}` : 'שיחה שמורה'), memoryNote.trim() || null);
+    if (!normalized) return;
+    await onSave(normalized, memoryNote.trim() || null);
   }
 
   return (
-    <DialogShell title="שמירת שיחה" onClose={handleClose} closeDisabled={busy}>
+    <DialogShell title="לשמור לפעם הבאה" onClose={handleClose} closeDisabled={busy}>
       <form onSubmit={submit} className="space-y-4">
         <div>
           <label htmlFor="conversation-label" className="text-lg font-black text-[#181411]">
-            איך לקרוא לשיחה? <span className="text-sm font-bold text-[#7a6e64]">· אופציונלי</span>
+            איך קוראים לו/לה?
           </label>
           <input
             ref={inputRef}
@@ -186,13 +187,15 @@ export function SaveConversationDialog({
             onChange={(event) => setLabel(event.target.value.slice(0, MAX_CONVERSATION_LABEL_LENGTH))}
             maxLength={MAX_CONVERSATION_LABEL_LENGTH}
             autoComplete="off"
+            required
             placeholder="למשל: נועה, הלקוח מהפייסבוק, הבוס"
             className={`mt-2 min-h-14 w-full rounded-2xl border border-[#ded2c3] bg-white px-4 text-base font-bold text-[#241d18] placeholder:text-[#9b8f83] ${focusClass}`}
           />
         </div>
-        <div>
-          <label htmlFor="conversation-memory-note" className="text-base font-black text-[#181411]">
-            מה חשוב שנזכור? <span className="text-sm font-bold text-[#7a6e64]">· אופציונלי</span>
+        <details className="rounded-2xl border border-[#e2d7c8] bg-white p-3">
+          <summary className="cursor-pointer text-sm font-black text-[#5b4d42]">להוסיף משהו חשוב · אופציונלי</summary>
+          <label htmlFor="conversation-memory-note" className="mt-3 block text-sm font-black text-[#181411]">
+            משהו שכדאי לקחת בחשבון
           </label>
           <textarea
             id="conversation-memory-note"
@@ -207,10 +210,8 @@ export function SaveConversationDialog({
             <span>משפט אחד מספיק. אפשר לערוך אחר כך.</span>
             <span aria-live="polite">{memoryNote.length}/{MAX_CONVERSATION_MEMORY_NOTE_LENGTH}</span>
           </div>
-        </div>
-        <p className="rounded-2xl border border-[#f7cf76] bg-[#fff6d8] px-3 py-2.5 text-sm font-bold leading-6 text-[#5b4d42]">
-          בשיחה השמורה נשמור תקציר קצר שתוכל לערוך — לא צילום מסך ולא היסטוריית צ׳אט מלאה.
-        </p>
+        </details>
+        <p className="text-xs font-bold leading-5 text-[#7a6e64]">נשמור רק פרטים קצרים שנחוצים להמשך — לא צילום מסך ולא היסטוריית צ׳אט.</p>
         <div className="flex flex-wrap gap-2 text-xs font-black text-[#5b4d42]">
           <span className="rounded-full border border-[#e2d7c8] bg-white px-3 py-1.5">מצב: {context ?? 'לא הוגדר'}</span>
           <span className="rounded-full border border-[#e2d7c8] bg-white px-3 py-1.5">וייב: {tone}</span>
@@ -218,14 +219,19 @@ export function SaveConversationDialog({
         {error ? <p role="alert" className="text-sm font-bold text-[#9a3412]">{error}</p> : null}
         <button
           type="submit"
-          disabled={busy}
+          disabled={busy || !label.trim()}
           className={`min-h-14 w-full rounded-full bg-[#ff5a2a] px-5 text-base font-black text-white disabled:cursor-not-allowed disabled:opacity-50 ${focusClass}`}
         >
-          {busy ? 'שומרים...' : 'שמור שיחה'}
+          {busy ? 'שומרים...' : normalizedSaveLabel(label)}
         </button>
       </form>
     </DialogShell>
   );
+}
+
+function normalizedSaveLabel(label: string) {
+  const normalized = label.trim();
+  return normalized ? `לשמור את ${normalized}` : "שמירה";
 }
 
 export function ManageConversationsDialog({
@@ -269,7 +275,7 @@ export function ManageConversationsDialog({
   if (!open) return null;
 
   return (
-    <DialogShell title="ניהול שיחות שמורות" onClose={handleClose} closeDisabled={busyId !== null}>
+    <DialogShell title="מה SayBack יודע" onClose={handleClose} closeDisabled={busyId !== null}>
       <div className="max-h-[64vh] space-y-2 overflow-y-auto pb-1">
         {profiles.length === 0 ? (
           <p className="rounded-2xl bg-[#fff9ef] p-4 text-sm font-bold text-[#6d6259]">אין עדיין שיחות שמורות.</p>
@@ -393,7 +399,7 @@ export function ConversationMemoryDialog({
   if (!open || !profile) return null;
 
   return (
-    <DialogShell title={`מה זוכרים על ${profile.label}?`} onClose={onClose} closeDisabled={false}>
+    <DialogShell title={`מה SayBack יודע על ${profile.label}?`} onClose={onClose} closeDisabled={false}>
       <div className="space-y-4">
         <div>
           <h3 className="text-xl font-black text-[#181411]">{profile.label}</h3>
@@ -402,13 +408,13 @@ export function ConversationMemoryDialog({
           </p>
         </div>
         <section aria-labelledby="saved-memory-note" className="rounded-2xl border border-[#f7cf76] bg-[#fff6d8] p-3">
-          <h4 id="saved-memory-note" className="text-sm font-black text-[#241d18]">הסיכום הכללי שחשוב לזכור</h4>
+          <h4 id="saved-memory-note" className="text-sm font-black text-[#241d18]">משהו שביקשת לקחת בחשבון</h4>
           <p className="mt-1 text-sm font-bold leading-6 text-[#5b4d42]">
-            {profile.memoryNote ?? `עדיין לא כתבת מה חשוב לזכור על ${profile.label}.`}
+            {profile.memoryNote ?? `אין הערה ידנית על ${profile.label}. SayBack עדיין יכול ללמוד הקשר מהשימוש.`}
           </p>
         </section>
         <p className="text-xs font-bold leading-5 text-[#7a6e64]">
-          זה הסיכום הקבוע על האדם והקשר ביניכם — לא סיכום של ההודעה האחרונה.
+          ההודעה הנוכחית תמיד קודמת למה שנלמד בעבר. אפשר לתקן או למחוק כאן בכל רגע.
         </p>
         <div className="flex flex-col gap-2 sm:flex-row">
           <button type="button" onClick={() => onEdit(profile)} className={`min-h-[44px] flex-1 rounded-full bg-[#181411] px-4 text-sm font-black text-white ${focusClass}`}>

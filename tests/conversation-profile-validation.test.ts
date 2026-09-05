@@ -50,6 +50,12 @@ test("parses legacy profiles with missing memory fields as null", () => {
   assert.equal(profile.lastIntent, null);
 });
 
+test("parses version 2 profiles while preserving version 1 compatibility", () => {
+  assert.equal(parseStoredConversationProfile("new_2", storedProfile({ version: 2 }))?.version, 2);
+  assert.equal(parseStoredConversationProfile("old_1", storedProfile({ version: 1 }))?.version, 1);
+  assert.equal(parseStoredConversationProfile("future", storedProfile({ version: 99 })), null);
+});
+
 test("parses bounded memory capsule fields and rejects oversized stored values", () => {
   const profile = parseStoredConversationProfile("memory_1", storedProfile({
     memoryNote: "מדברים שבועיים",

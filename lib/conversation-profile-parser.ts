@@ -12,7 +12,7 @@ import {
 } from "./conversation-profile-validation";
 import type { ContextOption, ToneOption } from "./generator-options";
 
-export const CONVERSATION_PROFILE_VERSION = 1;
+export const CONVERSATION_PROFILE_VERSION = 2;
 
 export type StoredConversationProfile = {
   version?: unknown;
@@ -40,7 +40,7 @@ export function parseStoredConversationProfile(
   const context = stored.context === null ? null : stored.context;
 
   if (
-    stored.version !== CONVERSATION_PROFILE_VERSION ||
+    (stored.version !== 1 && stored.version !== CONVERSATION_PROFILE_VERSION) ||
     label.length < 1 ||
     label.length > MAX_CONVERSATION_LABEL_LENGTH ||
     (context !== null && !safeContext(context)) ||
@@ -64,7 +64,7 @@ export function parseStoredConversationProfile(
 
   return {
     id,
-    version: CONVERSATION_PROFILE_VERSION,
+    version: stored.version as 1 | 2,
     label,
     context: context as ContextOption | null,
     tone: stored.tone as ToneOption,

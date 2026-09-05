@@ -17,6 +17,8 @@ import { consumeRateLimit } from "@/lib/rate-limit";
 import {
   ConversationProfileError,
   getConversationProfile,
+  listRelationshipTopicCandidates,
+  recordRelationshipMemoryTurn,
   updateConversationProfileAfterGeneration,
 } from "@/lib/conversation-profiles";
 import type { ConversationProfile } from "@/lib/conversation-profile-types";
@@ -30,6 +32,7 @@ import { MAX_NO_REPLY_DURATION_VALUE } from "@/lib/message-limits";
 import { recordServerProductEvent } from "@/lib/product-events";
 import { after } from "next/server";
 import { isIP } from "node:net";
+import { selectRelevantRelationshipMemory, type MemorySelection } from "@/lib/relationship-memory";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -105,6 +108,7 @@ export async function POST(request: Request) {
   let persistedUsageLogBase: PersistedUsageLogBase | null = null;
   let savedConversation: ConversationProfile | null = null;
   let profileUnavailable = false;
+  let memorySelection: MemorySelection | null = null;
 
   try {
     const authenticatedUser = await requireAuthenticatedUser(request);
@@ -249,6 +253,23 @@ export async function POST(request: Request) {
       }
     }
 
+    if (savedConversation && isNewConversationTurn(body)) {
+      try {
+        const topics = await listRelationshipTopicCandidates(authenticatedUserUid, savedConversation.id);
+        memorySelection = selectRelevantRelationshipMemory({
+          message: body.message,
+          topics,
+          context: savedConversation.context,
+          tone: savedConversation.tone,
+          memoryNote: savedConversation.memoryNote,
+          explicitContext: body.context,
+          explicitTone: body.tone,
+        });
+      } catch (memoryReadError) {
+        console.warn("Relationship memory unavailable; generating without historical context.", memoryReadError);
+      }
+    }
+
     const access = await consumeGenerationAccess(authenticatedUserUid);
 
     if (!access.allowed) {
@@ -297,13 +318,16 @@ export async function POST(request: Request) {
       ...body,
       context: effectiveContext,
       tone: effectiveTone,
-      savedConversationMemory: savedConversation
+      savedConversationMemory: savedConversation && memorySelection && (
+        memorySelection.topics.length > 0 || memorySelection.relationshipContext ||
+        memorySelection.relationshipTone || memorySelection.trustedHint
+      )
         ? {
             label: savedConversation.label,
-            context: savedConversation.context,
-            tone: savedConversation.tone,
-            memoryNote: savedConversation.memoryNote,
-            lastIntent: savedConversation.lastIntent,
+            context: memorySelection.relationshipContext,
+            tone: memorySelection.relationshipTone,
+            trustedHint: memorySelection.trustedHint,
+            selectedTopics: memorySelection.topics.map(({ summary, status }) => ({ summary, status })),
           }
         : undefined,
       myVoiceInstruction: myVoiceInstruction ?? undefined,
@@ -321,6 +345,9 @@ export async function POST(request: Request) {
             tone: effectiveTone,
           },
         );
+        if (body.message) {
+          await recordRelationshipMemoryTurn(authenticatedUserUid, savedConversation.id, body.message);
+        }
       } catch (memoryUpdateError) {
         // A transient memory write must not discard a valid, already-paid generation.
         console.error("Failed to update saved conversation memory", memoryUpdateError);
@@ -356,6 +383,35 @@ export async function POST(request: Request) {
             dedupeKey: `refine:${crypto.randomUUID()}`,
             metadata: { action: body.action },
           });
+        }
+        if (savedConversation && memorySelection) {
+          const memoryUsed = memorySelection.topics.length > 0 || Boolean(memorySelection.trustedHint ||
+            memorySelection.relationshipContext || memorySelection.relationshipTone);
+          await recordServerProductEvent({
+            uid: authenticatedUserUid!,
+            eventName: memoryUsed ? "relationship_memory_used" : "relationship_memory_skipped",
+            dedupeKey: `relationship-memory:${crypto.randomUUID()}`,
+            metadata: {
+              selected_count: memorySelection.topics.length,
+              selected_type: memorySelection.topics.length ? "topic" : memorySelection.trustedHint ? "hint" : memoryUsed ? "state" : "none",
+              confidence_bucket: memorySelection.confidence,
+              context_used: memoryUsed,
+              identity_source: "explicit_profile",
+            },
+          });
+          if (memorySelection.topics.length) {
+            await recordServerProductEvent({ uid: authenticatedUserUid!, eventName: "relationship_topic_matched",
+              dedupeKey: `relationship-topic:${crypto.randomUUID()}`, metadata: {
+                selected_count: memorySelection.topics.length,
+                topic_status: memorySelection.topics[0]?.status ?? "none",
+                confidence_bucket: memorySelection.confidence,
+              } });
+          }
+          const ageMs = Date.now() - Date.parse(savedConversation.lastUsedAt);
+          if (savedConversation.usageCount > 0 && ageMs <= 7 * 86_400_000) {
+            await recordServerProductEvent({ uid: authenticatedUserUid!, eventName: "same_person_repeat_generation",
+              dedupeKey: `same-person:${crypto.randomUUID()}`, metadata: { time_bucket: relationshipTimeBucket(ageMs), context_used: memoryUsed } });
+          }
         }
       } catch (eventError) {
         console.error("Failed to record generation product event", eventError);
@@ -446,6 +502,12 @@ export async function POST(request: Request) {
       500,
     );
   }
+}
+
+function relationshipTimeBucket(ageMs: number) {
+  if (ageMs < 6 * 60 * 60_000) return "same_session";
+  if (ageMs < 2 * 86_400_000) return "1d";
+  return "2_7d";
 }
 
 function isNewConversationTurn(body: GenerateRequestBody) {

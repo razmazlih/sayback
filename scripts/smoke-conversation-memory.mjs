@@ -58,7 +58,6 @@ try {
       context: "קראש",
       tone: "זורם",
       memoryNote: "מדברים שבועיים והיה דייט אחד",
-      lastIntent: "לשמור על עניין בלי להישמע לחוץ",
     }),
   });
   assert.equal(created.response.status, 201);
@@ -114,7 +113,7 @@ try {
   const reused = await api(userA.idToken, "/api/generate", {
     method: "POST",
     body: JSON.stringify({
-      message: "היא כתבה שהיה לה כיף אבל שהיא רוצה להתקדם לאט",
+      message: "יש לי מבחן מחר ואני בלחץ",
       context: "קראש",
       tone: "זורם",
       conversationId: profileId,
@@ -130,7 +129,7 @@ try {
   const refinedWithMemory = await api(userA.idToken, "/api/generate", {
     method: "POST",
     body: JSON.stringify({
-      message: "היא כתבה שהיה לה כיף אבל שהיא רוצה להתקדם לאט",
+      message: "הלך לי ממש גרוע",
       context: "קראש",
       tone: "זורם",
       conversationId: profileId,
@@ -190,6 +189,15 @@ try {
   assert.ok(rawData.updatedAt instanceof Timestamp);
   assert.ok(rawData.lastUsedAt instanceof Timestamp);
   assert.equal(rawData.usageCount, 1);
+  assert.equal(rawData.version, 2);
+  const topicDocs = await rawProfile.ref.collection("topics").get();
+  assert.equal(topicDocs.size, 1);
+  const topicData = topicDocs.docs[0].data();
+  assert.equal(topicData.topicKey, "exam");
+  assert.equal(topicData.summary.includes("יש לי מבחן מחר"), false);
+  for (const forbidden of ["message", "screenshot", "transcript", "reply", "imageBase64"]) {
+    assert.equal(Object.prototype.hasOwnProperty.call(topicData, forbidden), false);
+  }
 
   console.log("smoke: checking delete, stale fallback, and clear-all");
   const deleted = await api(userA.idToken, `/api/conversations/${profileId}`, { method: "DELETE" });
@@ -232,6 +240,7 @@ try {
     ownershipIsolation: "ok",
     savedConversationGeneration: "ok",
     refineDidNotUpdateMemory: "ok",
+    relationshipTopicPrivacy: "ok",
     persistedProfileKeys: Object.keys(rawData).sort(),
     maxProfiles: 20,
     deleteAndClear: "ok",
