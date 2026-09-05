@@ -28,14 +28,18 @@ try {
       "lib/conversation-profile-types.ts",
       "lib/conversation-profile-validation.ts",
       "lib/conversation-profile-parser.ts",
+      "lib/relationship-memory.ts",
       "tests/conversation-profile-validation.test.ts",
+      "tests/relationship-memory.test.ts",
     ],
     { stdio: "inherit" },
   );
 
   execFileSync(
     process.execPath,
-    ["--test", join(outputDirectory, "tests", "conversation-profile-validation.test.js")],
+    ["--test",
+      join(outputDirectory, "tests", "conversation-profile-validation.test.js"),
+      join(outputDirectory, "tests", "relationship-memory.test.js")],
     { stdio: "inherit" },
   );
 } finally {

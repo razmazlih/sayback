@@ -22,6 +22,8 @@ import {
   normalizeConversationMemoryNote,
   normalizeConversationTone,
 } from "@/lib/conversation-profile-validation";
+import { MAX_TOPIC_CANDIDATES, deriveTopicUpdate } from "@/lib/relationship-memory";
+import type { RelationshipTopic } from "@/lib/conversation-profile-types";
 
 export { ConversationProfileError } from "@/lib/conversation-profile-validation";
 
@@ -126,6 +128,7 @@ export async function updateConversationProfile(
   const firestore = (await getFirestore()) as unknown as Firestore;
   const profileRef = profilesCollection(firestore, uid).doc(id);
   const updates: Record<string, unknown> = {
+    version: CONVERSATION_PROFILE_VERSION,
     updatedAt: FieldValue.serverTimestamp(),
   };
 
@@ -232,6 +235,7 @@ export async function updateConversationProfileAfterGeneration(
   }
 
   const updates: Record<string, unknown> = {
+    version: CONVERSATION_PROFILE_VERSION,
     lastIntent,
     lastUsedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -252,6 +256,55 @@ export async function updateConversationProfileAfterGeneration(
       throw new ConversationProfileError("השיחה השמורה כבר לא קיימת.", 404);
     }
     transaction.update(profileRef, updates);
+  });
+}
+
+/** Loads only a small candidate window; profile history is never scanned or placed in one array. */
+export async function listRelationshipTopicCandidates(
+  uid: string,
+  profileId: string,
+): Promise<RelationshipTopic[]> {
+  if (!isConversationProfileId(profileId)) {
+    throw new ConversationProfileError("השיחה שבחרת לא תקינה.", 400);
+  }
+  const firestore = (await getFirestore()) as unknown as Firestore;
+  const snapshot = await profilesCollection(firestore, uid).doc(profileId)
+    .collection("topics").orderBy("lastReferencedAt", "desc").limit(MAX_TOPIC_CANDIDATES).get();
+  return snapshot.docs.flatMap((doc) => {
+    const data = doc.data();
+    const createdAt = firestoreTimestampToIso(data.createdAt);
+    const lastReferencedAt = firestoreTimestampToIso(data.lastReferencedAt);
+    const closedAt = data.closedAt ? firestoreTimestampToIso(data.closedAt) : null;
+    if (!createdAt || !lastReferencedAt || typeof data.topicKey !== "string" ||
+        typeof data.summary !== "string" || !["active", "cooling", "closed", "archived"].includes(data.status) ||
+        typeof data.confidence !== "number") return [];
+    return [{ id: doc.id, topicKey: data.topicKey, summary: data.summary, status: data.status,
+      confidence: Math.max(0, Math.min(1, data.confidence)), createdAt, lastReferencedAt,
+      closedAt, supportingInteractionCount: readNonNegativeInteger(data.supportingInteractionCount) } as RelationshipTopic];
+  });
+}
+
+/** Persists only a generic derived topic capsule, never the message or model output. */
+export async function recordRelationshipMemoryTurn(uid: string, profileId: string, message: string) {
+  if (!isConversationProfileId(profileId)) return;
+  const update = deriveTopicUpdate(message);
+  if (!update) return;
+  const firestore = (await getFirestore()) as unknown as Firestore;
+  const ref = profilesCollection(firestore, uid).doc(profileId).collection("topics").doc(update.topicKey);
+  await firestore.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const now = FieldValue.serverTimestamp();
+    transaction.set(ref, {
+      version: CONVERSATION_PROFILE_VERSION,
+      topicKey: update.topicKey,
+      summary: update.summary,
+      status: update.status,
+      confidence: update.confidence,
+      createdAt: snapshot.exists ? snapshot.data()?.createdAt ?? now : now,
+      lastReferencedAt: now,
+      closedAt: update.status === "closed" ? now : null,
+      supportingInteractionCount: FieldValue.increment(1),
+    }, { merge: true });
   });
 }
 
@@ -285,6 +338,8 @@ export async function deleteConversationProfile(uid: string, id: string): Promis
       { merge: true },
     );
   });
+  // Ensure nested topic capsules are also erased. Safe after the ownership-scoped transaction.
+  await firestore.recursiveDelete(profileRef);
 }
 
 export async function clearConversationProfiles(uid: string): Promise<void> {
@@ -304,4 +359,12 @@ function readNonNegativeInteger(value: unknown) {
   return typeof value === "number" && Number.isFinite(value)
     ? Math.max(0, Math.floor(value))
     : 0;
+}
+
+function firestoreTimestampToIso(value: unknown) {
+  if (!value || typeof value !== "object" || !("toDate" in value)) return null;
+  try {
+    const date = (value as { toDate(): Date }).toDate();
+    return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+  } catch { return null; }
 }

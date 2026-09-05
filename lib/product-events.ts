@@ -21,6 +21,12 @@ export const SERVER_PRODUCT_EVENT_NAMES = [
   "return_use",
   "conversation_profile_created",
   "refine_used",
+  "relationship_memory_used",
+  "relationship_memory_skipped",
+  "relationship_topic_matched",
+  "relationship_topic_created",
+  "same_person_repeat_generation",
+  "relationship_context_corrected",
   "checkout_started",
   "credits_purchase",
   "subscription_started",
@@ -396,6 +402,7 @@ function sanitizeServerEventMetadata(value: unknown): ProductEventMetadata {
   const metadata: ProductEventMetadata = {};
   for (const [key, rawValue] of Object.entries(value as Record<string, unknown>).slice(0, MAX_METADATA_KEYS)) {
     if (!/^[a-z_]{1,40}$/.test(key)) continue;
+    if (/^(?:name|label|message|summary|reply|replies|screenshot|image|transcript|content)$/.test(key)) continue;
     if (rawValue === null || typeof rawValue === "boolean") metadata[key] = rawValue;
     else if (typeof rawValue === "number" && Number.isFinite(rawValue)) metadata[key] = rawValue;
     else if (typeof rawValue === "string") metadata[key] = rawValue

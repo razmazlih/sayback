@@ -8,6 +8,13 @@ const [billing, pricing, stripe, generateRoute] = await Promise.all([
   readFile(new URL("../lib/stripe.ts", import.meta.url), "utf8"),
   readFile(new URL("../app/api/generate/route.ts", import.meta.url), "utf8"),
 ]);
+const [profiles, relationshipMemory, productEvents, conversationUi, homeUi] = await Promise.all([
+  readFile(new URL("../lib/conversation-profiles.ts", import.meta.url), "utf8"),
+  readFile(new URL("../lib/relationship-memory.ts", import.meta.url), "utf8"),
+  readFile(new URL("../lib/product-events.ts", import.meta.url), "utf8"),
+  readFile(new URL("../components/conversation-memory.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../app/home-page-client.tsx", import.meta.url), "utf8"),
+]);
 
 test("current billing economics remain unchanged", () => {
   assert.match(billing, /export const FREE_LIMIT = 3;/);
@@ -24,4 +31,25 @@ test("Stripe checkout and generation rollback contracts remain protected", () =>
   assert.match(generateRoute, /await refundGenerationAccess\(authenticatedUserUid, consumption\)/);
   assert.match(generateRoute, /export const runtime = "nodejs";/);
   assert.match(generateRoute, /export const dynamic = "force-dynamic";/);
+});
+
+test("relationship memory remains bounded, private, best-effort, and does not run on refine", () => {
+  assert.match(relationshipMemory, /MAX_TOPIC_CANDIDATES = 12/);
+  assert.match(relationshipMemory, /MAX_SELECTED_TOPICS = 2/);
+  assert.match(generateRoute, /isNewConversationTurn\(body\)/);
+  assert.match(generateRoute, /generating without historical context/);
+  assert.match(generateRoute, /Failed to update saved conversation memory/);
+  assert.match(profiles, /never the message or model output/);
+  assert.doesNotMatch(profiles, /messageText|imageBase64|sourceReply/);
+});
+
+test("relationship analytics and UI expose no personal content or memory marketing banner", () => {
+  const ui = conversationUi + homeUi;
+  assert.match(productEvents, /relationship_memory_used/);
+  assert.match(productEvents, /same_person_repeat_generation/);
+  assert.doesNotMatch(generateRoute, /metadata:\s*\{[^}]*summary/s);
+  assert.doesNotMatch(generateRoute, /metadata:\s*\{[^}]*message/s);
+  assert.doesNotMatch(ui, /SayBack זוכר את ההקשר/);
+  assert.match(ui, /ממשיכים עם/);
+  assert.match(ui, /מה SayBack יודע/);
 });

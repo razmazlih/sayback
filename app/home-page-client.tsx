@@ -5710,7 +5710,7 @@ export default function Home({
                 </div>
                 <div className="rounded-2xl border border-[#e2d7c8] bg-[#fffdf8] px-3 py-2.5 text-sm">
                   {activeConversation ? (
-                    <p className="font-black text-[#5b4d42]">עונים ל{activeConversation.label} · SayBack זוכר את ההקשר</p>
+                    <p className="font-black text-[#5b4d42]">ממשיכים עם {activeConversation.label}</p>
                   ) : lastSuccessfulConversationDefaults ? (
                     <div>
                       <p className="mb-2 text-center text-xs font-bold text-[#6d6259]">מדברים שוב עם אותו אדם?</p>
@@ -5724,7 +5724,7 @@ export default function Home({
                             : 'border-[#ded2c3] bg-white text-[#5b4d42] hover:border-[#ffb29f] hover:text-[#7a2d19]',
                         ].join(' ')}
                       >
-                        זכור את השיחה לפעם הבאה
+                        לשמור לפעם הבאה
                       </button>
                     </div>
                   ) : null}
