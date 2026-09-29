@@ -266,21 +266,21 @@ body {
 
 .sb-reply-card,
 .sb-reply-loading-card {
-  min-height: 288px;
+  min-height: 216px;
 }
 
 .sb-reply-loading-card {
-  height: 288px;
+  height: 216px;
 }
 
 @media (min-width: 640px) {
   .sb-reply-card,
   .sb-reply-loading-card {
-    min-height: 196px;
+    min-height: 188px;
   }
 
   .sb-reply-loading-card {
-    height: 196px;
+    height: 188px;
   }
 }
 

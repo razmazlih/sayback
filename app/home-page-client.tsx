@@ -69,6 +69,7 @@ type NoReplyGoal = 'תזכורת עדינה' | 'בדיקת סטטוס' | 'שחר
 type Goal = IncomingGoal | NoReplyGoal;
 type ComposeMode = 'incoming' | 'no_reply';
 type NoReplyDurationUnit = 'minutes' | 'hours' | 'days';
+type NoReplyDurationUnitSelection = NoReplyDurationUnit | '';
 type ReplyAction = 'softer' | 'sharper' | 'retry';
 type SubscriptionAction = 'cancel_next_charge' | 'resume_renewal';
 type CheckoutPlan = 'credits_50' | 'unlimited_monthly';
@@ -258,14 +259,6 @@ const incomingGoalOptions: IncomingGoal[] = [
 ];
 const noReplyGoalOptions: NoReplyGoal[] = ['תזכורת עדינה', 'בדיקת סטטוס', 'שחרור מכבד'];
 const continuePreferenceOptions: ContinuePreference[] = ['כן', 'לא'];
-const customRefinePresets = [
-  'קצר יותר',
-  'טבעי יותר',
-  'עם אימוג׳י',
-  'בלי אימוג׳י',
-  'להציב גבול',
-  'לקבוע זמן',
-] as const;
 const CONTEXT_PRIMARY_VISIBLE_COUNT = FREE_CONTEXT_OPTION_COUNT;
 const TONE_PRIMARY_VISIBLE_COUNT = FREE_TONE_OPTION_COUNT;
 const freeContextOptions = contextOptions.slice(0, CONTEXT_PRIMARY_VISIBLE_COUNT);
@@ -1349,6 +1342,10 @@ function ReplyRefineMenu({
   onCustomAdjust: (index: number, instruction: string) => void;
 }) {
   const [instruction, setInstruction] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const [isCustomOpen, setIsCustomOpen] = useState(false);
+  const panelId = `reply-refine-${index}`;
+  const customPanelId = `reply-custom-refine-${index}`;
 
   const submitCustomAdjustment = () => {
     const nextInstruction = instruction.trim();
@@ -1360,26 +1357,29 @@ function ReplyRefineMenu({
   };
 
   return (
-    <details className="group w-full min-w-0 rounded-[18px] border border-dashed border-[#d8cab9] bg-[#f8f3eb] transition-colors duration-200 open:bg-[#fff8ef] sm:w-auto sm:flex-1 sm:min-w-[11rem]">
-      <summary
-        className={`flex min-h-[42px] cursor-pointer list-none items-center justify-between gap-2 px-3.5 py-2 text-right text-sm font-black text-[#241d18] marker:content-none ${whiteSurfaceFocusClass}`}
+    <div className="w-full min-w-0 rounded-[18px] border border-dashed border-[#d8cab9] bg-[#f8f3eb] transition-colors duration-200 sm:w-auto sm:flex-1 sm:min-w-[11rem]">
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        onClick={() => setIsOpen((current) => !current)}
+        className={`flex min-h-[42px] w-full items-center justify-between gap-2 px-3.5 py-2 text-right text-sm font-black text-[#241d18] ${whiteSurfaceFocusClass}`}
       >
         <span>לשפר ניסוח</span>
-        <span className="text-xs transition-transform duration-200 group-open:rotate-180">⌄</span>
-      </summary>
+        <span className={`text-xs transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true">⌄</span>
+      </button>
 
-      <div className="sb-accordion-content">
-        <div className="sb-accordion-content-inner">
-          <div className="px-2.5 pb-2.5 pt-0.5">
+      {isOpen ? (
+        <div id={panelId} className="px-2.5 pb-2.5 pt-0.5">
             <p className="mb-2 text-xs font-bold leading-5 text-[#6d6259]">
               כל שיפור משתמש בשימוש אחד.
             </p>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="grid grid-cols-3 gap-1.5">
               <button
                 type="button"
                 onClick={() => onAdjust(index, 'softer')}
                 disabled={isBusy}
-                className={`inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#b8e7df] bg-[#e3fbf7] px-3.5 py-2 leading-5 text-[#123a36] transition hover:bg-[#cef6ef] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                className={`inline-flex min-h-[42px] items-center justify-center rounded-xl border border-[#b8e7df] bg-[#e3fbf7] px-2 py-2 text-xs leading-5 text-[#123a36] transition hover:bg-[#cef6ef] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
               >
                 עדין יותר
               </button>
@@ -1387,7 +1387,7 @@ function ReplyRefineMenu({
                 type="button"
                 onClick={() => onAdjust(index, 'sharper')}
                 disabled={isBusy}
-                className={`inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3.5 py-2 leading-5 text-[#6f2414] transition hover:bg-[#ffe2d8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                className={`inline-flex min-h-[42px] items-center justify-center rounded-xl border border-[#ffc4b5] bg-[#fff0ea] px-2 py-2 text-xs leading-5 text-[#6f2414] transition hover:bg-[#ffe2d8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
               >
                 חד יותר
               </button>
@@ -1395,31 +1395,27 @@ function ReplyRefineMenu({
                 type="button"
                 onClick={() => onAdjust(index, 'retry')}
                 disabled={isBusy}
-                className={`inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#ded2c3] bg-white px-3.5 py-2 leading-5 text-[#241d18] transition hover:bg-[#f8f3eb] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                className={`inline-flex min-h-[42px] items-center justify-center rounded-xl border border-[#ded2c3] bg-white px-2 py-2 text-xs leading-5 text-[#241d18] transition hover:bg-[#f8f3eb] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
               >
                 ניסוח חדש
               </button>
             </div>
-            <div className="mt-3 border-t border-[#e2d7c8] pt-3">
-              <label htmlFor={`custom-refine-${index}`} className="text-xs font-black text-[#241d18]">
-                מה לשנות?
-              </label>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {customRefinePresets.map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    disabled={isBusy}
-                    onClick={() => {
-                      setInstruction(preset);
-                      trackEvent('custom_refine_preset_select', { index, preset });
-                    }}
-                    className={`min-h-[34px] rounded-full border border-[#ded2c3] bg-white px-2.5 py-1 text-xs font-black text-[#5b4d42] transition hover:bg-[#fff8ef] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
-                  >
-                    {preset}
-                  </button>
-                ))}
-              </div>
+            <div className="mt-2 border-t border-[#e2d7c8] pt-2">
+              <button
+                type="button"
+                aria-expanded={isCustomOpen}
+                aria-controls={customPanelId}
+                onClick={() => setIsCustomOpen((current) => !current)}
+                disabled={isBusy}
+                className={`min-h-[36px] text-xs font-black text-[#5b4d42] underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+              >
+                דיוק אחר
+              </button>
+              {isCustomOpen ? (
+                <div id={customPanelId} className="mt-2">
+                  <label htmlFor={`custom-refine-${index}`} className="text-xs font-black text-[#241d18]">
+                    מה לשנות? (יישלח כניסוח חדש)
+                  </label>
               <div className="mt-2 flex gap-2">
                 <input
                   id={`custom-refine-${index}`}
@@ -1438,11 +1434,12 @@ function ReplyRefineMenu({
                   שפר
                 </button>
               </div>
+                </div>
+              ) : null}
             </div>
-          </div>
         </div>
-      </div>
-    </details>
+      ) : null}
+    </div>
   );
 }
 
@@ -1467,20 +1464,34 @@ function ReplyActions({
   onShare: (reply: string, index: number) => void;
   onEdit: (reply: string, index: number) => void;
 }) {
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
   const whatsappHref = `https://wa.me/?text=${encodeURIComponent(displayedReply)}`;
 
   return (
     <>
+      <span className="sr-only" role="status" aria-live="polite">
+        {copied ? 'התשובה הועתקה ללוח.' : ''}
+      </span>
       <button
         type="button"
         onClick={() => onCopy(displayedReply, index)}
-        className={`inline-flex min-h-[42px] items-center justify-center rounded-full bg-[#181411] px-4 py-2 leading-5 text-white shadow-[0_10px_20px_rgba(24,20,17,0.16)] transition hover:-translate-y-0.5 hover:bg-[#2c241f] ${whiteSurfaceFocusClass}`}
+        aria-label={copied ? 'התשובה הועתקה' : `העתק תשובה ${index + 1}`}
+        className={`inline-flex min-h-[46px] flex-1 items-center justify-center rounded-xl bg-[#181411] px-4 py-2 font-black leading-5 text-white shadow-[0_10px_20px_rgba(24,20,17,0.16)] transition hover:-translate-y-0.5 hover:bg-[#2c241f] ${whiteSurfaceFocusClass}`}
       >
-        {copied ? 'הועתק' : 'העתק'}
+        {copied ? 'הועתק' : 'העתק תשובה'}
       </button>
-
       <button
         type="button"
+        aria-expanded={isMoreOpen}
+        onClick={() => setIsMoreOpen((current) => !current)}
+        className={`inline-flex min-h-[46px] items-center justify-center rounded-xl border border-[#ded2c3] bg-white px-3.5 py-2 text-sm font-black text-[#5b4d42] transition hover:bg-[#f8f3eb] ${whiteSurfaceFocusClass}`}
+      >
+        עוד
+      </button>
+      {isMoreOpen ? (
+        <div className="flex w-full flex-wrap gap-1.5 border-t border-[#e7dccf] pt-2">
+          <button
+            type="button"
         onClick={() => {
           if (isEditing) {
             onEdit(draftReply, index);
@@ -1513,6 +1524,8 @@ function ReplyActions({
       >
         וואטסאפ
       </a>
+        </div>
+      ) : null}
     </>
   );
 }
@@ -1553,9 +1566,9 @@ function ReplyCard({
   const displayedReply = isEditing ? draftReply : reply;
 
   return (
-    <article className={`sb-reply-card sb-reply-card--${index + 1} relative w-full min-w-0 overflow-hidden rounded-[24px] border border-[#ded2c3] bg-[#fffdfa] p-3.5 pr-5 shadow-[0_12px_30px_rgba(49,23,13,0.07)] sm:p-4 sm:pr-5`}>
+    <article className={`sb-reply-card sb-reply-card--${index + 1} relative w-full min-w-0 overflow-hidden rounded-[22px] border border-[#ded2c3] bg-[#fffdfa] p-3 pr-4 shadow-[0_12px_30px_rgba(49,23,13,0.07)] sm:p-4 sm:pr-5`}>
       <div className="absolute inset-y-0 right-0 w-1.5 bg-gradient-to-b from-[#ff5a2a] via-[#ff8b67] to-[#ffc4b5]" aria-hidden="true" />
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="mb-2 flex items-center justify-between gap-2">
         <span className="rounded-full border border-[#e4d8c8] bg-[#f8f3eb] px-3 py-1 text-xs font-black text-[#7a6e64]">
           אפשרות {index + 1}
         </span>
@@ -1591,7 +1604,7 @@ function ReplyCard({
         </p>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center gap-1.5 text-sm font-bold">
+      <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-sm font-bold">
         <ReplyActions
           index={index}
           copied={copied}
@@ -2584,6 +2597,8 @@ export default function Home({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const lastOutgoingInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const noReplyDurationInputRef = useRef<HTMLInputElement | null>(null);
+  const noReplyDurationUnitRef = useRef<HTMLSelectElement | null>(null);
   const advancedOptionsRef = useRef<HTMLDetailsElement | null>(null);
   const toneOptionsRef = useRef<HTMLDetailsElement | null>(null);
   const composeSectionRef = useRef<HTMLDivElement | null>(null);
@@ -2608,7 +2623,8 @@ export default function Home({
   const [message, setMessage] = useState('');
   const [lastOutgoingMessage, setLastOutgoingMessage] = useState('');
   const [noReplyDurationValue, setNoReplyDurationValue] = useState('');
-  const [noReplyDurationUnit, setNoReplyDurationUnit] = useState<NoReplyDurationUnit>('hours');
+  const [noReplyDurationUnit, setNoReplyDurationUnit] = useState<NoReplyDurationUnitSelection>('');
+  const [hasTriedNoReplyContinue, setHasTriedNoReplyContinue] = useState(false);
   const [conversationBackground, setConversationBackground] = useState('');
   const [context, setContext] = useState<ContextOption | null>(null);
   const [tone, setTone] = useState<ToneOption>('זורם');
@@ -2701,6 +2717,13 @@ export default function Home({
   const trimmedMessage = message.trim();
   const trimmedLastOutgoingMessage = lastOutgoingMessage.trim();
   const parsedNoReplyDuration = Number.parseInt(noReplyDurationValue, 10);
+  const hasValidNoReplyDuration =
+    Number.isInteger(parsedNoReplyDuration) &&
+    parsedNoReplyDuration >= 1 &&
+    parsedNoReplyDuration <= MAX_NO_REPLY_DURATION_VALUE;
+  const hasNoReplyDurationUnit = noReplyDurationUnit !== '';
+  const isNoReplyReady =
+    Boolean(trimmedLastOutgoingMessage) && hasValidNoReplyDuration && hasNoReplyDurationUnit;
   const generateButtonLabel = isLoading
     ? 'מכינים 3 תשובות...'
     : isNoReplyMode
@@ -2721,9 +2744,8 @@ export default function Home({
       }
 
       if (
-        !Number.isInteger(parsedNoReplyDuration) ||
-        parsedNoReplyDuration < 1 ||
-        parsedNoReplyDuration > MAX_NO_REPLY_DURATION_VALUE
+        !hasValidNoReplyDuration ||
+        !hasNoReplyDurationUnit
       ) {
         return {
           title: 'שלב 1 מתוך 2: חסר זמן המתנה',
@@ -2752,7 +2774,7 @@ export default function Home({
       body: 'עכשיו לוחצים על הכפתור ומקבלים 3 תשובות קצרות לשליחה.',
       tone: 'ready',
     } as const;
-  }, [imageBase64, isNoReplyMode, parsedNoReplyDuration, trimmedLastOutgoingMessage, trimmedMessage]);
+  }, [hasNoReplyDurationUnit, hasValidNoReplyDuration, imageBase64, isNoReplyMode, trimmedLastOutgoingMessage, trimmedMessage]);
   const billingStatusLine = billingBypassEnabled
     ? 'שימושים ללא הגבלה פעילים כרגע.'
     : hasUnlimitedAccess
@@ -2961,6 +2983,7 @@ export default function Home({
       setComposeMode(nextMode);
       setGoal(null);
       setRequestError(null);
+      setHasTriedNoReplyContinue(false);
     },
     [composeMode],
   );
@@ -3018,7 +3041,8 @@ export default function Home({
     setMessage((scenarioFromExample?.message ?? '').slice(0, MAX_INCOMING_MESSAGE_LENGTH));
     setLastOutgoingMessage('');
     setNoReplyDurationValue('');
-    setNoReplyDurationUnit('hours');
+    setNoReplyDurationUnit('');
+    setHasTriedNoReplyContinue(false);
     setConversationBackground('');
     setContext(deepLinkPrefill.context ?? scenarioFromExample?.context ?? null);
     setTone(deepLinkPrefill.tone ?? scenarioFromExample?.tone ?? 'זורם');
@@ -4626,34 +4650,32 @@ export default function Home({
     const effectiveContinuePreference = isNoReplyMode ? null : continuePreference;
 
     if (isNoReplyMode) {
+      setHasTriedNoReplyContinue(true);
+
       if (!trimmedLastOutgoingMessage) {
         setRequestError('כדי להמשיך צריך למלא מה שלחת בהודעה האחרונה.');
-
-        if (isCompactViewport()) {
-          scrollToMobileSection('compose', { source: 'system' });
-        } else {
-          lastOutgoingInputRef.current?.focus();
-        }
+        scrollToComposeSection();
+        window.requestAnimationFrame(() => lastOutgoingInputRef.current?.focus());
 
         return;
       }
 
-      if (
-        !Number.isInteger(parsedNoReplyDuration) ||
-        parsedNoReplyDuration < 1 ||
-        parsedNoReplyDuration > MAX_NO_REPLY_DURATION_VALUE
-      ) {
+      if (!hasValidNoReplyDuration) {
         setRequestError(
           `צריך לבחור זמן תקין בין 1 ל-${MAX_NO_REPLY_DURATION_VALUE} (${noReplyDurationUnitOptions
             .map((option) => option.label)
             .join('/')}).`,
         );
+        scrollToComposeSection();
+        window.requestAnimationFrame(() => noReplyDurationInputRef.current?.focus());
 
-        if (isCompactViewport()) {
-          scrollToMobileSection('compose', { source: 'system' });
-        } else {
-          lastOutgoingInputRef.current?.focus();
-        }
+        return;
+      }
+
+      if (!hasNoReplyDurationUnit) {
+        setRequestError('בחרו יחידת זמן כדי להמשיך.');
+        scrollToComposeSection();
+        window.requestAnimationFrame(() => noReplyDurationUnitRef.current?.focus());
 
         return;
       }
@@ -4695,7 +4717,7 @@ export default function Home({
       conversationBackground: allowedConversationBackground || undefined,
       noReplyMode: isNoReplyMode,
       noReplyDurationValue: isNoReplyMode ? parsedNoReplyDuration : undefined,
-      noReplyDurationUnit: isNoReplyMode ? noReplyDurationUnit : undefined,
+      noReplyDurationUnit: isNoReplyMode && noReplyDurationUnit ? noReplyDurationUnit : undefined,
       lastOutgoingMessage: isNoReplyMode ? trimmedLastOutgoingMessage : undefined,
       conversationId: activeConversationId ?? undefined,
     }, {
@@ -4760,7 +4782,7 @@ export default function Home({
           isNoReplyMode && Number.isInteger(parsedNoReplyDuration)
             ? parsedNoReplyDuration
             : undefined,
-        noReplyDurationUnit: isNoReplyMode ? noReplyDurationUnit : undefined,
+        noReplyDurationUnit: isNoReplyMode && noReplyDurationUnit ? noReplyDurationUnit : undefined,
         lastOutgoingMessage: isNoReplyMode ? trimmedLastOutgoingMessage : undefined,
         action,
         sourceReply: result.replies[index],
@@ -4799,9 +4821,10 @@ export default function Home({
           isNoReplyMode && Number.isInteger(parsedNoReplyDuration)
             ? parsedNoReplyDuration
             : undefined,
-        noReplyDurationUnit: isNoReplyMode ? noReplyDurationUnit : undefined,
+        noReplyDurationUnit: isNoReplyMode && noReplyDurationUnit ? noReplyDurationUnit : undefined,
         lastOutgoingMessage: isNoReplyMode ? trimmedLastOutgoingMessage : undefined,
         refineInstruction: refineInstruction.trim().slice(0, 220),
+        action: 'retry',
         sourceReply: result.replies[index],
         conversationId: activeConversationId ?? undefined,
       },
@@ -4980,7 +5003,8 @@ export default function Home({
     setMessage('');
     setLastOutgoingMessage('');
     setNoReplyDurationValue('');
-    setNoReplyDurationUnit('hours');
+    setNoReplyDurationUnit('');
+    setHasTriedNoReplyContinue(false);
     setConversationBackground('');
     const savedDefaults = resolveConversationDefaultsForAccess(
       activeConversation?.context ?? null,
@@ -5013,7 +5037,8 @@ export default function Home({
     setMessage(scenario.message.slice(0, MAX_INCOMING_MESSAGE_LENGTH));
     setLastOutgoingMessage('');
     setNoReplyDurationValue('');
-    setNoReplyDurationUnit('hours');
+    setNoReplyDurationUnit('');
+    setHasTriedNoReplyContinue(false);
     setConversationBackground('');
     setContext(scenario.context);
     setTone(scenario.tone);
@@ -5268,10 +5293,10 @@ export default function Home({
                 <div className="space-y-3 rounded-[22px] border border-[#e2d7c8] bg-[#fbf7f1] p-3 motion-safe:animate-[sb-paywall-in_220ms_ease-out] sm:space-y-4 sm:p-4">
                   <div>
                     <label htmlFor="last-outgoing-message" className="text-sm font-black text-[#241d18]">
-                      מה כתבתי בהודעה האחרונה?
+                      מה כתבתי בהודעה האחרונה? <span aria-hidden="true" className="text-[#c23318]">*</span>
                     </label>
                     <p className="text-xs font-bold text-[#6d6259]">
-                      זה הטקסט האחרון ששלחת לפני שהצד השני הפסיק לענות.
+                      שדה חובה: זה הטקסט האחרון ששלחת לפני שהצד השני הפסיק לענות.
                     </p>
                   </div>
 
@@ -5283,8 +5308,16 @@ export default function Home({
                     onPaste={handleMessagePaste}
                     placeholder='למשל: "היי, רק בודק/ת אם זה עדיין רלוונטי לך"'
                     maxLength={MAX_LAST_OUTGOING_MESSAGE_LENGTH}
-                    className={`min-h-32 w-full rounded-[22px] border border-[#ded2c3] bg-white px-4 py-4 text-base leading-7 font-medium text-[#241d18] outline-none transition placeholder:text-[#9b8f83] focus:-translate-y-0.5 focus:bg-[#fffdfa] ${lightSurfaceFocusClass}`}
+                    required
+                    aria-invalid={hasTriedNoReplyContinue && !trimmedLastOutgoingMessage}
+                    aria-describedby={hasTriedNoReplyContinue && !trimmedLastOutgoingMessage ? 'last-outgoing-error' : undefined}
+                    className={`min-h-32 w-full rounded-[22px] border bg-white px-4 py-4 text-base leading-7 font-medium text-[#241d18] outline-none transition placeholder:text-[#9b8f83] focus:-translate-y-0.5 focus:bg-[#fffdfa] ${hasTriedNoReplyContinue && !trimmedLastOutgoingMessage ? 'border-[#c23318]' : 'border-[#ded2c3]'} ${lightSurfaceFocusClass}`}
                   />
+                  {hasTriedNoReplyContinue && !trimmedLastOutgoingMessage ? (
+                    <p id="last-outgoing-error" className="text-xs font-bold text-[#b42318]" role="alert">
+                      כתבו את ההודעה האחרונה ששלחתם כדי להמשיך.
+                    </p>
+                  ) : null}
                   <p className="text-xs font-bold text-[#6d6259]">
                     עד {MAX_LAST_OUTGOING_MESSAGE_LENGTH} תווים ({lastOutgoingMessageLength}/
                     {MAX_LAST_OUTGOING_MESSAGE_LENGTH}).
@@ -5295,7 +5328,7 @@ export default function Home({
                       htmlFor="no-reply-duration-value"
                       className="text-sm font-black text-[#241d18]"
                     >
-                      כמה זמן לא ענו?
+                      כמה זמן לא ענו? <span aria-hidden="true" className="text-[#c23318]">*</span>
                     </label>
                     <p className="mt-1 text-xs font-bold text-[#6d6259]">
                       בוחרים מספר ויחידת זמן: דקות, שעות או ימים.
@@ -5303,30 +5336,41 @@ export default function Home({
                     <div className="mt-2 grid grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] gap-2">
                       <input
                         id="no-reply-duration-value"
+                        ref={noReplyDurationInputRef}
                         type="number"
                         inputMode="numeric"
                         min={1}
                         max={MAX_NO_REPLY_DURATION_VALUE}
                         value={noReplyDurationValue}
-                        onChange={(event) =>
+                        onChange={(event) => {
+                          setHasTriedNoReplyContinue(false);
                           setNoReplyDurationValue(
                             event.target.value
                               .replace(/[^\d]/g, '')
                               .slice(0, String(MAX_NO_REPLY_DURATION_VALUE).length),
-                          )
-                        }
+                          );
+                        }}
                         placeholder="למשל 3"
-                        className={`min-h-[44px] w-full rounded-xl border border-[#ded2c3] bg-white px-3 py-2 text-sm font-bold text-[#241d18] outline-none transition focus:bg-[#fffdfa] ${lightSurfaceFocusClass}`}
+                        required
+                        aria-invalid={(hasTriedNoReplyContinue || noReplyDurationValue.length > 0) && !hasValidNoReplyDuration}
+                        aria-describedby={(hasTriedNoReplyContinue || noReplyDurationValue.length > 0) && !hasValidNoReplyDuration ? 'no-reply-duration-error' : undefined}
+                        className={`min-h-[44px] w-full rounded-xl border bg-white px-3 py-2 text-sm font-bold text-[#241d18] outline-none transition focus:bg-[#fffdfa] ${(hasTriedNoReplyContinue || noReplyDurationValue.length > 0) && !hasValidNoReplyDuration ? 'border-[#c23318]' : 'border-[#ded2c3]'} ${lightSurfaceFocusClass}`}
                       />
                       <select
                         id="no-reply-duration-unit"
+                        ref={noReplyDurationUnitRef}
                         aria-label="יחידת זמן ללא תשובה"
                         value={noReplyDurationUnit}
-                        onChange={(event) =>
-                          setNoReplyDurationUnit(event.target.value as NoReplyDurationUnit)
-                        }
-                        className={`min-h-[44px] w-full rounded-xl border border-[#ded2c3] bg-white px-3 py-2 text-sm font-black text-[#241d18] outline-none transition focus:bg-[#fffdfa] ${lightSurfaceFocusClass}`}
+                        onChange={(event) => {
+                          setHasTriedNoReplyContinue(false);
+                          setNoReplyDurationUnit(event.target.value as NoReplyDurationUnitSelection);
+                        }}
+                        required
+                        aria-invalid={hasTriedNoReplyContinue && !hasNoReplyDurationUnit}
+                        aria-describedby={hasTriedNoReplyContinue && !hasNoReplyDurationUnit ? 'no-reply-duration-unit-error' : undefined}
+                        className={`min-h-[44px] w-full rounded-xl border bg-white px-3 py-2 text-sm font-black text-[#241d18] outline-none transition focus:bg-[#fffdfa] ${hasTriedNoReplyContinue && !hasNoReplyDurationUnit ? 'border-[#c23318]' : 'border-[#ded2c3]'} ${lightSurfaceFocusClass}`}
                       >
+                        <option value="" disabled>בחרו יחידת זמן</option>
                         {noReplyDurationUnitOptions.map((option) => (
                           <option key={option.value} value={option.value}>
                             {option.label}
@@ -5334,6 +5378,16 @@ export default function Home({
                         ))}
                       </select>
                     </div>
+                    {(hasTriedNoReplyContinue || noReplyDurationValue.length > 0) && !hasValidNoReplyDuration ? (
+                      <p id="no-reply-duration-error" className="mt-2 text-xs font-bold text-[#b42318]" role="alert">
+                        הזינו מספר שלם בין 1 ל־{MAX_NO_REPLY_DURATION_VALUE}.
+                      </p>
+                    ) : null}
+                    {hasTriedNoReplyContinue && !hasNoReplyDurationUnit ? (
+                      <p id="no-reply-duration-unit-error" className="mt-2 text-xs font-bold text-[#b42318]" role="alert">
+                        בחרו דקות, שעות או ימים.
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               ) : (
@@ -5403,7 +5457,7 @@ export default function Home({
                 <button
                   type="button"
                   onClick={handleMainSubmit}
-                  disabled={isGenerating || !isSessionReady}
+                  disabled={isGenerating || !isSessionReady || (isNoReplyMode && !isNoReplyReady)}
                   className={`inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-[#ff5a2a] px-5 py-3 text-base font-black text-white shadow-[0_14px_26px_rgba(255,90,42,0.24)] transition duration-150 hover:bg-[#f04d1f] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 ${lightSurfaceFocusClass}`}
                 >
                   <span className="rounded-full bg-white/20 px-2 py-0.5 text-[0.64rem] font-black uppercase tracking-[0.12em] text-white">
