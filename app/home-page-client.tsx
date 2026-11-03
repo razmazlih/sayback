@@ -23,6 +23,7 @@ import {
   SavedConversationsRow,
 } from '@/components/conversation-memory';
 import { trackEvent } from '@/lib/analytics';
+import { createLatestRequest } from '@/lib/latest-request';
 import { captureAndStoreAttribution } from '@/lib/attribution';
 import type { ConversationProfile } from '@/lib/conversation-profile-types';
 import { buildHomeDeepLink, parseHomeDeeplinkParams } from '@/lib/home-deeplink';
@@ -2594,6 +2595,14 @@ export default function Home({
   mode?: HomePageClientMode;
   initialBillingBypassEnabled?: boolean;
 }) {
+  const [generationRequests] = useState(createLatestRequest);
+  const [imageRequests] = useState(createLatestRequest);
+
+  useEffect(() => () => {
+    generationRequests.invalidate();
+    imageRequests.invalidate();
+  }, [generationRequests, imageRequests]);
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const lastOutgoingInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -3217,7 +3226,9 @@ export default function Home({
 
   const fetchWithAuth = useCallback(async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const sendRequest = async (forceRefresh = false) => {
+      init.signal?.throwIfAborted();
       const token = await getFreshAuthToken({ forceRefresh, allowSilentReauth: true });
+      init.signal?.throwIfAborted();
       const headers = new Headers(init.headers);
       headers.set('Authorization', `Bearer ${token}`);
 
@@ -4431,6 +4442,9 @@ export default function Home({
       normalDefaults?: ConversationDefaults;
     },
   ) {
+    const request = generationRequests.begin();
+    setIsLoading(false);
+    setBusyReplyIndex(null);
     setRequestError(null);
     setImageError(null);
 
@@ -4452,6 +4466,7 @@ export default function Home({
       if (isCompactViewport()) {
         setMobilePrimaryView('results');
         window.requestAnimationFrame(() => {
+          if (!request.isCurrent()) return;
           scrollToMobileSection('results', { source: 'system' });
         });
       }
@@ -4460,6 +4475,7 @@ export default function Home({
     try {
       const response = await fetchWithAuth('/api/generate', {
         method: 'POST',
+        signal: request.signal,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -4470,6 +4486,8 @@ export default function Home({
         error?: string;
         billing?: BillingSnapshot;
       };
+
+      if (!request.isCurrent()) return;
 
       if (data.billing) {
         applyBillingSnapshot(data.billing);
@@ -4510,12 +4528,6 @@ export default function Home({
       if (!nextIntent || nextReplies.length !== 3) {
         throw new Error('לא קיבלתי תשובות תקינות. נסה שוב.');
       }
-      personalizationActiveRef.current = data.personalizationApplied === true;
-      if (data.savedConversationUnavailable === true) {
-        setActiveConversationId(null);
-        setConversationNotice('השיחה השמורה כבר לא זמינה, אז המשכנו בלי ההקשר שלה.');
-        void refreshConversationProfiles();
-      }
 
       const replyIndex = requestedReplyIndex;
 
@@ -4527,14 +4539,18 @@ export default function Home({
         }
       }
 
+      if (!request.isCurrent()) return;
+
+      personalizationActiveRef.current = data.personalizationApplied === true;
+      if (data.savedConversationUnavailable === true) {
+        setActiveConversationId(null);
+        setConversationNotice('השיחה השמורה כבר לא זמינה, אז המשכנו בלי ההקשר שלה.');
+        void refreshConversationProfiles();
+      }
+
       if (typeof replyIndex === 'number') {
         setResult((currentResult) => {
-          if (!currentResult) {
-            return {
-              intent: nextIntent,
-              replies: nextReplies.slice(0, 3),
-            };
-          }
+          if (!request.isCurrent() || !currentResult) return currentResult;
 
           const replies = [...currentResult.replies];
           replies[replyIndex] = nextReplies[0];
@@ -4582,6 +4598,7 @@ export default function Home({
       if (isCompactViewport()) {
         setMobilePrimaryView('results');
         window.requestAnimationFrame(() => {
+          if (!request.isCurrent()) return;
           scrollToMobileSection('results', { source: 'system' });
         });
       }
@@ -4604,6 +4621,7 @@ export default function Home({
         no_reply_duration_unit: payload.noReplyDurationUnit ?? null,
       });
     } catch (error) {
+      if (!request.isCurrent()) return;
       trackEvent('generate_error', {
         ...getGenerationAnalyticsTimingPayload(generationMode),
         mode: generationMode,
@@ -4629,12 +4647,15 @@ export default function Home({
       if (!isReplyUpdate && isCompactViewport()) {
         setMobilePrimaryView('compose');
         window.requestAnimationFrame(() => {
+          if (!request.isCurrent()) return;
           scrollToMobileSection('compose', { source: 'system' });
         });
       }
     } finally {
-      setIsLoading(false);
-      setBusyReplyIndex(null);
+      if (request.isCurrent()) {
+        setIsLoading(false);
+        setBusyReplyIndex(null);
+      }
     }
   }
 
@@ -4839,6 +4860,8 @@ export default function Home({
       return;
     }
 
+    const request = imageRequests.begin();
+
     if (!file.type.startsWith('image/')) {
       setImageError('אפשר להעלות רק קובצי תמונה.');
       setImageBase64(null);
@@ -4857,6 +4880,7 @@ export default function Home({
 
     try {
       const nextImageBase64 = await fileToBase64(file);
+      if (!request.isCurrent()) return;
       setImageBase64(nextImageBase64);
       setImageName(file.name);
       setImageError(null);
@@ -4866,6 +4890,7 @@ export default function Home({
         file_size_bytes: file.size,
       });
     } catch (error) {
+      if (!request.isCurrent()) return;
       setImageError(error instanceof Error ? error.message : 'טעינת התמונה נכשלה');
       setImageBase64(null);
       setImageName(null);
@@ -4873,6 +4898,7 @@ export default function Home({
   }
 
   function clearImage() {
+    imageRequests.invalidate();
     setImageBase64(null);
     setImageName(null);
     setImageError(null);
@@ -4991,7 +5017,17 @@ export default function Home({
     await handleMainSubmit();
   }
 
+  function cancelPendingInput() {
+    generationRequests.invalidate();
+    imageRequests.invalidate();
+    setIsLoading(false);
+    setBusyReplyIndex(null);
+    personalizationActiveRef.current = false;
+    clearImage();
+  }
+
   function handleNewMessage() {
+    cancelPendingInput();
     trackEvent('result_new_message', {
       compose_mode: composeMode,
     });
@@ -5026,6 +5062,7 @@ export default function Home({
   }
 
   function applyExample(scenario: ExampleScenario) {
+    cancelPendingInput();
     trackEvent('example_click', {
       example_id: scenario.id,
       context: scenario.context,
@@ -5432,6 +5469,18 @@ export default function Home({
                     onChange={handleImageChange}
                     className="hidden"
                   />
+
+                  {imageBase64 ? (
+                    <div className="relative h-48 w-full overflow-hidden rounded-2xl border border-[#e2d7c8] bg-[#f8f3eb]">
+                      <Image
+                        src={imageBase64}
+                        alt="תצוגה מקדימה של צילום המסך שנבחר"
+                        fill
+                        unoptimized
+                        className="object-contain"
+                      />
+                    </div>
+                  ) : null}
 
                   {imageName ? (
                     <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-[#e2d7c8] bg-[#f8f3eb] px-4 py-3 min-[430px]:flex-row min-[430px]:items-center">

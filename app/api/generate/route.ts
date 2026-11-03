@@ -33,6 +33,12 @@ import { recordServerProductEvent } from "@/lib/product-events";
 import { after } from "next/server";
 import { isIP } from "node:net";
 import { selectRelevantRelationshipMemory, type MemorySelection } from "@/lib/relationship-memory";
+import {
+  hasMonthlyGenerationFeatures,
+  isLockedContext,
+  isLockedTone,
+  resolveGenerationFeatureOptions,
+} from "@/lib/generation-feature-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -299,7 +305,8 @@ export async function POST(request: Request) {
     }
 
     consumption = access.consumption;
-    if (!access.snapshot.hasUnlimited) {
+    const monthlyFeatureAccess = hasMonthlyGenerationFeatures(access.snapshot);
+    if (!monthlyFeatureAccess) {
       body.conversationBackground = undefined;
       clearLocalUsageLogConversationBackgroundLength(localUsageLogId);
       if (persistedUsageLogBase) {
@@ -312,12 +319,26 @@ export async function POST(request: Request) {
     const myVoiceInstruction = myVoicePreferences
       ? buildMyVoiceInstruction(myVoicePreferences)
       : null;
-    const effectiveContext = body.context ?? savedConversation?.context ?? undefined;
-    const effectiveTone = body.tone ?? savedConversation?.tone;
+    const effectiveOptions = resolveGenerationFeatureOptions({
+      context: body.context ?? savedConversation?.context ?? undefined,
+      tone: body.tone ?? savedConversation?.tone,
+      conversationBackground: body.conversationBackground,
+    }, monthlyFeatureAccess);
+    const effectiveContext = effectiveOptions.context;
+    const effectiveTone = effectiveOptions.tone;
+    // Memory is a second input to the model and must obey the same access rules.
+    if (memorySelection) {
+      memorySelection = {
+        ...memorySelection,
+        relationshipContext: isLockedContext(memorySelection.relationshipContext, monthlyFeatureAccess)
+          ? null : memorySelection.relationshipContext,
+        relationshipTone: isLockedTone(memorySelection.relationshipTone, monthlyFeatureAccess)
+          ? null : memorySelection.relationshipTone,
+      };
+    }
     const generated = await generateRepliesWithModelSource({
       ...body,
-      context: effectiveContext,
-      tone: effectiveTone,
+      ...effectiveOptions,
       savedConversationMemory: savedConversation && memorySelection && (
         memorySelection.topics.length > 0 || memorySelection.relationshipContext ||
         memorySelection.relationshipTone || memorySelection.trustedHint
@@ -341,8 +362,13 @@ export async function POST(request: Request) {
           savedConversation.id,
           {
             lastIntent: result.intent,
-            context: effectiveContext,
-            tone: effectiveTone,
+            // A temporary loss of access must not replace saved premium defaults
+            // with the free fallback sent by the client or applied above.
+            context: isLockedContext(savedConversation.context, monthlyFeatureAccess)
+              ? undefined : effectiveContext,
+            tone: isLockedTone(savedConversation.tone, monthlyFeatureAccess) ||
+              isLockedTone(body.tone, monthlyFeatureAccess)
+              ? undefined : effectiveTone,
           },
         );
         if (body.message) {

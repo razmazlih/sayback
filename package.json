@@ -8,13 +8,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test:identity": "node scripts/run-identity-tests.mjs",
     "test:conversations": "node scripts/run-conversation-profile-tests.mjs",
     "test:my-voice": "node scripts/run-my-voice-tests.mjs",
     "test:deeplinks": "node scripts/run-home-deeplink-tests.mjs",
     "test:product-contract": "node --test tests/product-contract.test.mjs",
-    "check": "npm run lint && npm run typecheck && npm run test:identity && npm run test:conversations && npm run test:my-voice && npm run test:deeplinks && npm run test:product-contract && npm run build"
+    "check": "npm run lint && npm run typecheck && npm run test:identity && npm run test:conversations && npm run test:my-voice && npm run test:deeplinks && npm run test:product-contract && npm run test:generation && npm run build",
+    "test:generation": "node --test tests/generation-lifecycle.test.mjs tests/generation-access.test.mjs tests/generator-first-flow.test.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.1.0",
