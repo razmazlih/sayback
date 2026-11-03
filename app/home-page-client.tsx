@@ -10,9 +10,7 @@ import {
   useSyncExternalStore,
   type ChangeEvent,
   type ClipboardEvent,
-  type Dispatch,
   type FormEvent,
-  type SetStateAction,
 } from 'react';
 import dynamic from 'next/dynamic';
 import Image, { type StaticImageData } from 'next/image';
@@ -1358,13 +1356,13 @@ function ReplyRefineMenu({
   };
 
   return (
-    <div className="w-full min-w-0 rounded-[18px] border border-dashed border-[#d8cab9] bg-[#f8f3eb] transition-colors duration-200 sm:w-auto sm:flex-1 sm:min-w-[11rem]">
+    <div className="w-full min-w-0 rounded-2xl">
       <button
         type="button"
         aria-expanded={isOpen}
         aria-controls={panelId}
         onClick={() => setIsOpen((current) => !current)}
-        className={`flex min-h-[42px] w-full items-center justify-between gap-2 px-3.5 py-2 text-right text-sm font-black text-[#241d18] ${whiteSurfaceFocusClass}`}
+        className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 py-2 text-right text-sm font-bold text-[#6d6259] hover:bg-[#f8f3eb] ${whiteSurfaceFocusClass}`}
       >
         <span>לשפר ניסוח</span>
         <span className={`text-xs transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true">⌄</span>
@@ -1380,7 +1378,7 @@ function ReplyRefineMenu({
                 type="button"
                 onClick={() => onAdjust(index, 'softer')}
                 disabled={isBusy}
-                className={`inline-flex min-h-[42px] items-center justify-center rounded-xl border border-[#b8e7df] bg-[#e3fbf7] px-2 py-2 text-xs leading-5 text-[#123a36] transition hover:bg-[#cef6ef] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                className={`inline-flex min-h-11 items-center justify-center rounded-xl border border-[#b8e7df] bg-[#e3fbf7] px-2 py-2 text-xs leading-5 text-[#123a36] transition hover:bg-[#cef6ef] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
               >
                 עדין יותר
               </button>
@@ -1388,7 +1386,7 @@ function ReplyRefineMenu({
                 type="button"
                 onClick={() => onAdjust(index, 'sharper')}
                 disabled={isBusy}
-                className={`inline-flex min-h-[42px] items-center justify-center rounded-xl border border-[#ffc4b5] bg-[#fff0ea] px-2 py-2 text-xs leading-5 text-[#6f2414] transition hover:bg-[#ffe2d8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                className={`inline-flex min-h-11 items-center justify-center rounded-xl border border-[#ffc4b5] bg-[#fff0ea] px-2 py-2 text-xs leading-5 text-[#6f2414] transition hover:bg-[#ffe2d8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
               >
                 חד יותר
               </button>
@@ -1396,7 +1394,7 @@ function ReplyRefineMenu({
                 type="button"
                 onClick={() => onAdjust(index, 'retry')}
                 disabled={isBusy}
-                className={`inline-flex min-h-[42px] items-center justify-center rounded-xl border border-[#ded2c3] bg-white px-2 py-2 text-xs leading-5 text-[#241d18] transition hover:bg-[#f8f3eb] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                className={`inline-flex min-h-11 items-center justify-center rounded-xl border border-[#ded2c3] bg-white px-2 py-2 text-xs leading-5 text-[#241d18] transition hover:bg-[#f8f3eb] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
               >
                 ניסוח חדש
               </button>
@@ -1408,7 +1406,7 @@ function ReplyRefineMenu({
                 aria-controls={customPanelId}
                 onClick={() => setIsCustomOpen((current) => !current)}
                 disabled={isBusy}
-                className={`min-h-[36px] text-xs font-black text-[#5b4d42] underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                className={`min-h-11 text-xs font-black text-[#5b4d42] underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
               >
                 דיוק אחר
               </button>
@@ -1424,13 +1422,13 @@ function ReplyRefineMenu({
                   onFocus={() => trackEvent('custom_refine_open', { index })}
                   onChange={(event) => setInstruction(event.target.value.slice(0, 220))}
                   placeholder="למשל: שיהיה קצר וחם יותר"
-                  className={`min-h-[42px] min-w-0 flex-1 rounded-xl border border-[#ded2c3] bg-white px-3 py-2 text-sm font-bold text-[#241d18] outline-none ${whiteSurfaceFocusClass}`}
+                  className={`min-h-11 min-w-0 flex-1 rounded-xl border border-[#ded2c3] bg-white px-3 py-2 text-sm font-bold text-[#241d18] outline-none ${whiteSurfaceFocusClass}`}
                 />
                 <button
                   type="button"
                   disabled={isBusy || !instruction.trim()}
                   onClick={submitCustomAdjustment}
-                  className={`min-h-[42px] shrink-0 rounded-xl bg-[#181411] px-3 py-2 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                  className={`min-h-11 shrink-0 rounded-xl bg-[#181411] px-3 py-2 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
                 >
                   שפר
                 </button>
@@ -1447,84 +1445,64 @@ function ReplyRefineMenu({
 function ReplyActions({
   index,
   copied,
-  displayedReply,
-  isEditing,
-  draftReply,
-  setIsEditing,
+  reply,
+  isUpdating,
   onCopy,
   onShare,
-  onEdit,
+  onStartEditing,
 }: {
   index: number;
   copied: boolean;
-  displayedReply: string;
-  isEditing: boolean;
-  draftReply: string;
-  setIsEditing: Dispatch<SetStateAction<boolean>>;
+  reply: string;
+  isUpdating: boolean;
   onCopy: (reply: string, index: number) => void;
   onShare: (reply: string, index: number) => void;
-  onEdit: (reply: string, index: number) => void;
+  onStartEditing: () => void;
 }) {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
-  const whatsappHref = `https://wa.me/?text=${encodeURIComponent(displayedReply)}`;
+  const panelId = `reply-more-${index}`;
 
   return (
     <>
-      <span className="sr-only" role="status" aria-live="polite">
-        {copied ? 'התשובה הועתקה ללוח.' : ''}
-      </span>
       <button
         type="button"
-        onClick={() => onCopy(displayedReply, index)}
-        aria-label={copied ? 'התשובה הועתקה' : `העתק תשובה ${index + 1}`}
-        className={`inline-flex min-h-[46px] flex-1 items-center justify-center rounded-xl bg-[#181411] px-4 py-2 font-black leading-5 text-white shadow-[0_10px_20px_rgba(24,20,17,0.16)] transition hover:-translate-y-0.5 hover:bg-[#2c241f] ${whiteSurfaceFocusClass}`}
+        data-reply-copy
+        disabled={isUpdating}
+        onClick={() => onCopy(reply, index)}
+        aria-label={copied ? `תשובה ${index + 1} הועתקה` : `העתק תשובה ${index + 1}`}
+        className={`inline-flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition-colors disabled:cursor-wait disabled:opacity-50 ${copied ? 'bg-[#e3fbf7] text-[#123a36]' : 'bg-[#241d18] text-white hover:bg-[#463b33]'} ${whiteSurfaceFocusClass}`}
       >
-        {copied ? 'הועתק' : 'העתק תשובה'}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          {copied ? <path d="m5 12 4 4L19 6" /> : <><rect x="8" y="8" width="12" height="13" rx="2" /><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" /></>}
+        </svg>
+        {copied ? 'הועתקה · אפשר להדביק' : 'להעתיק את התשובה'}
       </button>
       <button
         type="button"
+        aria-label={`אפשרויות נוספות לתשובה ${index + 1}`}
         aria-expanded={isMoreOpen}
+        aria-controls={panelId}
+        disabled={isUpdating}
         onClick={() => setIsMoreOpen((current) => !current)}
-        className={`inline-flex min-h-[46px] items-center justify-center rounded-xl border border-[#ded2c3] bg-white px-3.5 py-2 text-sm font-black text-[#5b4d42] transition hover:bg-[#f8f3eb] ${whiteSurfaceFocusClass}`}
+        className={`inline-flex min-h-12 min-w-12 items-center justify-center rounded-2xl border border-[#e2d7c8] bg-white px-3 text-xl font-bold text-[#5b4d42] transition-colors hover:bg-[#f8f3eb] disabled:cursor-wait disabled:opacity-50 ${whiteSurfaceFocusClass}`}
       >
-        עוד
+        <span aria-hidden="true">···</span>
       </button>
       {isMoreOpen ? (
-        <div className="flex w-full flex-wrap gap-1.5 border-t border-[#e7dccf] pt-2">
-          <button
-            type="button"
-        onClick={() => {
-          if (isEditing) {
-            onEdit(draftReply, index);
-          }
-          setIsEditing((current) => !current);
-        }}
-        className={`inline-flex min-h-[42px] items-center justify-center rounded-full border px-3.5 py-2 leading-5 transition ${
-          isEditing
-            ? 'border-[#b8e7df] bg-[#e3fbf7] text-[#123a36] hover:bg-[#cef6ef]'
-            : 'border-[#ded2c3] bg-white text-[#6d6259] hover:bg-[#f8f3eb]'
-        } ${whiteSurfaceFocusClass}`}
-      >
-        {isEditing ? 'שמור עריכה' : 'ערוך'}
-      </button>
-
-      <button
-        type="button"
-        onClick={() => onShare(displayedReply, index)}
-        className={`inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#e2d7c8] bg-transparent px-3.5 py-2 leading-5 text-[#6d6259] transition hover:bg-[#f8f3eb] ${whiteSurfaceFocusClass}`}
-      >
-        שתף
-      </button>
-
-      <a
-        href={whatsappHref}
-        target="_blank"
-        rel="noreferrer"
-        onClick={() => trackEvent('reply_share', { index, method: 'whatsapp' })}
-        className={`inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#e2d7c8] bg-transparent px-3.5 py-2 leading-5 text-[#6d6259] transition hover:bg-[#f8f3eb] ${whiteSurfaceFocusClass}`}
-      >
-        וואטסאפ
-      </a>
+        <div id={panelId} className="col-span-2 flex flex-wrap gap-2 rounded-2xl bg-[#f8f3eb] p-2">
+          <button type="button" disabled={isUpdating} onClick={onStartEditing} className={`min-h-11 rounded-xl px-3 text-sm font-bold text-[#463b33] hover:bg-white disabled:opacity-50 ${whiteSurfaceFocusClass}`}>
+            לערוך בעצמי
+          </button>
+          <button type="button" disabled={isUpdating} onClick={() => onShare(reply, index)} className={`min-h-11 rounded-xl px-3 text-sm font-bold text-[#463b33] hover:bg-white disabled:opacity-50 ${whiteSurfaceFocusClass}`}>
+            שיתוף
+          </button>
+          {isUpdating ? (
+            <span aria-disabled="true" className="inline-flex min-h-11 items-center px-3 text-sm font-bold text-[#6d6259] opacity-50">וואטסאפ</span>
+          ) : (
+            <a href={`https://wa.me/?text=${encodeURIComponent(reply)}`} target="_blank" rel="noreferrer" onClick={() => trackEvent('reply_share', { index, method: 'whatsapp' })} className={`inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-bold text-[#463b33] hover:bg-white ${whiteSurfaceFocusClass}`}>
+              וואטסאפ
+            </a>
+          )}
         </div>
       ) : null}
     </>
@@ -1557,6 +1535,9 @@ function ReplyCard({
   const [isEditing, setIsEditing] = useState(false);
   const [draftReply, setDraftReply] = useState(reply);
   const [lastReply, setLastReply] = useState(reply);
+  const editorRef = useRef<HTMLTextAreaElement | null>(null);
+  const cardRef = useRef<HTMLElement | null>(null);
+  const titleId = `reply-title-${index}`;
 
   if (lastReply !== reply) {
     setLastReply(reply);
@@ -1564,65 +1545,67 @@ function ReplyCard({
     setIsEditing(false);
   }
 
-  const displayedReply = isEditing ? draftReply : reply;
+  useEffect(() => {
+    if (isEditing) editorRef.current?.focus();
+  }, [isEditing]);
+
+  function finishEditing(save: boolean) {
+    if (save) {
+      if (!draftReply.trim()) return;
+      onEdit(draftReply, index);
+    } else {
+      setDraftReply(reply);
+    }
+    setIsEditing(false);
+    window.requestAnimationFrame(() => cardRef.current?.querySelector<HTMLButtonElement>('[data-reply-copy]')?.focus());
+  }
 
   return (
-    <article className={`sb-reply-card sb-reply-card--${index + 1} relative w-full min-w-0 overflow-hidden rounded-[22px] border border-[#ded2c3] bg-[#fffdfa] p-3 pr-4 shadow-[0_12px_30px_rgba(49,23,13,0.07)] sm:p-4 sm:pr-5`}>
-      <div className="absolute inset-y-0 right-0 w-1.5 bg-gradient-to-b from-[#ff5a2a] via-[#ff8b67] to-[#ffc4b5]" aria-hidden="true" />
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="rounded-full border border-[#e4d8c8] bg-[#f8f3eb] px-3 py-1 text-xs font-black text-[#7a6e64]">
-          אפשרות {index + 1}
+    <article
+      ref={cardRef}
+      aria-labelledby={titleId}
+      className={`sb-reply-card relative w-full min-w-0 rounded-[24px] border bg-[#fffdfa] p-4 shadow-[0_4px_16px_rgba(49,23,13,0.04)] transition-colors sm:p-5 ${copied && !isEditing ? 'border-[#78b9a9] ring-1 ring-[#b8e7df]' : 'border-[#e2d7c8]'}`}
+    >
+      <div className="mb-3 flex min-h-8 flex-wrap items-center justify-between gap-2">
+        <h3 id={titleId} className="flex items-center gap-2 text-sm font-bold text-[#6d6259]">
+          <span aria-hidden="true" className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#f3e9df] text-xs tabular-nums text-[#7a2d19]">{index + 1}</span>
+          תשובה {index + 1}
+        </h3>
+        <span role="status" className="text-xs font-bold text-[#246354]">
+          {isUpdating ? 'מלטשים את הניסוח…' : copied && !isEditing ? 'הועתקה ללוח ✓' : ''}
         </span>
-        {isUpdating ? (
-          <span className="rounded-full bg-[#e3fbf7] px-2.5 py-1 text-xs font-bold text-[#123a36]">מעדכן...</span>
-        ) : null}
       </div>
 
       {isEditing ? (
-        <textarea
-          value={draftReply}
-          onChange={(event) => setDraftReply(event.target.value)}
-          className={`min-h-28 w-full resize-none rounded-[20px] border border-[#ded2c3] bg-white px-3 py-3 text-[1.05rem] leading-8 font-black text-[#241d18] outline-none sm:text-lg ${whiteSurfaceFocusClass}`}
-        />
+        <div>
+          <label htmlFor={`reply-editor-${index}`} className="mb-2 block text-xs font-bold text-[#6d6259]">אפשר לדייק במילים שלך</label>
+          <textarea
+            ref={editorRef}
+            id={`reply-editor-${index}`}
+            aria-label={`עריכת תשובה ${index + 1}`}
+            value={draftReply}
+            onChange={(event) => setDraftReply(event.target.value)}
+            onKeyDown={(event) => { if (event.key === 'Escape') finishEditing(false); }}
+            className={`min-h-36 w-full resize-y rounded-[18px] border border-[#d8cab9] bg-white px-4 py-3 text-[1.0625rem] font-medium leading-8 text-[#241d18] outline-none ${whiteSurfaceFocusClass}`}
+          />
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" disabled={!draftReply.trim()} onClick={() => finishEditing(true)} className={`min-h-12 flex-1 rounded-2xl bg-[#241d18] px-4 py-2 text-sm font-bold text-white disabled:opacity-50 ${whiteSurfaceFocusClass}`}>שמור עריכה</button>
+            <button type="button" onClick={() => finishEditing(false)} className={`min-h-12 rounded-2xl border border-[#ded2c3] px-4 py-2 text-sm font-bold text-[#5b4d42] ${whiteSurfaceFocusClass}`}>ביטול</button>
+          </div>
+        </div>
       ) : (
-        <p className="text-[1.05rem] leading-8 font-black text-[#241d18] sm:text-lg">
-          <span className="sr-only">{reply}</span>
-          <span aria-hidden="true" key={reply}>
-            {reply.split(/(\s+)/).map((segment, segmentIndex) =>
-              /^\s+$/.test(segment) ? (
-                segment
-              ) : (
-                <span
-                  key={`${segment}-${segmentIndex}`}
-                  className="sb-reply-word"
-                  style={{ animationDelay: `${180 + index * 150 + Math.floor(segmentIndex / 2) * 95}ms` }}
-                >
-                  {segment}
-                </span>
-              ),
-            )}
-          </span>
-        </p>
+        <>
+          <p dir="auto" className={`sb-reply-text whitespace-pre-wrap rounded-[18px] bg-[#f8f3eb] px-4 py-4 text-start text-[1.0625rem] font-medium leading-[1.85] text-[#241d18] [overflow-wrap:anywhere] sm:text-lg ${isUpdating ? 'opacity-55' : ''}`}>
+            {reply}
+          </p>
+          <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+            <ReplyActions index={index} copied={copied} reply={reply} isUpdating={isUpdating} onCopy={onCopy} onShare={onShare} onStartEditing={() => setIsEditing(true)} />
+          </div>
+        </>
       )}
 
-      <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-sm font-bold">
-        <ReplyActions
-          index={index}
-          copied={copied}
-          displayedReply={displayedReply}
-          isEditing={isEditing}
-          draftReply={draftReply}
-          setIsEditing={setIsEditing}
-          onCopy={onCopy}
-          onShare={onShare}
-          onEdit={onEdit}
-        />
-        <ReplyRefineMenu
-          index={index}
-          isBusy={isBusy}
-          onAdjust={onAdjust}
-          onCustomAdjust={onCustomAdjust}
-        />
+      <div className="mt-3 border-t border-[#eee5da] pt-2">
+        <ReplyRefineMenu index={index} isBusy={isBusy || isEditing} onAdjust={onAdjust} onCustomAdjust={onCustomAdjust} />
       </div>
     </article>
   );
@@ -4443,6 +4426,8 @@ export default function Home({
     },
   ) {
     const request = generationRequests.begin();
+    setCopiedReplyIndex(null);
+    setHasCopiedAllReplies(false);
     setIsLoading(false);
     setBusyReplyIndex(null);
     setRequestError(null);
@@ -4963,6 +4948,8 @@ export default function Home({
   }
 
   function handleReplyEdit(reply: string, index: number) {
+    setCopiedReplyIndex(null);
+    setHasCopiedAllReplies(false);
     const normalizedReply = reply.trim();
 
     if (!normalizedReply) {
@@ -5746,10 +5733,36 @@ export default function Home({
                 </p>
                 <h2 className="text-2xl font-black text-[#181411] sm:text-3xl">התשובות שלך</h2>
                 <p className="mt-1.5 text-sm font-bold leading-6 text-[#6d6259]">
-                  הסבר קצר ואז 3 תשובות מוכנות להעתקה.
+                  בחרו את התשובה שהכי מתאימה לכם והעתיקו אותה.
                 </p>
               </div>
             </div>
+
+            {canReturnToGeneratorFromResults ? (
+              <div className="lg:hidden">
+                <button
+                  type="button"
+                  aria-controls="compose-section"
+                  onClick={handleReturnToGenerator}
+                  className={`inline-flex min-h-[48px] w-full items-center justify-center gap-2 whitespace-nowrap rounded-full border border-[#e2d7c8] bg-[#fffdfa]/95 px-4 py-2 text-sm font-black text-[#241d18] transition hover:border-[#ffb29f] hover:bg-white ${lightSurfaceFocusClass}`}
+                >
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4 shrink-0 text-[#ff623d]"
+                  >
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
+                  </svg>
+                  <span>עריכת ההודעה והכיוונים</span>
+                </button>
+              </div>
+            ) : null}
 
             <div aria-busy={isGenerating} className="space-y-3">
               <p className="sr-only" role="status" aria-live="polite">
@@ -5772,7 +5785,8 @@ export default function Home({
                       <button
                         type="button"
                         onClick={handleCopyAllReplies}
-                        className={`min-h-[40px] rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-black text-[#241d18] transition hover:bg-[#fffdfa] ${whiteSurfaceFocusClass}`}
+                        disabled={isGenerating}
+                        className={`min-h-[40px] rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-black text-[#241d18] transition hover:bg-[#fffdfa] disabled:cursor-wait disabled:opacity-50 ${whiteSurfaceFocusClass}`}
                       >
                         {hasCopiedAllReplies ? 'הכל הועתק' : 'העתק הכל'}
                       </button>
@@ -6057,31 +6071,6 @@ export default function Home({
         </footer>
       </div>
 
-      {canReturnToGeneratorFromResults ? (
-        <div className="fixed bottom-0 left-1/2 z-30 -translate-x-1/2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:hidden">
-          <button
-            type="button"
-            aria-controls="compose-section"
-            onClick={handleReturnToGenerator}
-            className={`inline-flex min-h-[48px] items-center justify-center gap-2 whitespace-nowrap rounded-full border border-[#e2d7c8] bg-[#fffdfa]/95 px-4 py-2 text-sm font-black text-[#241d18] shadow-[0_8px_24px_rgba(49,23,13,0.16)] backdrop-blur transition hover:border-[#ffb29f] hover:bg-white ${lightSurfaceFocusClass}`}
-          >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-4 w-4 shrink-0 text-[#ff623d]"
-            >
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
-            </svg>
-            <span>עריכת ההודעה והכיוונים</span>
-          </button>
-        </div>
-      ) : null}
 
       <SaveConversationDialog
         key={conversationDialog === 'save' ? 'save-open' : 'save-closed'}

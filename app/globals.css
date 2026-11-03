@@ -214,18 +214,6 @@ body {
   }
 }
 
-@keyframes sb-reply-word-in {
-  from {
-    opacity: 0;
-    transform: translateY(3px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 .sb-loading-block {
   position: relative;
   overflow: hidden;
@@ -245,8 +233,7 @@ body {
   transform: translateX(260%) skewX(-10deg);
 }
 
-.sb-loading-word,
-.sb-reply-word {
+.sb-loading-word {
   display: inline-block;
 }
 
@@ -264,7 +251,6 @@ body {
   opacity: 0;
 }
 
-.sb-reply-card,
 .sb-reply-loading-card {
   min-height: 216px;
 }
@@ -274,7 +260,6 @@ body {
 }
 
 @media (min-width: 640px) {
-  .sb-reply-card,
   .sb-reply-loading-card {
     min-height: 188px;
   }
@@ -335,23 +320,7 @@ body {
   }
 
   .sb-reply-card {
-    animation: sb-result-in 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
-  .sb-reply-card--1 {
-    animation-delay: 80ms;
-  }
-
-  .sb-reply-card--2 {
-    animation-delay: 180ms;
-  }
-
-  .sb-reply-card--3 {
-    animation-delay: 280ms;
-  }
-
-  .sb-reply-word {
-    animation: sb-reply-word-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: sb-result-in 180ms ease-out both;
   }
 }
 
@@ -443,8 +412,7 @@ body {
   .sb-loading-word,
   .sb-loading-status-text,
   .sb-result-intent-ready,
-  .sb-reply-card,
-  .sb-reply-word {
+  .sb-reply-card {
     transition: none;
     animation: none;
   }
