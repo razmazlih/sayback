@@ -10,9 +10,7 @@ import {
   useSyncExternalStore,
   type ChangeEvent,
   type ClipboardEvent,
-  type Dispatch,
   type FormEvent,
-  type SetStateAction,
 } from 'react';
 import dynamic from 'next/dynamic';
 import Image, { type StaticImageData } from 'next/image';
@@ -23,6 +21,11 @@ import {
   SavedConversationsRow,
 } from '@/components/conversation-memory';
 import { trackEvent } from '@/lib/analytics';
+import { DisclosurePanel } from '@/components/disclosure-panel';
+import { createLatestRequest } from '@/lib/latest-request';
+import { createReplyHistory, recordReplyRefinement, getPreviousReply, clearReplyRevision } from '@/lib/reply-history';
+import { getMissingCommitmentKind, type CommitmentMode, type LanguagePreferences, type ReplyContext } from '@/lib/reply-context';
+import { CommitmentControls, LanguagePreferenceControls, ContinueConversationDialog } from '@/components/reply-context-controls';
 import { captureAndStoreAttribution } from '@/lib/attribution';
 import type { ConversationProfile } from '@/lib/conversation-profile-types';
 import { buildHomeDeepLink, parseHomeDeeplinkParams } from '@/lib/home-deeplink';
@@ -115,7 +118,7 @@ type GenerateResponse = {
   savedConversationUnavailable?: boolean;
 };
 
-type GenerateRequest = {
+type GenerateRequest = ReplyContext & {
   message: string;
   imageBase64: string | null;
   context?: ContextOption;
@@ -195,7 +198,7 @@ type CouponRedeemResponse = {
 const FREE_LIMIT = 3;
 const GENERATOR_FLOW_VERSION = 'simplified_v1' as const;
 const MAX_IMAGE_UPLOAD_BYTES = 4 * 1024 * 1024;
-const MIN_LOADING_DISPLAY_MS = 1200;
+const MIN_LOADING_DISPLAY_MS = 200;
 const AUTH_EMAIL_STORAGE_KEY = 'sayback.auth.email';
 const AUTH_EMAIL_INTENT_STORAGE_KEY = 'sayback.auth.intent';
 const AUTH_EMAIL_PLAN_STORAGE_KEY = 'sayback.auth.checkoutPlan';
@@ -797,6 +800,12 @@ function ChipGroup<T extends string>({
       return;
     }
 
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setIsMoreOptionsDialogOpen(false);
+      setIsMoreOptionsDialogClosing(false);
+      return;
+    }
+
     setIsMoreOptionsDialogClosing(true);
 
     if (closeMoreOptionsDialogTimerRef.current !== null) {
@@ -1357,20 +1366,20 @@ function ReplyRefineMenu({
   };
 
   return (
-    <div className="w-full min-w-0 rounded-[18px] border border-dashed border-[#d8cab9] bg-[#f8f3eb] transition-colors duration-200 sm:w-auto sm:flex-1 sm:min-w-[11rem]">
+    <div className="w-full min-w-0 rounded-2xl">
       <button
         type="button"
         aria-expanded={isOpen}
         aria-controls={panelId}
         onClick={() => setIsOpen((current) => !current)}
-        className={`flex min-h-[42px] w-full items-center justify-between gap-2 px-3.5 py-2 text-right text-sm font-black text-[#241d18] ${whiteSurfaceFocusClass}`}
+        className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 py-2 text-right text-sm font-bold text-[#6d6259] hover:bg-[#f8f3eb] ${whiteSurfaceFocusClass}`}
       >
         <span>לשפר ניסוח</span>
         <span className={`text-xs transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true">⌄</span>
       </button>
 
-      {isOpen ? (
-        <div id={panelId} className="px-2.5 pb-2.5 pt-0.5">
+      <DisclosurePanel open={isOpen} id={panelId}>
+        <div className="px-2.5 pb-2.5 pt-0.5">
             <p className="mb-2 text-xs font-bold leading-5 text-[#6d6259]">
               כל שיפור משתמש בשימוש אחד.
             </p>
@@ -1379,7 +1388,7 @@ function ReplyRefineMenu({
                 type="button"
                 onClick={() => onAdjust(index, 'softer')}
                 disabled={isBusy}
-                className={`inline-flex min-h-[42px] items-center justify-center rounded-xl border border-[#b8e7df] bg-[#e3fbf7] px-2 py-2 text-xs leading-5 text-[#123a36] transition hover:bg-[#cef6ef] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                className={`inline-flex min-h-11 items-center justify-center rounded-xl border border-[#b8e7df] bg-[#e3fbf7] px-2 py-2 text-xs leading-5 text-[#123a36] transition hover:bg-[#cef6ef] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
               >
                 עדין יותר
               </button>
@@ -1387,7 +1396,7 @@ function ReplyRefineMenu({
                 type="button"
                 onClick={() => onAdjust(index, 'sharper')}
                 disabled={isBusy}
-                className={`inline-flex min-h-[42px] items-center justify-center rounded-xl border border-[#ffc4b5] bg-[#fff0ea] px-2 py-2 text-xs leading-5 text-[#6f2414] transition hover:bg-[#ffe2d8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                className={`inline-flex min-h-11 items-center justify-center rounded-xl border border-[#ffc4b5] bg-[#fff0ea] px-2 py-2 text-xs leading-5 text-[#6f2414] transition hover:bg-[#ffe2d8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
               >
                 חד יותר
               </button>
@@ -1395,7 +1404,7 @@ function ReplyRefineMenu({
                 type="button"
                 onClick={() => onAdjust(index, 'retry')}
                 disabled={isBusy}
-                className={`inline-flex min-h-[42px] items-center justify-center rounded-xl border border-[#ded2c3] bg-white px-2 py-2 text-xs leading-5 text-[#241d18] transition hover:bg-[#f8f3eb] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                className={`inline-flex min-h-11 items-center justify-center rounded-xl border border-[#ded2c3] bg-white px-2 py-2 text-xs leading-5 text-[#241d18] transition hover:bg-[#f8f3eb] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
               >
                 ניסוח חדש
               </button>
@@ -1407,12 +1416,12 @@ function ReplyRefineMenu({
                 aria-controls={customPanelId}
                 onClick={() => setIsCustomOpen((current) => !current)}
                 disabled={isBusy}
-                className={`min-h-[36px] text-xs font-black text-[#5b4d42] underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                className={`min-h-11 text-xs font-black text-[#5b4d42] underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
               >
                 דיוק אחר
               </button>
-              {isCustomOpen ? (
-                <div id={customPanelId} className="mt-2">
+              <DisclosurePanel open={isCustomOpen} id={customPanelId}>
+                <div className="pt-2">
                   <label htmlFor={`custom-refine-${index}`} className="text-xs font-black text-[#241d18]">
                     מה לשנות? (יישלח כניסוח חדש)
                   </label>
@@ -1423,22 +1432,22 @@ function ReplyRefineMenu({
                   onFocus={() => trackEvent('custom_refine_open', { index })}
                   onChange={(event) => setInstruction(event.target.value.slice(0, 220))}
                   placeholder="למשל: שיהיה קצר וחם יותר"
-                  className={`min-h-[42px] min-w-0 flex-1 rounded-xl border border-[#ded2c3] bg-white px-3 py-2 text-sm font-bold text-[#241d18] outline-none ${whiteSurfaceFocusClass}`}
+                  className={`min-h-11 min-w-0 flex-1 rounded-xl border border-[#ded2c3] bg-white px-3 py-2 text-sm font-bold text-[#241d18] outline-none ${whiteSurfaceFocusClass}`}
                 />
                 <button
                   type="button"
                   disabled={isBusy || !instruction.trim()}
                   onClick={submitCustomAdjustment}
-                  className={`min-h-[42px] shrink-0 rounded-xl bg-[#181411] px-3 py-2 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                  className={`min-h-11 shrink-0 rounded-xl bg-[#181411] px-3 py-2 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
                 >
                   שפר
                 </button>
               </div>
                 </div>
-              ) : null}
+              </DisclosurePanel>
             </div>
         </div>
-      ) : null}
+      </DisclosurePanel>
     </div>
   );
 }
@@ -1446,86 +1455,69 @@ function ReplyRefineMenu({
 function ReplyActions({
   index,
   copied,
-  displayedReply,
-  isEditing,
-  draftReply,
-  setIsEditing,
+  reply,
+  isUpdating,
   onCopy,
   onShare,
-  onEdit,
+  onStartEditing,
+  onContinue,
 }: {
   index: number;
   copied: boolean;
-  displayedReply: string;
-  isEditing: boolean;
-  draftReply: string;
-  setIsEditing: Dispatch<SetStateAction<boolean>>;
+  reply: string;
+  isUpdating: boolean;
   onCopy: (reply: string, index: number) => void;
   onShare: (reply: string, index: number) => void;
-  onEdit: (reply: string, index: number) => void;
+  onStartEditing: () => void;
+  onContinue: (reply: string) => void;
 }) {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
-  const whatsappHref = `https://wa.me/?text=${encodeURIComponent(displayedReply)}`;
+  const panelId = `reply-more-${index}`;
 
   return (
     <>
-      <span className="sr-only" role="status" aria-live="polite">
-        {copied ? 'התשובה הועתקה ללוח.' : ''}
-      </span>
       <button
         type="button"
-        onClick={() => onCopy(displayedReply, index)}
-        aria-label={copied ? 'התשובה הועתקה' : `העתק תשובה ${index + 1}`}
-        className={`inline-flex min-h-[46px] flex-1 items-center justify-center rounded-xl bg-[#181411] px-4 py-2 font-black leading-5 text-white shadow-[0_10px_20px_rgba(24,20,17,0.16)] transition hover:-translate-y-0.5 hover:bg-[#2c241f] ${whiteSurfaceFocusClass}`}
+        data-reply-copy
+        disabled={isUpdating}
+        onClick={() => onCopy(reply, index)}
+        aria-label={copied ? `תשובה ${index + 1} הועתקה` : `העתק תשובה ${index + 1}`}
+        className={`inline-flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition-colors disabled:cursor-wait disabled:opacity-50 ${copied ? 'bg-[#e3fbf7] text-[#123a36]' : 'bg-[#241d18] text-white hover:bg-[#463b33]'} ${whiteSurfaceFocusClass}`}
       >
-        {copied ? 'הועתק' : 'העתק תשובה'}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          {copied ? <path d="m5 12 4 4L19 6" /> : <><rect x="8" y="8" width="12" height="13" rx="2" /><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" /></>}
+        </svg>
+        <span key={String(copied)} className={copied ? 'sb-motion-feedback' : undefined}>{copied ? 'הועתקה · אפשר להדביק' : 'להעתיק את התשובה'}</span>
       </button>
       <button
         type="button"
+        aria-label={`אפשרויות נוספות לתשובה ${index + 1}`}
         aria-expanded={isMoreOpen}
+        aria-controls={panelId}
+        disabled={isUpdating}
         onClick={() => setIsMoreOpen((current) => !current)}
-        className={`inline-flex min-h-[46px] items-center justify-center rounded-xl border border-[#ded2c3] bg-white px-3.5 py-2 text-sm font-black text-[#5b4d42] transition hover:bg-[#f8f3eb] ${whiteSurfaceFocusClass}`}
+        className={`inline-flex min-h-12 min-w-12 items-center justify-center rounded-2xl border border-[#e2d7c8] bg-white px-3 text-xl font-bold text-[#5b4d42] transition-colors hover:bg-[#f8f3eb] disabled:cursor-wait disabled:opacity-50 ${whiteSurfaceFocusClass}`}
       >
-        עוד
+        <span aria-hidden="true">···</span>
       </button>
-      {isMoreOpen ? (
-        <div className="flex w-full flex-wrap gap-1.5 border-t border-[#e7dccf] pt-2">
-          <button
-            type="button"
-        onClick={() => {
-          if (isEditing) {
-            onEdit(draftReply, index);
-          }
-          setIsEditing((current) => !current);
-        }}
-        className={`inline-flex min-h-[42px] items-center justify-center rounded-full border px-3.5 py-2 leading-5 transition ${
-          isEditing
-            ? 'border-[#b8e7df] bg-[#e3fbf7] text-[#123a36] hover:bg-[#cef6ef]'
-            : 'border-[#ded2c3] bg-white text-[#6d6259] hover:bg-[#f8f3eb]'
-        } ${whiteSurfaceFocusClass}`}
-      >
-        {isEditing ? 'שמור עריכה' : 'ערוך'}
-      </button>
-
-      <button
-        type="button"
-        onClick={() => onShare(displayedReply, index)}
-        className={`inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#e2d7c8] bg-transparent px-3.5 py-2 leading-5 text-[#6d6259] transition hover:bg-[#f8f3eb] ${whiteSurfaceFocusClass}`}
-      >
-        שתף
-      </button>
-
-      <a
-        href={whatsappHref}
-        target="_blank"
-        rel="noreferrer"
-        onClick={() => trackEvent('reply_share', { index, method: 'whatsapp' })}
-        className={`inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#e2d7c8] bg-transparent px-3.5 py-2 leading-5 text-[#6d6259] transition hover:bg-[#f8f3eb] ${whiteSurfaceFocusClass}`}
-      >
-        וואטסאפ
-      </a>
-        </div>
-      ) : null}
+      <DisclosurePanel open={isMoreOpen} id={panelId} className="col-span-2">
+        <div className="pt-2"><div className="flex flex-wrap gap-2 rounded-2xl bg-[#f8f3eb] p-2">
+          <button type="button" disabled={isUpdating} onClick={onStartEditing} className={`min-h-11 rounded-xl px-3 text-sm font-bold text-[#463b33] hover:bg-white disabled:opacity-50 ${whiteSurfaceFocusClass}`}>
+            לערוך בעצמי
+          </button>
+          <button type="button" disabled={isUpdating} onClick={() => onShare(reply, index)} className={`min-h-11 rounded-xl px-3 text-sm font-bold text-[#463b33] hover:bg-white disabled:opacity-50 ${whiteSurfaceFocusClass}`}>
+            שיתוף
+          </button>
+          <button type="button" disabled={isUpdating} onClick={() => onContinue(reply)} className={`min-h-11 rounded-xl px-3 text-sm font-bold text-[#463b33] hover:bg-white disabled:opacity-50 ${whiteSurfaceFocusClass}`}>ענו לי</button>
+          {isUpdating ? (
+            <span aria-disabled="true" className="inline-flex min-h-11 items-center px-3 text-sm font-bold text-[#6d6259] opacity-50">וואטסאפ</span>
+          ) : (
+            <a href={`https://wa.me/?text=${encodeURIComponent(reply)}`} target="_blank" rel="noreferrer" onClick={() => trackEvent('reply_share', { index, method: 'whatsapp' })} className={`inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-bold text-[#463b33] hover:bg-white ${whiteSurfaceFocusClass}`}>
+              וואטסאפ
+            </a>
+          )}
+        </div></div>
+      </DisclosurePanel>
     </>
   );
 }
@@ -1538,6 +1530,10 @@ function ReplyCard({
   onAdjust,
   onCustomAdjust,
   onEdit,
+  previousReply,
+  refineError,
+  onRestore,
+  onContinue,
   isBusy,
   isUpdating,
   copied,
@@ -1549,6 +1545,10 @@ function ReplyCard({
   onAdjust: (index: number, action: ReplyAction) => void;
   onCustomAdjust: (index: number, instruction: string) => void;
   onEdit: (reply: string, index: number) => void;
+  previousReply: string | null;
+  refineError: string | null;
+  onRestore: (index: number) => void;
+  onContinue: (reply: string) => void;
   isBusy: boolean;
   isUpdating: boolean;
   copied: boolean;
@@ -1556,6 +1556,9 @@ function ReplyCard({
   const [isEditing, setIsEditing] = useState(false);
   const [draftReply, setDraftReply] = useState(reply);
   const [lastReply, setLastReply] = useState(reply);
+  const editorRef = useRef<HTMLTextAreaElement | null>(null);
+  const cardRef = useRef<HTMLElement | null>(null);
+  const titleId = `reply-title-${index}`;
 
   if (lastReply !== reply) {
     setLastReply(reply);
@@ -1563,65 +1566,81 @@ function ReplyCard({
     setIsEditing(false);
   }
 
-  const displayedReply = isEditing ? draftReply : reply;
+  useEffect(() => {
+    if (isEditing) editorRef.current?.focus();
+  }, [isEditing]);
+
+  function finishEditing(save: boolean) {
+    if (save) {
+      if (!draftReply.trim()) return;
+      onEdit(draftReply, index);
+    } else {
+      setDraftReply(reply);
+    }
+    setIsEditing(false);
+    window.requestAnimationFrame(() => cardRef.current?.querySelector<HTMLButtonElement>('[data-reply-copy]')?.focus());
+  }
 
   return (
-    <article className={`sb-reply-card sb-reply-card--${index + 1} relative w-full min-w-0 overflow-hidden rounded-[22px] border border-[#ded2c3] bg-[#fffdfa] p-3 pr-4 shadow-[0_12px_30px_rgba(49,23,13,0.07)] sm:p-4 sm:pr-5`}>
-      <div className="absolute inset-y-0 right-0 w-1.5 bg-gradient-to-b from-[#ff5a2a] via-[#ff8b67] to-[#ffc4b5]" aria-hidden="true" />
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="rounded-full border border-[#e4d8c8] bg-[#f8f3eb] px-3 py-1 text-xs font-black text-[#7a6e64]">
-          אפשרות {index + 1}
+    <article
+      ref={cardRef}
+      aria-labelledby={titleId}
+      className={`sb-reply-card relative w-full min-w-0 rounded-[24px] border bg-[#fffdfa] p-4 shadow-[0_4px_16px_rgba(49,23,13,0.04)] transition-colors sm:p-5 ${copied && !isEditing ? 'border-[#78b9a9] ring-1 ring-[#b8e7df]' : 'border-[#e2d7c8]'}`}
+    >
+      <div className="mb-3 flex min-h-8 flex-wrap items-center justify-between gap-2">
+        <h3 id={titleId} className="flex items-center gap-2 text-sm font-bold text-[#6d6259]">
+          <span aria-hidden="true" className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#f3e9df] text-xs tabular-nums text-[#7a2d19]">{index + 1}</span>
+          תשובה {index + 1}
+        </h3>
+        <span role="status" className="text-xs font-bold text-[#246354]">
+          {isUpdating ? 'מלטשים את הניסוח…' : copied && !isEditing ? 'הועתקה ללוח ✓' : previousReply && !isEditing ? 'הנוסח עודכן' : ''}
         </span>
-        {isUpdating ? (
-          <span className="rounded-full bg-[#e3fbf7] px-2.5 py-1 text-xs font-bold text-[#123a36]">מעדכן...</span>
-        ) : null}
       </div>
 
       {isEditing ? (
-        <textarea
-          value={draftReply}
-          onChange={(event) => setDraftReply(event.target.value)}
-          className={`min-h-28 w-full resize-none rounded-[20px] border border-[#ded2c3] bg-white px-3 py-3 text-[1.05rem] leading-8 font-black text-[#241d18] outline-none sm:text-lg ${whiteSurfaceFocusClass}`}
-        />
+        <div className="sb-motion-panel">
+          <label htmlFor={`reply-editor-${index}`} className="mb-2 block text-xs font-bold text-[#6d6259]">אפשר לדייק במילים שלך</label>
+          <textarea
+            ref={editorRef}
+            id={`reply-editor-${index}`}
+            aria-label={`עריכת תשובה ${index + 1}`}
+            value={draftReply}
+            onChange={(event) => setDraftReply(event.target.value)}
+            onKeyDown={(event) => { if (event.key === 'Escape') finishEditing(false); }}
+            className={`min-h-36 w-full resize-y rounded-[18px] border border-[#d8cab9] bg-white px-4 py-3 text-[1.0625rem] font-medium leading-8 text-[#241d18] outline-none ${whiteSurfaceFocusClass}`}
+          />
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" disabled={!draftReply.trim()} onClick={() => finishEditing(true)} className={`min-h-12 flex-1 rounded-2xl bg-[#241d18] px-4 py-2 text-sm font-bold text-white disabled:opacity-50 ${whiteSurfaceFocusClass}`}>שמור עריכה</button>
+            <button type="button" onClick={() => finishEditing(false)} className={`min-h-12 rounded-2xl border border-[#ded2c3] px-4 py-2 text-sm font-bold text-[#5b4d42] ${whiteSurfaceFocusClass}`}>ביטול</button>
+          </div>
+        </div>
       ) : (
-        <p className="text-[1.05rem] leading-8 font-black text-[#241d18] sm:text-lg">
-          <span className="sr-only">{reply}</span>
-          <span aria-hidden="true" key={reply}>
-            {reply.split(/(\s+)/).map((segment, segmentIndex) =>
-              /^\s+$/.test(segment) ? (
-                segment
-              ) : (
-                <span
-                  key={`${segment}-${segmentIndex}`}
-                  className="sb-reply-word"
-                  style={{ animationDelay: `${180 + index * 150 + Math.floor(segmentIndex / 2) * 95}ms` }}
-                >
-                  {segment}
-                </span>
-              ),
-            )}
-          </span>
-        </p>
+        <>
+          <p key={reply} dir="auto" className={`sb-motion-reply sb-reply-text whitespace-pre-wrap rounded-[18px] bg-[#f8f3eb] px-4 py-4 text-start text-[1.0625rem] font-medium leading-[1.85] text-[#241d18] [overflow-wrap:anywhere] sm:text-lg ${isUpdating ? 'opacity-55' : ''}`}>
+            {reply}
+          </p>
+          <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-x-2">
+            <ReplyActions index={index} copied={copied} reply={reply} isUpdating={isUpdating} onCopy={onCopy} onShare={onShare} onContinue={onContinue} onStartEditing={() => setIsEditing(true)} />
+          </div>
+        </>
       )}
 
-      <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-sm font-bold">
-        <ReplyActions
-          index={index}
-          copied={copied}
-          displayedReply={displayedReply}
-          isEditing={isEditing}
-          draftReply={draftReply}
-          setIsEditing={setIsEditing}
-          onCopy={onCopy}
-          onShare={onShare}
-          onEdit={onEdit}
-        />
-        <ReplyRefineMenu
-          index={index}
-          isBusy={isBusy}
-          onAdjust={onAdjust}
-          onCustomAdjust={onCustomAdjust}
-        />
+      {refineError ? <p role="alert" className="sb-motion-feedback mt-3 rounded-xl border border-[#efb7ad] bg-[#fff0ea] p-3 text-sm leading-6 text-[#8c2e20]">{refineError}</p> : null}
+
+      {previousReply && !isEditing ? (
+        <details className="mt-3 rounded-2xl border border-[#e2d7c8] bg-[#f8f3eb] p-3">
+          <summary className={`min-h-11 cursor-pointer rounded-xl py-2 text-sm font-bold text-[#5b4d42] ${whiteSurfaceFocusClass}`}>השוואה לנוסח שלפני שיפור ה־AI</summary>
+          <p dir="auto" className="whitespace-pre-wrap text-start text-base leading-7 text-[#463b33] [overflow-wrap:anywhere]">{previousReply}</p>
+          <button type="button" disabled={isBusy} onClick={() => {
+            onRestore(index);
+            window.requestAnimationFrame(() => cardRef.current?.querySelector<HTMLButtonElement>('[data-reply-copy]')?.focus());
+          }} className={`mt-3 min-h-11 rounded-xl border border-[#b8e7df] bg-white px-3 text-sm font-bold text-[#123a36] disabled:opacity-50 ${whiteSurfaceFocusClass}`}>להחזיר את הנוסח הקודם</button>
+          <p className="mt-1 text-xs text-[#6d6259]">החזרה לנוסח הקודם אינה משתמשת בשימוש נוסף.</p>
+        </details>
+      ) : null}
+
+      <div className="mt-3 border-t border-[#eee5da] pt-2">
+        <ReplyRefineMenu index={index} isBusy={isBusy || isEditing} onAdjust={onAdjust} onCustomAdjust={onCustomAdjust} />
       </div>
     </article>
   );
@@ -2594,6 +2613,14 @@ export default function Home({
   mode?: HomePageClientMode;
   initialBillingBypassEnabled?: boolean;
 }) {
+  const [generationRequests] = useState(createLatestRequest);
+  const [imageRequests] = useState(createLatestRequest);
+
+  useEffect(() => () => {
+    generationRequests.invalidate();
+    imageRequests.invalidate();
+  }, [generationRequests, imageRequests]);
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const lastOutgoingInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -2603,6 +2630,7 @@ export default function Home({
   const toneOptionsRef = useRef<HTMLDetailsElement | null>(null);
   const composeSectionRef = useRef<HTMLDivElement | null>(null);
   const resultsSectionRef = useRef<HTMLDivElement | null>(null);
+  const mobileScrollSequenceRef = useRef(0);
   const examplesSectionRef = useRef<HTMLElement | null>(null);
   const plansSectionRef = useRef<HTMLElement | null>(null);
   const hasTrackedQuotaBadgeViewRef = useRef(false);
@@ -2621,6 +2649,11 @@ export default function Home({
   const [composeMode, setComposeMode] = useState<ComposeMode>('incoming');
   const [mobilePrimaryView, setMobilePrimaryView] = useState<MobilePrimaryView>('compose');
   const [message, setMessage] = useState('');
+  const [languagePreferences, setLanguagePreferences] = useState<LanguagePreferences>({ speaker: 'neutral', recipient: 'neutral' });
+  const [previousOutgoingMessage, setPreviousOutgoingMessage] = useState('');
+  const [continueDialogReply, setContinueDialogReply] = useState<string | null>(null);
+  const [commitmentChoice, setCommitmentChoice] = useState<{ message: string; mode: CommitmentMode; details: string } | null>(null);
+  const [replyHistory, setReplyHistory] = useState(createReplyHistory);
   const [lastOutgoingMessage, setLastOutgoingMessage] = useState('');
   const [noReplyDurationValue, setNoReplyDurationValue] = useState('');
   const [noReplyDurationUnit, setNoReplyDurationUnit] = useState<NoReplyDurationUnitSelection>('');
@@ -2635,6 +2668,7 @@ export default function Home({
   const [imageError, setImageError] = useState<string | null>(null);
   const [showDeepLinkPrefillBanner, setShowDeepLinkPrefillBanner] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [replyError, setReplyError] = useState<{ index: number; message: string } | null>(null);
   const [result, setResult] = useState<GenerateResponse | null>(null);
   const [hasSentFirstGeneration, setHasSentFirstGeneration] = useState(false);
   const [freeUsed, setFreeUsed] = useState(0);
@@ -2895,9 +2929,11 @@ export default function Home({
       }
 
       const behavior = options?.behavior ?? getPreferredScrollBehavior();
-      sectionElement.scrollIntoView({
-        behavior,
-        block: 'start',
+      const sequence = ++mobileScrollSequenceRef.current;
+      // Wait for the destination to become visible; a newer navigation supersedes this one.
+      window.requestAnimationFrame(() => {
+        if (sequence !== mobileScrollSequenceRef.current || !sectionElement.isConnected || !sectionElement.getClientRects().length) return;
+        sectionElement.scrollIntoView({ behavior, block: 'start' });
       });
     },
     [],
@@ -2916,22 +2952,13 @@ export default function Home({
     }
 
     window.requestAnimationFrame(() => {
-      (messageInputRef.current ?? lastOutgoingInputRef.current)?.focus();
+      (messageInputRef.current ?? lastOutgoingInputRef.current)?.focus({ preventScroll: true });
     });
   }, [scrollToMobileSection]);
 
   const handleReturnToGenerator = useCallback(() => {
-    setMobilePrimaryView('compose');
-
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        composeSectionRef.current?.scrollIntoView({
-          behavior: getPreferredScrollBehavior(),
-          block: 'start',
-        });
-      });
-    });
-  }, []);
+    scrollToComposeSection();
+  }, [scrollToComposeSection]);
 
   const handleHeroStartUsingClick = useCallback(() => {
     trackEvent('hero_cta_click', { cta_text: heroStartUsingCtaLabel, target: 'incoming_message' });
@@ -2980,12 +3007,20 @@ export default function Home({
         to_mode: nextMode,
         flow_version: GENERATOR_FLOW_VERSION,
       });
+      generationRequests.invalidate();
+      setIsLoading(false);
+      setBusyReplyIndex(null);
+      setResult(null);
+      setReplyHistory(createReplyHistory());
+      setPreviousOutgoingMessage('');
+      setCommitmentChoice(null);
+      setContinueDialogReply(null);
       setComposeMode(nextMode);
       setGoal(null);
       setRequestError(null);
       setHasTriedNoReplyContinue(false);
     },
-    [composeMode],
+    [composeMode, generationRequests],
   );
 
   const handleAdvancedOptionsToggle = useCallback(
@@ -3217,7 +3252,9 @@ export default function Home({
 
   const fetchWithAuth = useCallback(async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const sendRequest = async (forceRefresh = false) => {
+      init.signal?.throwIfAborted();
       const token = await getFreshAuthToken({ forceRefresh, allowSilentReauth: true });
+      init.signal?.throwIfAborted();
       const headers = new Headers(init.headers);
       headers.set('Authorization', `Bearer ${token}`);
 
@@ -4176,6 +4213,8 @@ export default function Home({
       return;
     }
 
+    if (activeConversationId !== profile.id) resetMessageDraft();
+
     const resolvedDefaults = resolveConversationDefaultsForAccess(
       profile.context,
       profile.tone,
@@ -4212,11 +4251,20 @@ export default function Home({
   }
 
   function handleConversationClear() {
+    resetMessageDraft();
+    setContext(null);
+    setTone('זורם');
     setActiveConversationId(null);
     setConversationNotice(null);
   }
 
   function openConversationMemory(profile: ConversationProfile) {
+    if (activeConversationId !== profile.id) {
+      resetMessageDraft();
+      const defaults = resolveConversationDefaultsForAccess(profile.context, profile.tone, hasMonthlyFeatureAccess);
+      setContext(defaults.context);
+      setTone(defaults.tone);
+    }
     setActiveConversationId(profile.id);
     setConversationMutationError(null);
     setConversationDialog('memory');
@@ -4431,6 +4479,19 @@ export default function Home({
       normalDefaults?: ConversationDefaults;
     },
   ) {
+    if (payload.commitmentMode === 'provided' && !payload.commitmentDetails) {
+      setRequestError('כתבו איזה מועד או מחיר אפשר להציע, או בחרו להמשיך בלי התחייבות.');
+      scrollToComposeSection();
+      window.requestAnimationFrame(() => document.getElementById('commitment-details')?.focus());
+      return;
+    }
+    const request = generationRequests.begin();
+    setReplyError(null);
+    setContinueDialogReply(null);
+    setCopiedReplyIndex(null);
+    setHasCopiedAllReplies(false);
+    setIsLoading(false);
+    setBusyReplyIndex(null);
     setRequestError(null);
     setImageError(null);
 
@@ -4452,6 +4513,7 @@ export default function Home({
       if (isCompactViewport()) {
         setMobilePrimaryView('results');
         window.requestAnimationFrame(() => {
+          if (!request.isCurrent()) return;
           scrollToMobileSection('results', { source: 'system' });
         });
       }
@@ -4460,6 +4522,7 @@ export default function Home({
     try {
       const response = await fetchWithAuth('/api/generate', {
         method: 'POST',
+        signal: request.signal,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -4470,6 +4533,8 @@ export default function Home({
         error?: string;
         billing?: BillingSnapshot;
       };
+
+      if (!request.isCurrent()) return;
 
       if (data.billing) {
         applyBillingSnapshot(data.billing);
@@ -4510,6 +4575,20 @@ export default function Home({
       if (!nextIntent || nextReplies.length !== 3) {
         throw new Error('לא קיבלתי תשובות תקינות. נסה שוב.');
       }
+
+      const replyIndex = requestedReplyIndex;
+
+      if (typeof replyIndex !== 'number' && loadingStartedAt !== null) {
+        const minimumLoadingTime = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : MIN_LOADING_DISPLAY_MS;
+        const remainingLoadingTime = minimumLoadingTime - (window.performance.now() - loadingStartedAt);
+
+        if (remainingLoadingTime > 0) {
+          await new Promise((resolve) => window.setTimeout(resolve, remainingLoadingTime));
+        }
+      }
+
+      if (!request.isCurrent()) return;
+
       personalizationActiveRef.current = data.personalizationApplied === true;
       if (data.savedConversationUnavailable === true) {
         setActiveConversationId(null);
@@ -4517,24 +4596,18 @@ export default function Home({
         void refreshConversationProfiles();
       }
 
-      const replyIndex = requestedReplyIndex;
-
-      if (typeof replyIndex !== 'number' && loadingStartedAt !== null) {
-        const remainingLoadingTime = MIN_LOADING_DISPLAY_MS - (window.performance.now() - loadingStartedAt);
-
-        if (remainingLoadingTime > 0) {
-          await new Promise((resolve) => window.setTimeout(resolve, remainingLoadingTime));
-        }
-      }
-
       if (typeof replyIndex === 'number') {
+        if (payload.sourceReply?.trim() === nextReplies[0].trim()) {
+          throw new Error('לא התקבל נוסח שונה. הנוסח הקודם נשמר; אפשר לבקש שינוי אחר.');
+        }
+        if (payload.sourceReply) {
+          const before = payload.sourceReply;
+          setReplyHistory((history) => request.isCurrent()
+            ? recordReplyRefinement(history, replyIndex, before, nextReplies[0])
+            : history);
+        }
         setResult((currentResult) => {
-          if (!currentResult) {
-            return {
-              intent: nextIntent,
-              replies: nextReplies.slice(0, 3),
-            };
-          }
+          if (!request.isCurrent() || !currentResult) return currentResult;
 
           const replies = [...currentResult.replies];
           replies[replyIndex] = nextReplies[0];
@@ -4565,12 +4638,15 @@ export default function Home({
         return;
       }
 
+      setReplyHistory(createReplyHistory());
       setResult({
         intent: nextIntent,
         replies: nextReplies.slice(0, 3),
       });
 
-      if (options?.normalDefaults) {
+      if (payload.previousOutgoingMessage || payload.commitmentDetails) {
+        setLastSuccessfulConversationDefaults(null);
+      } else if (options?.normalDefaults) {
         recordSuccessfulConversationGeneration(
           options.conversationIdForReuse ?? null,
           options.normalDefaults,
@@ -4582,6 +4658,7 @@ export default function Home({
       if (isCompactViewport()) {
         setMobilePrimaryView('results');
         window.requestAnimationFrame(() => {
+          if (!request.isCurrent()) return;
           scrollToMobileSection('results', { source: 'system' });
         });
       }
@@ -4604,6 +4681,7 @@ export default function Home({
         no_reply_duration_unit: payload.noReplyDurationUnit ?? null,
       });
     } catch (error) {
+      if (!request.isCurrent()) return;
       trackEvent('generate_error', {
         ...getGenerationAnalyticsTimingPayload(generationMode),
         mode: generationMode,
@@ -4620,25 +4698,44 @@ export default function Home({
         no_reply_duration_value: payload.noReplyDurationValue ?? null,
         no_reply_duration_unit: payload.noReplyDurationUnit ?? null,
       });
-      setRequestError(
-        mapApiErrorMessage(
-          error instanceof Error ? error.message : 'משהו השתבש. נסה שוב בעוד רגע.',
-        ),
+      const errorMessage = mapApiErrorMessage(
+        error instanceof Error ? error.message : 'משהו השתבש. נסה שוב בעוד רגע.',
       );
+      if (isReplyUpdate) {
+        setReplyError({ index: requestedReplyIndex, message: errorMessage });
+      } else {
+        setRequestError(errorMessage);
+      }
 
       if (!isReplyUpdate && isCompactViewport()) {
         setMobilePrimaryView('compose');
         window.requestAnimationFrame(() => {
+          if (!request.isCurrent()) return;
           scrollToMobileSection('compose', { source: 'system' });
         });
       }
     } finally {
-      setIsLoading(false);
-      setBusyReplyIndex(null);
+      if (request.isCurrent()) {
+        setIsLoading(false);
+        setBusyReplyIndex(null);
+      }
     }
   }
 
+  function getReplyContextForRequest(): ReplyContext {
+    const hasCommitmentQuestion = !isNoReplyMode && getMissingCommitmentKind(message) !== null;
+    const choice = commitmentChoice?.message === message ? commitmentChoice : null;
+    return {
+      languagePreferences,
+      previousOutgoingMessage: !isNoReplyMode && previousOutgoingMessage ? previousOutgoingMessage : undefined,
+      commitmentMode: hasCommitmentQuestion ? choice?.mode ?? 'ask' : undefined,
+      commitmentDetails: hasCommitmentQuestion && choice?.mode === 'provided' ? choice.details.trim() : undefined,
+    };
+  }
+
   async function handleMainSubmit() {
+    const replyContext = getReplyContextForRequest();
+
     const trimmedMessage = message.trim().slice(0, MAX_INCOMING_MESSAGE_LENGTH);
     const trimmedLastOutgoingMessage = lastOutgoingMessage
       .trim()
@@ -4708,6 +4805,7 @@ export default function Home({
     });
 
     await runGeneration({
+      ...replyContext,
       message: isNoReplyMode ? '' : trimmedMessage,
       imageBase64: isNoReplyMode ? null : imageBase64,
       context: context ?? undefined,
@@ -4770,6 +4868,7 @@ export default function Home({
 
     await runGeneration(
       {
+        ...getReplyContextForRequest(),
         message: isNoReplyMode ? '' : trimmedMessage,
         imageBase64: isNoReplyMode ? null : imageBase64,
         context: context ?? undefined,
@@ -4809,6 +4908,7 @@ export default function Home({
 
     await runGeneration(
       {
+        ...getReplyContextForRequest(),
         message: isNoReplyMode ? '' : trimmedMessage,
         imageBase64: isNoReplyMode ? null : imageBase64,
         context: context ?? undefined,
@@ -4839,6 +4939,8 @@ export default function Home({
       return;
     }
 
+    const request = imageRequests.begin();
+
     if (!file.type.startsWith('image/')) {
       setImageError('אפשר להעלות רק קובצי תמונה.');
       setImageBase64(null);
@@ -4857,6 +4959,7 @@ export default function Home({
 
     try {
       const nextImageBase64 = await fileToBase64(file);
+      if (!request.isCurrent()) return;
       setImageBase64(nextImageBase64);
       setImageName(file.name);
       setImageError(null);
@@ -4866,6 +4969,7 @@ export default function Home({
         file_size_bytes: file.size,
       });
     } catch (error) {
+      if (!request.isCurrent()) return;
       setImageError(error instanceof Error ? error.message : 'טעינת התמונה נכשלה');
       setImageBase64(null);
       setImageName(null);
@@ -4873,6 +4977,7 @@ export default function Home({
   }
 
   function clearImage() {
+    imageRequests.invalidate();
     setImageBase64(null);
     setImageName(null);
     setImageError(null);
@@ -4937,6 +5042,8 @@ export default function Home({
   }
 
   function handleReplyEdit(reply: string, index: number) {
+    setCopiedReplyIndex(null);
+    setHasCopiedAllReplies(false);
     const normalizedReply = reply.trim();
 
     if (!normalizedReply) {
@@ -4944,6 +5051,8 @@ export default function Home({
       return;
     }
 
+    setReplyError(null);
+    setReplyHistory((history) => clearReplyRevision(history, index));
     setResult((currentResult) => {
       if (!currentResult || !currentResult.replies[index]) {
         return currentResult;
@@ -4991,10 +5100,27 @@ export default function Home({
     await handleMainSubmit();
   }
 
+  function cancelPendingInput() {
+    setReplyError(null);
+    generationRequests.invalidate();
+    imageRequests.invalidate();
+    setIsLoading(false);
+    setBusyReplyIndex(null);
+    personalizationActiveRef.current = false;
+    clearImage();
+  }
+
   function handleNewMessage() {
-    trackEvent('result_new_message', {
-      compose_mode: composeMode,
-    });
+    trackEvent('result_new_message', { compose_mode: composeMode });
+    resetMessageDraft();
+  }
+
+  function resetMessageDraft() {
+    cancelPendingInput();
+    setReplyHistory(createReplyHistory());
+    setPreviousOutgoingMessage('');
+    setCommitmentChoice(null);
+    setContinueDialogReply(null);
     setResult(null);
     setRequestError(null);
     setImageError(null);
@@ -5026,6 +5152,11 @@ export default function Home({
   }
 
   function applyExample(scenario: ExampleScenario) {
+    cancelPendingInput();
+    setReplyHistory(createReplyHistory());
+    setPreviousOutgoingMessage('');
+    setCommitmentChoice(null);
+    setContinueDialogReply(null);
     trackEvent('example_click', {
       example_id: scenario.id,
       context: scenario.context,
@@ -5071,6 +5202,45 @@ export default function Home({
     }
   }
 
+  function handleRestoreReply(index: number) {
+    if (!result || isGenerating) return;
+    const previous = getPreviousReply(replyHistory, index, result.replies[index]);
+    if (previous === null) return;
+    setResult((current) => {
+      if (!current) return current;
+      const replies = [...current.replies];
+      replies[index] = previous;
+      return { ...current, replies };
+    });
+    setReplyError(null);
+    setReplyHistory((history) => clearReplyRevision(history, index));
+    setCopiedReplyIndex(null);
+    setHasCopiedAllReplies(false);
+  }
+
+  function handleContinueConversation(sentMessage: string, incomingMessage: string) {
+    cancelPendingInput();
+    setComposeMode('incoming');
+    setPreviousOutgoingMessage(sentMessage);
+    setMessage(incomingMessage);
+    setCommitmentChoice(null);
+    setResult(null);
+    setReplyHistory(createReplyHistory());
+    setContinueDialogReply(null);
+    setLastOutgoingMessage('');
+    setNoReplyDurationValue('');
+    setNoReplyDurationUnit('');
+    setConversationBackground('');
+    setGoal(null);
+    setContinuePreference(null);
+    setRequestError(null);
+    setCopiedReplyIndex(null);
+    setHasCopiedAllReplies(false);
+    setLastSuccessfulConversationDefaults(null);
+    setMobilePrimaryView('compose');
+    scrollToComposeSection();
+  }
+
   function handleMessagePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
     const pastedText = event.clipboardData.getData('text')?.trim() ?? '';
 
@@ -5087,6 +5257,7 @@ export default function Home({
   function handleIncomingMessageChange(event: ChangeEvent<HTMLTextAreaElement>) {
     const nextMessage = event.target.value.slice(0, MAX_INCOMING_MESSAGE_LENGTH);
     setMessage(nextMessage);
+    setCommitmentChoice(null);
 
     if (nextMessage.trim()) {
       markGeneratorInputStart('typing');
@@ -5159,7 +5330,7 @@ export default function Home({
             ref={composeSectionRef}
             id="compose-section"
             className={[
-              'mobile-section-anchor w-full min-w-0 rounded-[28px] border border-[#e2d7c8] bg-[#fffdfa] shadow-[0_20px_55px_rgba(49,23,13,0.1)] sm:rounded-[32px]',
+              'sb-motion-panel mobile-section-anchor w-full min-w-0 rounded-[28px] border border-[#e2d7c8] bg-[#fffdfa] shadow-[0_20px_55px_rgba(49,23,13,0.1)] sm:rounded-[32px]',
               isGeneratorPrimaryMode ? 'space-y-3 p-2.5 sm:p-4' : 'space-y-4 p-4 sm:p-5',
               mobilePrimaryView === 'compose' ? 'block' : 'hidden lg:block',
             ].join(' ')}
@@ -5290,7 +5461,7 @@ export default function Home({
               )}
 
               {isNoReplyMode ? (
-                <div className="space-y-3 rounded-[22px] border border-[#e2d7c8] bg-[#fbf7f1] p-3 motion-safe:animate-[sb-paywall-in_220ms_ease-out] sm:space-y-4 sm:p-4">
+                <div className="sb-motion-panel space-y-3 rounded-[22px] border border-[#e2d7c8] bg-[#fbf7f1] p-3 sm:space-y-4 sm:p-4">
                   <div>
                     <label htmlFor="last-outgoing-message" className="text-sm font-black text-[#241d18]">
                       מה כתבתי בהודעה האחרונה? <span aria-hidden="true" className="text-[#c23318]">*</span>
@@ -5391,7 +5562,7 @@ export default function Home({
                   </div>
                 </div>
               ) : (
-                <div className="space-y-3 rounded-[22px] border border-[#e2d7c8] bg-[#fbf7f1] p-3 motion-safe:animate-[sb-paywall-in_220ms_ease-out] sm:space-y-4 sm:p-4">
+                <div className="sb-motion-panel space-y-3 rounded-[22px] border border-[#e2d7c8] bg-[#fbf7f1] p-3 sm:space-y-4 sm:p-4">
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <label htmlFor="incoming-message" className="text-sm font-black text-[#241d18]">
@@ -5433,6 +5604,18 @@ export default function Home({
                     className="hidden"
                   />
 
+                  {imageBase64 ? (
+                    <div className="relative h-48 w-full overflow-hidden rounded-2xl border border-[#e2d7c8] bg-[#f8f3eb]">
+                      <Image
+                        src={imageBase64}
+                        alt="תצוגה מקדימה של צילום המסך שנבחר"
+                        fill
+                        unoptimized
+                        className="object-contain"
+                      />
+                    </div>
+                  ) : null}
+
                   {imageName ? (
                     <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-[#e2d7c8] bg-[#f8f3eb] px-4 py-3 min-[430px]:flex-row min-[430px]:items-center">
                       <div className="min-w-0">
@@ -5452,6 +5635,23 @@ export default function Home({
                   {imageError ? <p className="text-sm font-bold text-[#c23318]">{imageError}</p> : null}
                 </div>
               )}
+
+              {!isNoReplyMode && previousOutgoingMessage ? (
+                <details className="rounded-2xl border border-[#b8e7df] bg-[#f0faf7] p-3">
+                  <summary className={`min-h-11 cursor-pointer py-2 text-sm font-bold text-[#123a36] ${lightSurfaceFocusClass}`}>בהמשך למה ששלחת · הקשר זמני</summary>
+                  <p dir="auto" className="whitespace-pre-wrap text-start text-sm leading-6 text-[#463b33] [overflow-wrap:anywhere]">{previousOutgoingMessage}</p>
+                  <button type="button" onClick={() => setPreviousOutgoingMessage('')} className={`mt-2 min-h-11 rounded-xl px-3 text-xs font-bold underline ${lightSurfaceFocusClass}`}>להמשיך בלי ההקשר הקודם</button>
+                </details>
+              ) : null}
+
+              {!isNoReplyMode && getMissingCommitmentKind(message) ? (
+                <CommitmentControls
+                  kind={getMissingCommitmentKind(message)!}
+                  mode={commitmentChoice?.message === message ? commitmentChoice.mode : 'ask'}
+                  details={commitmentChoice?.message === message ? commitmentChoice.details : ''}
+                  onChange={(mode, details) => setCommitmentChoice({ message, mode, details })}
+                />
+              ) : null}
 
               <div className="space-y-2.5">
                 <button
@@ -5596,10 +5796,12 @@ export default function Home({
                       }}
                     />
 
+                    <LanguagePreferenceControls value={languagePreferences} onChange={setLanguagePreferences} />
+
                     {!isNoReplyMode ? (
                       <ChipGroup
                         title="רוצים להמשיך את השיחה?"
-                        description="אפשר להשאיר לא מוגדר ולתת להודעה להוביל."
+                        description="זה קובע אם להשאיר את השיחה פתוחה — לא אם להסכים למה שנכתב."
                         headerAlign="right"
                         options={continuePreferenceOptions}
                         primaryVisibleCount={2}
@@ -5686,7 +5888,7 @@ export default function Home({
             ref={resultsSectionRef}
             id="results-section"
             className={[
-              'mobile-section-anchor w-full min-w-0 space-y-4 rounded-[28px] border border-[#d3e4df] bg-white p-3.5 shadow-[0_20px_55px_rgba(18,58,54,0.1)] sm:rounded-[32px] sm:p-5',
+              'sb-motion-panel mobile-section-anchor w-full min-w-0 space-y-4 rounded-[28px] border border-[#d3e4df] bg-white p-3.5 shadow-[0_20px_55px_rgba(18,58,54,0.1)] sm:rounded-[32px] sm:p-5',
               mobilePrimaryView === 'results' ? 'block' : 'hidden lg:block',
             ].join(' ')}
           >
@@ -5697,10 +5899,36 @@ export default function Home({
                 </p>
                 <h2 className="text-2xl font-black text-[#181411] sm:text-3xl">התשובות שלך</h2>
                 <p className="mt-1.5 text-sm font-bold leading-6 text-[#6d6259]">
-                  הסבר קצר ואז 3 תשובות מוכנות להעתקה.
+                  בחרו את התשובה שהכי מתאימה לכם והעתיקו אותה.
                 </p>
               </div>
             </div>
+
+            {canReturnToGeneratorFromResults ? (
+              <div className="lg:hidden">
+                <button
+                  type="button"
+                  aria-controls="compose-section"
+                  onClick={handleReturnToGenerator}
+                  className={`inline-flex min-h-[48px] w-full items-center justify-center gap-2 whitespace-nowrap rounded-full border border-[#e2d7c8] bg-[#fffdfa]/95 px-4 py-2 text-sm font-black text-[#241d18] transition hover:border-[#ffb29f] hover:bg-white ${lightSurfaceFocusClass}`}
+                >
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4 shrink-0 text-[#ff623d]"
+                  >
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
+                  </svg>
+                  <span>עריכת ההודעה והכיוונים</span>
+                </button>
+              </div>
+            ) : null}
 
             <div aria-busy={isGenerating} className="space-y-3">
               <p className="sr-only" role="status" aria-live="polite">
@@ -5723,7 +5951,8 @@ export default function Home({
                       <button
                         type="button"
                         onClick={handleCopyAllReplies}
-                        className={`min-h-[40px] rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-black text-[#241d18] transition hover:bg-[#fffdfa] ${whiteSurfaceFocusClass}`}
+                        disabled={isGenerating}
+                        className={`min-h-[40px] rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-black text-[#241d18] transition hover:bg-[#fffdfa] disabled:cursor-wait disabled:opacity-50 ${whiteSurfaceFocusClass}`}
                       >
                         {hasCopiedAllReplies ? 'הכל הועתק' : 'העתק הכל'}
                       </button>
@@ -5759,6 +5988,10 @@ export default function Home({
                       onAdjust={handleReplyAction}
                       onCustomAdjust={handleCustomReplyAdjustment}
                       onEdit={handleReplyEdit}
+                      previousReply={getPreviousReply(replyHistory, index, reply)}
+                      refineError={replyError?.index === index ? replyError.message : null}
+                      onRestore={handleRestoreReply}
+                      onContinue={setContinueDialogReply}
                     />
                   ))}
                 </div>
@@ -6008,30 +6241,9 @@ export default function Home({
         </footer>
       </div>
 
-      {canReturnToGeneratorFromResults ? (
-        <div className="fixed bottom-0 left-1/2 z-30 -translate-x-1/2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:hidden">
-          <button
-            type="button"
-            aria-controls="compose-section"
-            onClick={handleReturnToGenerator}
-            className={`inline-flex min-h-[48px] items-center justify-center gap-2 whitespace-nowrap rounded-full border border-[#e2d7c8] bg-[#fffdfa]/95 px-4 py-2 text-sm font-black text-[#241d18] shadow-[0_8px_24px_rgba(49,23,13,0.16)] backdrop-blur transition hover:border-[#ffb29f] hover:bg-white ${lightSurfaceFocusClass}`}
-          >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-4 w-4 shrink-0 text-[#ff623d]"
-            >
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
-            </svg>
-            <span>עריכת ההודעה והכיוונים</span>
-          </button>
-        </div>
+
+      {continueDialogReply !== null ? (
+        <ContinueConversationDialog suggestedReply={continueDialogReply} onCancel={() => setContinueDialogReply(null)} onContinue={handleContinueConversation} />
       ) : null}
 
       <SaveConversationDialog

@@ -14,6 +14,9 @@
   --border-soft: #ded2c3;
   --shadow-soft: 0 24px 70px rgb(49 23 13 / 0.12);
   --shadow-panel: 0 12px 34px rgb(49 23 13 / 0.1);
+  --motion-fast: 160ms;
+  --motion-enter: 200ms;
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -115,24 +118,24 @@ body {
 @keyframes sb-paywall-in {
   from {
     opacity: 0;
-    transform: translateY(16px) scale(0.985);
+    transform: translateY(6px);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
 @keyframes sb-paywall-out {
   from {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 
   to {
     opacity: 0;
-    transform: translateY(12px) scale(0.99);
+    transform: translateY(4px);
   }
 }
 
@@ -161,13 +164,11 @@ body {
 @keyframes sb-loading-pulse {
   0%,
   100% {
-    opacity: 0.45;
-    transform: scale(0.82);
+    opacity: 0.55;
   }
 
   50% {
     opacity: 1;
-    transform: scale(1);
   }
 }
 
@@ -214,18 +215,6 @@ body {
   }
 }
 
-@keyframes sb-reply-word-in {
-  from {
-    opacity: 0;
-    transform: translateY(3px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 .sb-loading-block {
   position: relative;
   overflow: hidden;
@@ -245,8 +234,7 @@ body {
   transform: translateX(260%) skewX(-10deg);
 }
 
-.sb-loading-word,
-.sb-reply-word {
+.sb-loading-word {
   display: inline-block;
 }
 
@@ -264,7 +252,6 @@ body {
   opacity: 0;
 }
 
-.sb-reply-card,
 .sb-reply-loading-card {
   min-height: 216px;
 }
@@ -274,7 +261,6 @@ body {
 }
 
 @media (min-width: 640px) {
-  .sb-reply-card,
   .sb-reply-loading-card {
     min-height: 188px;
   }
@@ -286,23 +272,23 @@ body {
 
 @media (prefers-reduced-motion: no-preference) {
   .sb-replies-loading {
-    animation: sb-fade-in 420ms ease-out both;
+    animation: sb-fade-in var(--motion-fast) ease-out both;
   }
 
   .sb-reply-loading-card {
-    animation: sb-reply-loading-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: sb-reply-loading-in 180ms var(--motion-ease) both;
   }
 
   .sb-reply-loading-card--1 {
-    animation-delay: 120ms;
+    animation-delay: 0ms;
   }
 
   .sb-reply-loading-card--2 {
-    animation-delay: 260ms;
+    animation-delay: 40ms;
   }
 
   .sb-reply-loading-card--3 {
-    animation-delay: 400ms;
+    animation-delay: 80ms;
   }
 
   .sb-reply-loading-card::after,
@@ -315,7 +301,7 @@ body {
   }
 
   .sb-loading-word {
-    animation: sb-loading-word-in 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: sb-loading-word-in 180ms var(--motion-ease) both;
   }
 
   .sb-loading-status-text {
@@ -331,52 +317,109 @@ body {
   }
 
   .sb-result-intent-ready {
-    animation: sb-result-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: sb-result-in var(--motion-enter) var(--motion-ease) backwards;
   }
 
   .sb-reply-card {
-    animation: sb-result-in 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
-  .sb-reply-card--1 {
-    animation-delay: 80ms;
-  }
-
-  .sb-reply-card--2 {
-    animation-delay: 180ms;
-  }
-
-  .sb-reply-card--3 {
-    animation-delay: 280ms;
-  }
-
-  .sb-reply-word {
-    animation: sb-reply-word-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: sb-result-in 180ms ease-out both;
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .sb-accordion-content {
-    display: grid;
-    grid-template-rows: 0fr;
-    opacity: 0;
-    transform: translateY(-4px);
-    transition:
-      grid-template-rows 280ms cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 200ms ease,
-      transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
-  }
+/* Disclosure layout is local to its own panel; it never retains a focusable
+   closing surface. React applies inert/aria-hidden immediately on close. */
+.sb-motion-disclosure {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+}
 
-  details[open] > .sb-accordion-content {
-    grid-template-rows: 1fr;
+.sb-motion-disclosure[data-open='true'] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+}
+
+.sb-motion-disclosure-inner {
+  min-height: 0;
+  overflow: hidden;
+  /* Leave room for the existing keyboard focus outlines. */
+  padding: 6px;
+  margin: -6px;
+}
+
+.sb-accordion-content-inner {
+  min-height: 0;
+}
+
+@keyframes sb-reply-change {
+  from {
+    opacity: 0.65;
+    transform: translateY(3px);
+    background-color: #e3f6f0;
+  }
+  to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-.sb-accordion-content-inner {
-  min-height: 0;
-  overflow: hidden;
+@media (prefers-reduced-motion: no-preference) {
+  /* Panels may contain fixed dialogs: opacity avoids creating a containing block. */
+  .sb-motion-panel {
+    animation: sb-fade-in var(--motion-enter) ease-out backwards;
+  }
+
+  .sb-motion-feedback {
+    animation: sb-result-in var(--motion-enter) var(--motion-ease) backwards;
+  }
+
+  .sb-motion-reply {
+    animation: sb-reply-change var(--motion-enter) ease-out backwards;
+    transition: opacity var(--motion-fast) ease-out;
+  }
+
+  .sb-motion-dialog[open],
+  .sb-motion-dialog[role='dialog'] {
+    animation: sb-paywall-in var(--motion-enter) var(--motion-ease) backwards;
+  }
+
+  .sb-motion-backdrop,
+  .sb-motion-dialog[open]::backdrop {
+    animation: sb-fade-in var(--motion-fast) ease-out backwards;
+  }
+
+  .sb-motion-disclosure {
+    transition:
+      grid-template-rows var(--motion-enter) var(--motion-ease),
+      opacity var(--motion-fast) ease-out,
+      visibility 0s linear var(--motion-enter);
+  }
+
+  .sb-motion-disclosure[data-open='true'] {
+    transition-delay: 0s;
+  }
+
+  /* Native details keep their native keyboard and open-state behavior. */
+  details[open] > .sb-accordion-content {
+    animation: sb-fade-in var(--motion-fast) ease-out;
+  }
+
+  @supports (interpolate-size: allow-keywords) and selector(details::details-content) {
+    details::details-content {
+      interpolate-size: allow-keywords;
+      block-size: 0;
+      overflow: clip;
+      overflow-clip-margin: 6px;
+      transition:
+        block-size var(--motion-enter) var(--motion-ease),
+        content-visibility var(--motion-enter) allow-discrete;
+    }
+
+    details[open]::details-content {
+      block-size: auto;
+    }
+  }
 }
 
 .sb-option-card {
@@ -433,6 +476,21 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Covers utility and inline animations too, including native backdrops. */
+  *,
+  *::before,
+  *::after,
+  *::backdrop {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+
+  :is(button, a, input, textarea, select):is(:hover, :focus, :active) {
+    translate: none !important;
+    scale: none !important;
+  }
+
   .sb-option-card,
   .sb-option-card__illustration,
   .sb-replies-loading,
@@ -443,8 +501,7 @@ body {
   .sb-loading-word,
   .sb-loading-status-text,
   .sb-result-intent-ready,
-  .sb-reply-card,
-  .sb-reply-word {
+  .sb-reply-card {
     transition: none;
     animation: none;
   }

@@ -31,8 +31,15 @@ import { readVisitorIdentity, resolveUserId } from "@/lib/visitor-identity";
 import { MAX_NO_REPLY_DURATION_VALUE } from "@/lib/message-limits";
 import { recordServerProductEvent } from "@/lib/product-events";
 import { after } from "next/server";
+import { normalizeReplyContext, type ReplyContext } from "@/lib/reply-context";
 import { isIP } from "node:net";
 import { selectRelevantRelationshipMemory, type MemorySelection } from "@/lib/relationship-memory";
+import {
+  hasMonthlyGenerationFeatures,
+  isLockedContext,
+  isLockedTone,
+  resolveGenerationFeatureOptions,
+} from "@/lib/generation-feature-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,7 +63,7 @@ const BILLING_BYPASS_USER_QUOTA = {
   windowMs: 2 * 60 * 60_000,
 } as const;
 
-interface GenerateRequestBody {
+interface GenerateRequestBody extends ReplyContext {
   message?: string;
   imageBase64?: string;
   context?: string;
@@ -170,6 +177,12 @@ export async function POST(request: Request) {
       },
       400,
     );
+  }
+
+  try {
+    Object.assign(body, normalizeReplyContext(body));
+  } catch (error) {
+    return noStoreJson({ error: error instanceof Error ? error.message : "ההקשר שצורף לא תקין." }, 400);
   }
 
   if (authenticatedUserUid) {
@@ -299,7 +312,8 @@ export async function POST(request: Request) {
     }
 
     consumption = access.consumption;
-    if (!access.snapshot.hasUnlimited) {
+    const monthlyFeatureAccess = hasMonthlyGenerationFeatures(access.snapshot);
+    if (!monthlyFeatureAccess) {
       body.conversationBackground = undefined;
       clearLocalUsageLogConversationBackgroundLength(localUsageLogId);
       if (persistedUsageLogBase) {
@@ -312,12 +326,26 @@ export async function POST(request: Request) {
     const myVoiceInstruction = myVoicePreferences
       ? buildMyVoiceInstruction(myVoicePreferences)
       : null;
-    const effectiveContext = body.context ?? savedConversation?.context ?? undefined;
-    const effectiveTone = body.tone ?? savedConversation?.tone;
+    const effectiveOptions = resolveGenerationFeatureOptions({
+      context: body.context ?? savedConversation?.context ?? undefined,
+      tone: body.tone ?? savedConversation?.tone,
+      conversationBackground: body.conversationBackground,
+    }, monthlyFeatureAccess);
+    const effectiveContext = effectiveOptions.context;
+    const effectiveTone = effectiveOptions.tone;
+    // Memory is a second input to the model and must obey the same access rules.
+    if (memorySelection) {
+      memorySelection = {
+        ...memorySelection,
+        relationshipContext: isLockedContext(memorySelection.relationshipContext, monthlyFeatureAccess)
+          ? null : memorySelection.relationshipContext,
+        relationshipTone: isLockedTone(memorySelection.relationshipTone, monthlyFeatureAccess)
+          ? null : memorySelection.relationshipTone,
+      };
+    }
     const generated = await generateRepliesWithModelSource({
       ...body,
-      context: effectiveContext,
-      tone: effectiveTone,
+      ...effectiveOptions,
       savedConversationMemory: savedConversation && memorySelection && (
         memorySelection.topics.length > 0 || memorySelection.relationshipContext ||
         memorySelection.relationshipTone || memorySelection.trustedHint
@@ -341,8 +369,13 @@ export async function POST(request: Request) {
           savedConversation.id,
           {
             lastIntent: result.intent,
-            context: effectiveContext,
-            tone: effectiveTone,
+            // A temporary loss of access must not replace saved premium defaults
+            // with the free fallback sent by the client or applied above.
+            context: isLockedContext(savedConversation.context, monthlyFeatureAccess)
+              ? undefined : effectiveContext,
+            tone: isLockedTone(savedConversation.tone, monthlyFeatureAccess) ||
+              isLockedTone(body.tone, monthlyFeatureAccess)
+              ? undefined : effectiveTone,
           },
         );
         if (body.message) {
@@ -511,7 +544,9 @@ function relationshipTimeBucket(ageMs: number) {
 }
 
 function isNewConversationTurn(body: GenerateRequestBody) {
-  return !body.action && !body.sourceReply && !body.refineInstruction;
+  // Temporary exchange context must not leak through generated lastIntent or memory writes.
+  return !body.action && !body.sourceReply && !body.refineInstruction &&
+    !body.previousOutgoingMessage && !body.commitmentDetails;
 }
 
 function withAccountIdentity<T extends { accountEmail: string | null; isRecoverableAccount: boolean }>(
