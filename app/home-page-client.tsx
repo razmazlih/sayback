@@ -21,6 +21,7 @@ import {
   SavedConversationsRow,
 } from '@/components/conversation-memory';
 import { trackEvent } from '@/lib/analytics';
+import { DisclosurePanel } from '@/components/disclosure-panel';
 import { createLatestRequest } from '@/lib/latest-request';
 import { createReplyHistory, recordReplyRefinement, getPreviousReply, clearReplyRevision } from '@/lib/reply-history';
 import { getMissingCommitmentKind, type CommitmentMode, type LanguagePreferences, type ReplyContext } from '@/lib/reply-context';
@@ -197,7 +198,7 @@ type CouponRedeemResponse = {
 const FREE_LIMIT = 3;
 const GENERATOR_FLOW_VERSION = 'simplified_v1' as const;
 const MAX_IMAGE_UPLOAD_BYTES = 4 * 1024 * 1024;
-const MIN_LOADING_DISPLAY_MS = 1200;
+const MIN_LOADING_DISPLAY_MS = 200;
 const AUTH_EMAIL_STORAGE_KEY = 'sayback.auth.email';
 const AUTH_EMAIL_INTENT_STORAGE_KEY = 'sayback.auth.intent';
 const AUTH_EMAIL_PLAN_STORAGE_KEY = 'sayback.auth.checkoutPlan';
@@ -799,6 +800,12 @@ function ChipGroup<T extends string>({
       return;
     }
 
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setIsMoreOptionsDialogOpen(false);
+      setIsMoreOptionsDialogClosing(false);
+      return;
+    }
+
     setIsMoreOptionsDialogClosing(true);
 
     if (closeMoreOptionsDialogTimerRef.current !== null) {
@@ -1371,8 +1378,8 @@ function ReplyRefineMenu({
         <span className={`text-xs transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true">⌄</span>
       </button>
 
-      {isOpen ? (
-        <div id={panelId} className="px-2.5 pb-2.5 pt-0.5">
+      <DisclosurePanel open={isOpen} id={panelId}>
+        <div className="px-2.5 pb-2.5 pt-0.5">
             <p className="mb-2 text-xs font-bold leading-5 text-[#6d6259]">
               כל שיפור משתמש בשימוש אחד.
             </p>
@@ -1413,8 +1420,8 @@ function ReplyRefineMenu({
               >
                 דיוק אחר
               </button>
-              {isCustomOpen ? (
-                <div id={customPanelId} className="mt-2">
+              <DisclosurePanel open={isCustomOpen} id={customPanelId}>
+                <div className="pt-2">
                   <label htmlFor={`custom-refine-${index}`} className="text-xs font-black text-[#241d18]">
                     מה לשנות? (יישלח כניסוח חדש)
                   </label>
@@ -1437,10 +1444,10 @@ function ReplyRefineMenu({
                 </button>
               </div>
                 </div>
-              ) : null}
+              </DisclosurePanel>
             </div>
         </div>
-      ) : null}
+      </DisclosurePanel>
     </div>
   );
 }
@@ -1480,7 +1487,7 @@ function ReplyActions({
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           {copied ? <path d="m5 12 4 4L19 6" /> : <><rect x="8" y="8" width="12" height="13" rx="2" /><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" /></>}
         </svg>
-        {copied ? 'הועתקה · אפשר להדביק' : 'להעתיק את התשובה'}
+        <span key={String(copied)} className={copied ? 'sb-motion-feedback' : undefined}>{copied ? 'הועתקה · אפשר להדביק' : 'להעתיק את התשובה'}</span>
       </button>
       <button
         type="button"
@@ -1493,8 +1500,8 @@ function ReplyActions({
       >
         <span aria-hidden="true">···</span>
       </button>
-      {isMoreOpen ? (
-        <div id={panelId} className="col-span-2 flex flex-wrap gap-2 rounded-2xl bg-[#f8f3eb] p-2">
+      <DisclosurePanel open={isMoreOpen} id={panelId} className="col-span-2">
+        <div className="pt-2"><div className="flex flex-wrap gap-2 rounded-2xl bg-[#f8f3eb] p-2">
           <button type="button" disabled={isUpdating} onClick={onStartEditing} className={`min-h-11 rounded-xl px-3 text-sm font-bold text-[#463b33] hover:bg-white disabled:opacity-50 ${whiteSurfaceFocusClass}`}>
             לערוך בעצמי
           </button>
@@ -1509,8 +1516,8 @@ function ReplyActions({
               וואטסאפ
             </a>
           )}
-        </div>
-      ) : null}
+        </div></div>
+      </DisclosurePanel>
     </>
   );
 }
@@ -1586,12 +1593,12 @@ function ReplyCard({
           תשובה {index + 1}
         </h3>
         <span role="status" className="text-xs font-bold text-[#246354]">
-          {isUpdating ? 'מלטשים את הניסוח…' : copied && !isEditing ? 'הועתקה ללוח ✓' : ''}
+          {isUpdating ? 'מלטשים את הניסוח…' : copied && !isEditing ? 'הועתקה ללוח ✓' : previousReply && !isEditing ? 'הנוסח עודכן' : ''}
         </span>
       </div>
 
       {isEditing ? (
-        <div>
+        <div className="sb-motion-panel">
           <label htmlFor={`reply-editor-${index}`} className="mb-2 block text-xs font-bold text-[#6d6259]">אפשר לדייק במילים שלך</label>
           <textarea
             ref={editorRef}
@@ -1609,16 +1616,16 @@ function ReplyCard({
         </div>
       ) : (
         <>
-          <p dir="auto" className={`sb-reply-text whitespace-pre-wrap rounded-[18px] bg-[#f8f3eb] px-4 py-4 text-start text-[1.0625rem] font-medium leading-[1.85] text-[#241d18] [overflow-wrap:anywhere] sm:text-lg ${isUpdating ? 'opacity-55' : ''}`}>
+          <p key={reply} dir="auto" className={`sb-motion-reply sb-reply-text whitespace-pre-wrap rounded-[18px] bg-[#f8f3eb] px-4 py-4 text-start text-[1.0625rem] font-medium leading-[1.85] text-[#241d18] [overflow-wrap:anywhere] sm:text-lg ${isUpdating ? 'opacity-55' : ''}`}>
             {reply}
           </p>
-          <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+          <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-x-2">
             <ReplyActions index={index} copied={copied} reply={reply} isUpdating={isUpdating} onCopy={onCopy} onShare={onShare} onContinue={onContinue} onStartEditing={() => setIsEditing(true)} />
           </div>
         </>
       )}
 
-      {refineError ? <p role="alert" className="mt-3 rounded-xl border border-[#efb7ad] bg-[#fff0ea] p-3 text-sm leading-6 text-[#8c2e20]">{refineError}</p> : null}
+      {refineError ? <p role="alert" className="sb-motion-feedback mt-3 rounded-xl border border-[#efb7ad] bg-[#fff0ea] p-3 text-sm leading-6 text-[#8c2e20]">{refineError}</p> : null}
 
       {previousReply && !isEditing ? (
         <details className="mt-3 rounded-2xl border border-[#e2d7c8] bg-[#f8f3eb] p-3">
@@ -2623,6 +2630,7 @@ export default function Home({
   const toneOptionsRef = useRef<HTMLDetailsElement | null>(null);
   const composeSectionRef = useRef<HTMLDivElement | null>(null);
   const resultsSectionRef = useRef<HTMLDivElement | null>(null);
+  const mobileScrollSequenceRef = useRef(0);
   const examplesSectionRef = useRef<HTMLElement | null>(null);
   const plansSectionRef = useRef<HTMLElement | null>(null);
   const hasTrackedQuotaBadgeViewRef = useRef(false);
@@ -2921,9 +2929,11 @@ export default function Home({
       }
 
       const behavior = options?.behavior ?? getPreferredScrollBehavior();
-      sectionElement.scrollIntoView({
-        behavior,
-        block: 'start',
+      const sequence = ++mobileScrollSequenceRef.current;
+      // Wait for the destination to become visible; a newer navigation supersedes this one.
+      window.requestAnimationFrame(() => {
+        if (sequence !== mobileScrollSequenceRef.current || !sectionElement.isConnected || !sectionElement.getClientRects().length) return;
+        sectionElement.scrollIntoView({ behavior, block: 'start' });
       });
     },
     [],
@@ -2942,22 +2952,13 @@ export default function Home({
     }
 
     window.requestAnimationFrame(() => {
-      (messageInputRef.current ?? lastOutgoingInputRef.current)?.focus();
+      (messageInputRef.current ?? lastOutgoingInputRef.current)?.focus({ preventScroll: true });
     });
   }, [scrollToMobileSection]);
 
   const handleReturnToGenerator = useCallback(() => {
-    setMobilePrimaryView('compose');
-
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        composeSectionRef.current?.scrollIntoView({
-          behavior: getPreferredScrollBehavior(),
-          block: 'start',
-        });
-      });
-    });
-  }, []);
+    scrollToComposeSection();
+  }, [scrollToComposeSection]);
 
   const handleHeroStartUsingClick = useCallback(() => {
     trackEvent('hero_cta_click', { cta_text: heroStartUsingCtaLabel, target: 'incoming_message' });
@@ -4578,7 +4579,8 @@ export default function Home({
       const replyIndex = requestedReplyIndex;
 
       if (typeof replyIndex !== 'number' && loadingStartedAt !== null) {
-        const remainingLoadingTime = MIN_LOADING_DISPLAY_MS - (window.performance.now() - loadingStartedAt);
+        const minimumLoadingTime = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : MIN_LOADING_DISPLAY_MS;
+        const remainingLoadingTime = minimumLoadingTime - (window.performance.now() - loadingStartedAt);
 
         if (remainingLoadingTime > 0) {
           await new Promise((resolve) => window.setTimeout(resolve, remainingLoadingTime));
@@ -5328,7 +5330,7 @@ export default function Home({
             ref={composeSectionRef}
             id="compose-section"
             className={[
-              'mobile-section-anchor w-full min-w-0 rounded-[28px] border border-[#e2d7c8] bg-[#fffdfa] shadow-[0_20px_55px_rgba(49,23,13,0.1)] sm:rounded-[32px]',
+              'sb-motion-panel mobile-section-anchor w-full min-w-0 rounded-[28px] border border-[#e2d7c8] bg-[#fffdfa] shadow-[0_20px_55px_rgba(49,23,13,0.1)] sm:rounded-[32px]',
               isGeneratorPrimaryMode ? 'space-y-3 p-2.5 sm:p-4' : 'space-y-4 p-4 sm:p-5',
               mobilePrimaryView === 'compose' ? 'block' : 'hidden lg:block',
             ].join(' ')}
@@ -5459,7 +5461,7 @@ export default function Home({
               )}
 
               {isNoReplyMode ? (
-                <div className="space-y-3 rounded-[22px] border border-[#e2d7c8] bg-[#fbf7f1] p-3 motion-safe:animate-[sb-paywall-in_220ms_ease-out] sm:space-y-4 sm:p-4">
+                <div className="sb-motion-panel space-y-3 rounded-[22px] border border-[#e2d7c8] bg-[#fbf7f1] p-3 sm:space-y-4 sm:p-4">
                   <div>
                     <label htmlFor="last-outgoing-message" className="text-sm font-black text-[#241d18]">
                       מה כתבתי בהודעה האחרונה? <span aria-hidden="true" className="text-[#c23318]">*</span>
@@ -5560,7 +5562,7 @@ export default function Home({
                   </div>
                 </div>
               ) : (
-                <div className="space-y-3 rounded-[22px] border border-[#e2d7c8] bg-[#fbf7f1] p-3 motion-safe:animate-[sb-paywall-in_220ms_ease-out] sm:space-y-4 sm:p-4">
+                <div className="sb-motion-panel space-y-3 rounded-[22px] border border-[#e2d7c8] bg-[#fbf7f1] p-3 sm:space-y-4 sm:p-4">
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <label htmlFor="incoming-message" className="text-sm font-black text-[#241d18]">
@@ -5886,7 +5888,7 @@ export default function Home({
             ref={resultsSectionRef}
             id="results-section"
             className={[
-              'mobile-section-anchor w-full min-w-0 space-y-4 rounded-[28px] border border-[#d3e4df] bg-white p-3.5 shadow-[0_20px_55px_rgba(18,58,54,0.1)] sm:rounded-[32px] sm:p-5',
+              'sb-motion-panel mobile-section-anchor w-full min-w-0 space-y-4 rounded-[28px] border border-[#d3e4df] bg-white p-3.5 shadow-[0_20px_55px_rgba(18,58,54,0.1)] sm:rounded-[32px] sm:p-5',
               mobilePrimaryView === 'results' ? 'block' : 'hidden lg:block',
             ].join(' ')}
           >

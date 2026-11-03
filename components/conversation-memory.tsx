@@ -441,8 +441,8 @@ function DialogShell({
   closeDisabled: boolean;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/35 p-0 sm:items-center sm:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !closeDisabled) onClose(); }}>
-      <div data-conversation-dialog role="dialog" aria-modal="true" aria-label={title} className="max-h-[88svh] w-full max-w-lg overflow-y-auto rounded-t-[28px] border border-[#e2d7c8] bg-[#fffdf8] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-18px_60px_rgba(24,20,17,0.2)] sm:rounded-[28px] sm:p-5">
+    <div className="sb-motion-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/35 p-0 sm:items-center sm:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !closeDisabled) onClose(); }}>
+      <div data-conversation-dialog role="dialog" aria-modal="true" aria-label={title} className="sb-motion-dialog max-h-[88svh] w-full max-w-lg overflow-y-auto rounded-t-[28px] border border-[#e2d7c8] bg-[#fffdf8] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-18px_60px_rgba(24,20,17,0.2)] sm:rounded-[28px] sm:p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="text-xl font-black text-[#181411]">{title}</h2>
           <button type="button" onClick={onClose} disabled={closeDisabled} aria-label="סגירה" style={{ minWidth: 44 }} className={`min-h-[44px] rounded-full border border-[#e2d7c8] bg-white text-lg font-black text-[#5b4d42] disabled:opacity-50 ${focusClass}`}>×</button>

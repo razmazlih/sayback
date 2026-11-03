@@ -38,7 +38,7 @@ export function CommitmentControls({ kind, mode, details, onChange }: {
   onChange: (mode: CommitmentMode, details: string) => void;
 }) {
   return (
-    <fieldset className="rounded-2xl border border-[#e2d7c8] bg-[#f8f3eb] p-3">
+    <fieldset className="sb-motion-panel rounded-2xl border border-[#e2d7c8] bg-[#f8f3eb] p-3">
       <legend className="px-1 text-sm font-bold text-[#463b33]">{kind === 'time' ? 'יש מועד שמתאים לך?' : 'יש מחיר שמתאים לך?'}</legend>
       <p className="mb-2 text-xs leading-5 text-[#6d6259]">אפשר להמשיך בלי לבחור. לא נאשר בשמך מועד או מחיר.</p>
       <div className="flex flex-wrap gap-2">
@@ -47,7 +47,7 @@ export function CommitmentControls({ kind, mode, details, onChange }: {
         ))}
       </div>
       {mode === 'provided' ? (
-        <label className="mt-3 grid gap-1 text-sm font-bold text-[#463b33]">
+        <label className="sb-motion-panel mt-3 grid gap-1 text-sm font-bold text-[#463b33]">
           מה אפשר להציע בשמך?
           <input id="commitment-details" value={details} onChange={(event) => onChange('provided', event.target.value)} maxLength={MAX_COMMITMENT_DETAILS_LENGTH} placeholder={kind === 'time' ? 'למשל: יום חמישי בשעה 18:00' : 'למשל: 250 ש״ח, בלי משלוח'} className={`min-h-11 min-w-0 rounded-xl border border-[#ded2c3] bg-white px-3 text-base font-normal ${focus}`} />
         </label>
@@ -68,13 +68,21 @@ export function ContinueConversationDialog({ suggestedReply, onCancel, onContinu
 
   useEffect(() => {
     const dialog = dialogRef.current;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialog?.showModal();
     sentInputRef.current?.focus();
-    return () => dialog?.close();
+    return () => {
+      dialog?.close();
+      // React may remove the dialog before passive cleanup, preventing native focus restoration.
+      // Continuing replaces the results, so only restore an opener that is still available.
+      if (opener?.isConnected && !opener.closest('[inert]') && opener.getClientRects().length) {
+        opener.focus({ preventScroll: true });
+      }
+    };
   }, []);
 
   return (
-    <dialog ref={dialogRef} aria-labelledby="continue-title" aria-describedby="continue-help" onCancel={(event) => { event.preventDefault(); onCancel(); }} dir="rtl" className="m-auto max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-lg overflow-y-auto rounded-[24px] border border-[#e2d7c8] bg-[#fffdfa] p-5 text-right text-[#241d18] shadow-xl backdrop:bg-black/40">
+    <dialog ref={dialogRef} aria-labelledby="continue-title" aria-describedby="continue-help" onCancel={(event) => { event.preventDefault(); onCancel(); }} dir="rtl" className="sb-motion-dialog m-auto max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-lg overflow-y-auto rounded-[24px] border border-[#e2d7c8] bg-[#fffdfa] p-5 text-right text-[#241d18] shadow-xl backdrop:bg-black/40">
       <form onSubmit={(event) => { event.preventDefault(); if (sent.trim() && sent.trim().length <= MAX_LAST_OUTGOING_MESSAGE_LENGTH && incoming.trim()) onContinue(sent.trim(), incoming.trim()); }}>
         <h2 id="continue-title" className="text-xl font-black">ענו לך? ממשיכים מכאן</h2>
         <p id="continue-help" className="mt-2 text-sm leading-6 text-[#6d6259]">בדקו מה נשלח בפועל — העתקה אינה שליחה. ההקשר זמני, ונמחק עם ״הודעה חדשה״.</p>

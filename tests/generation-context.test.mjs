@@ -163,7 +163,8 @@ for (const extra of [
     assert.equal(app.calls.memory.length, 0);
     assert.ok(app.calls.persisted.length > 0);
     const recorded = JSON.stringify({ logs: app.calls.logs, persisted: app.calls.persisted, events: app.calls.events, voice: app.calls.voice });
-    for (const forbidden of ["הודעה פרטית", "829", "previousOutgoingMessage", "commitmentDetails", "languagePreferences", "feminine"]) {
+    // Include the currency marker: a short number alone can occur in timestamps or request IDs.
+    for (const forbidden of ["הודעה פרטית", "829₪", "previousOutgoingMessage", "commitmentDetails", "languagePreferences", "feminine"]) {
       assert.equal(recorded.includes(forbidden), false, forbidden);
     }
   });

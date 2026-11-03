@@ -28,7 +28,7 @@ const deferred = () => {
 };
 const payload = { message: 'hello', tone: 'זורם' };
 const response = (status = 200) => ({ status, ok: status === 200, json: async () => ({ intent: 'intent', replies: ['new', 'two', 'three'], billing: { credits: 1 } }) });
-function harness({ delay = false } = {}) {
+function harness({ delay = false, reducedMotion = false } = {}) {
   const state = { replyHistory: historyModule.exports.createReplyHistory(), result: { intent: 'old', replies: ['old', 'two', 'three'] } };
   const calls = [], network = [], timers = [], frames = [];
   const images = [];
@@ -41,7 +41,7 @@ function harness({ delay = false } = {}) {
     personalizationActiveRef: { current: false }, fileInputRef: { current: { value: 'old-file' } },
     advancedOptionsRef: { current: { open: true } }, composeMode: 'incoming', activeConversation: null,
     hasMonthlyFeatureAccess: false, MIN_LOADING_DISPLAY_MS: delay ? 500 : 0,
-    window: { performance: { now: () => 0 }, setTimeout: (fn) => timers.push(fn), requestAnimationFrame: (fn) => frames.push(fn) },
+    window: { matchMedia: () => ({ matches: reducedMotion }), performance: { now: () => 0 }, setTimeout: (fn) => timers.push(fn), requestAnimationFrame: (fn) => frames.push(fn) },
     isCompactViewport: () => true,
     fetchWithAuth: (_url, init) => { const task = deferred(); network.push({ ...task, signal: init.signal }); return task.promise; },
     mapApiErrorMessage: (message) => message, getGenerationAnalyticsTimingPayload: () => ({}),
@@ -229,3 +229,14 @@ for (const outcome of ['network', 'server', 'unchanged']) {
     assert.equal(h.state.replyError, null);
   });
 }
+
+
+test('reduced motion presents ready results without an artificial loading delay', async () => {
+  const h = harness({ delay: true, reducedMotion: true });
+  const pending = h.runGeneration(payload);
+  h.network[0].resolve(response());
+  await pending;
+  assert.equal(h.timers.length, 0);
+  assert.equal(h.state.result.replies[0], 'new');
+  assert.equal(h.state.isLoading, false);
+});
