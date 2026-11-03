@@ -7,7 +7,7 @@ import ts from 'typescript';
 // Execute the real client handlers with controlled network/React state boundaries.
 const source = readFileSync(new URL('../app/home-page-client.tsx', import.meta.url), 'utf8');
 const tree = ts.createSourceFile('client.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-const names = ['runGeneration', 'handleNewMessage', 'cancelPendingInput', 'clearImage', 'handleImageChange'];
+const names = ['runGeneration', 'handleNewMessage', 'resetMessageDraft', 'cancelPendingInput', 'clearImage', 'handleImageChange'];
 const handlers = [];
 function visit(node) {
   if (ts.isFunctionDeclaration(node) && names.includes(node.name?.text)) handlers.push(node.getText(tree));
@@ -19,6 +19,8 @@ const compile = (text) => ts.transpileModule(text, { compilerOptions: { target: 
 const helper = { exports: {} };
 vm.runInNewContext(compile(readFileSync(new URL('../lib/latest-request.ts', import.meta.url), 'utf8')), { exports: helper.exports, AbortController });
 const { createLatestRequest } = helper.exports;
+const historyModule = { exports: {} };
+vm.runInNewContext(compile(readFileSync(new URL('../lib/reply-history.ts', import.meta.url), 'utf8')), { exports: historyModule.exports });
 const deferred = () => {
   let resolve, reject;
   const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
@@ -27,10 +29,11 @@ const deferred = () => {
 const payload = { message: 'hello', tone: 'זורם' };
 const response = (status = 200) => ({ status, ok: status === 200, json: async () => ({ intent: 'intent', replies: ['new', 'two', 'three'], billing: { credits: 1 } }) });
 function harness({ delay = false } = {}) {
-  const state = { result: { intent: 'old', replies: ['old', 'two', 'three'] } };
+  const state = { replyHistory: historyModule.exports.createReplyHistory(), result: { intent: 'old', replies: ['old', 'two', 'three'] } };
   const calls = [], network = [], timers = [], frames = [];
   const images = [];
   const context = {
+    ...historyModule.exports,
     Error, MAX_IMAGE_UPLOAD_BYTES: 4 * 1024 * 1024,
     fileToBase64: () => { const task = deferred(); images.push(task); return task.promise; },
     markGeneratorInputStart() {},
@@ -154,4 +157,37 @@ test('latest image selection wins even when file reads finish out of order', asy
   await old;
   assert.equal(h.state.imageName, 'current.png');
   assert.equal(h.state.imageBase64, 'data:image/png;base64,current');
+});
+
+test('only a successful current refinement records comparison; failures preserve it and fresh results clear it', async () => {
+  const h = harness();
+  const refine = h.runGeneration({ ...payload, action: 'softer', sourceReply: 'old' }, { replyIndex: 0 });
+  h.network[0].resolve(response());
+  await refine;
+  assert.equal(h.state.replyHistory[0].before, 'old');
+  assert.equal(h.state.replyHistory[0].after, 'new');
+
+  const failed = h.runGeneration({ ...payload, action: 'retry', sourceReply: 'new' }, { replyIndex: 0 });
+  h.network[1].reject(new Error('try again'));
+  await failed;
+  assert.equal(h.state.replyHistory[0].before, 'old');
+
+  const fresh = h.runGeneration(payload);
+  h.network[2].resolve(response());
+  await fresh;
+  assert.equal(h.state.replyHistory.every((revision) => revision === null), true);
+});
+
+test('an interrupted refinement never resurrects previous conversation text in history', async () => {
+  const h = harness();
+  const old = h.runGeneration({ ...payload, action: 'softer', sourceReply: 'old' }, { replyIndex: 0 });
+  h.handleNewMessage();
+  const next = h.runGeneration(payload);
+  h.network[0].resolve(response());
+  await old;
+  assert.equal(h.state.replyHistory.every((revision) => revision === null), true);
+  assert.equal(h.state.isLoading, true);
+  h.network[1].resolve(response());
+  await next;
+  assert.equal(h.state.replyHistory.every((revision) => revision === null), true);
 });

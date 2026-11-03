@@ -22,6 +22,9 @@ import {
 } from '@/components/conversation-memory';
 import { trackEvent } from '@/lib/analytics';
 import { createLatestRequest } from '@/lib/latest-request';
+import { createReplyHistory, recordReplyRefinement, getPreviousReply, clearReplyRevision } from '@/lib/reply-history';
+import { getMissingCommitmentKind, type CommitmentMode, type LanguagePreferences, type ReplyContext } from '@/lib/reply-context';
+import { CommitmentControls, LanguagePreferenceControls, ContinueConversationDialog } from '@/components/reply-context-controls';
 import { captureAndStoreAttribution } from '@/lib/attribution';
 import type { ConversationProfile } from '@/lib/conversation-profile-types';
 import { buildHomeDeepLink, parseHomeDeeplinkParams } from '@/lib/home-deeplink';
@@ -114,7 +117,7 @@ type GenerateResponse = {
   savedConversationUnavailable?: boolean;
 };
 
-type GenerateRequest = {
+type GenerateRequest = ReplyContext & {
   message: string;
   imageBase64: string | null;
   context?: ContextOption;
@@ -1450,6 +1453,7 @@ function ReplyActions({
   onCopy,
   onShare,
   onStartEditing,
+  onContinue,
 }: {
   index: number;
   copied: boolean;
@@ -1458,6 +1462,7 @@ function ReplyActions({
   onCopy: (reply: string, index: number) => void;
   onShare: (reply: string, index: number) => void;
   onStartEditing: () => void;
+  onContinue: (reply: string) => void;
 }) {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const panelId = `reply-more-${index}`;
@@ -1496,6 +1501,7 @@ function ReplyActions({
           <button type="button" disabled={isUpdating} onClick={() => onShare(reply, index)} className={`min-h-11 rounded-xl px-3 text-sm font-bold text-[#463b33] hover:bg-white disabled:opacity-50 ${whiteSurfaceFocusClass}`}>
             שיתוף
           </button>
+          <button type="button" disabled={isUpdating} onClick={() => onContinue(reply)} className={`min-h-11 rounded-xl px-3 text-sm font-bold text-[#463b33] hover:bg-white disabled:opacity-50 ${whiteSurfaceFocusClass}`}>ענו לי</button>
           {isUpdating ? (
             <span aria-disabled="true" className="inline-flex min-h-11 items-center px-3 text-sm font-bold text-[#6d6259] opacity-50">וואטסאפ</span>
           ) : (
@@ -1517,6 +1523,9 @@ function ReplyCard({
   onAdjust,
   onCustomAdjust,
   onEdit,
+  previousReply,
+  onRestore,
+  onContinue,
   isBusy,
   isUpdating,
   copied,
@@ -1528,6 +1537,9 @@ function ReplyCard({
   onAdjust: (index: number, action: ReplyAction) => void;
   onCustomAdjust: (index: number, instruction: string) => void;
   onEdit: (reply: string, index: number) => void;
+  previousReply: string | null;
+  onRestore: (index: number) => void;
+  onContinue: (reply: string) => void;
   isBusy: boolean;
   isUpdating: boolean;
   copied: boolean;
@@ -1599,10 +1611,22 @@ function ReplyCard({
             {reply}
           </p>
           <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-            <ReplyActions index={index} copied={copied} reply={reply} isUpdating={isUpdating} onCopy={onCopy} onShare={onShare} onStartEditing={() => setIsEditing(true)} />
+            <ReplyActions index={index} copied={copied} reply={reply} isUpdating={isUpdating} onCopy={onCopy} onShare={onShare} onContinue={onContinue} onStartEditing={() => setIsEditing(true)} />
           </div>
         </>
       )}
+
+      {previousReply && !isEditing ? (
+        <details className="mt-3 rounded-2xl border border-[#e2d7c8] bg-[#f8f3eb] p-3">
+          <summary className={`min-h-11 cursor-pointer rounded-xl py-2 text-sm font-bold text-[#5b4d42] ${whiteSurfaceFocusClass}`}>השוואה לנוסח שלפני שיפור ה־AI</summary>
+          <p dir="auto" className="whitespace-pre-wrap text-start text-base leading-7 text-[#463b33] [overflow-wrap:anywhere]">{previousReply}</p>
+          <button type="button" disabled={isBusy} onClick={() => {
+            onRestore(index);
+            window.requestAnimationFrame(() => cardRef.current?.querySelector<HTMLButtonElement>('[data-reply-copy]')?.focus());
+          }} className={`mt-3 min-h-11 rounded-xl border border-[#b8e7df] bg-white px-3 text-sm font-bold text-[#123a36] disabled:opacity-50 ${whiteSurfaceFocusClass}`}>להחזיר את הנוסח הקודם</button>
+          <p className="mt-1 text-xs text-[#6d6259]">החזרה לנוסח הקודם אינה משתמשת בשימוש נוסף.</p>
+        </details>
+      ) : null}
 
       <div className="mt-3 border-t border-[#eee5da] pt-2">
         <ReplyRefineMenu index={index} isBusy={isBusy || isEditing} onAdjust={onAdjust} onCustomAdjust={onCustomAdjust} />
@@ -2613,6 +2637,11 @@ export default function Home({
   const [composeMode, setComposeMode] = useState<ComposeMode>('incoming');
   const [mobilePrimaryView, setMobilePrimaryView] = useState<MobilePrimaryView>('compose');
   const [message, setMessage] = useState('');
+  const [languagePreferences, setLanguagePreferences] = useState<LanguagePreferences>({ speaker: 'neutral', recipient: 'neutral' });
+  const [previousOutgoingMessage, setPreviousOutgoingMessage] = useState('');
+  const [continueDialogReply, setContinueDialogReply] = useState<string | null>(null);
+  const [commitmentChoice, setCommitmentChoice] = useState<{ message: string; mode: CommitmentMode; details: string } | null>(null);
+  const [replyHistory, setReplyHistory] = useState(createReplyHistory);
   const [lastOutgoingMessage, setLastOutgoingMessage] = useState('');
   const [noReplyDurationValue, setNoReplyDurationValue] = useState('');
   const [noReplyDurationUnit, setNoReplyDurationUnit] = useState<NoReplyDurationUnitSelection>('');
@@ -2972,12 +3001,20 @@ export default function Home({
         to_mode: nextMode,
         flow_version: GENERATOR_FLOW_VERSION,
       });
+      generationRequests.invalidate();
+      setIsLoading(false);
+      setBusyReplyIndex(null);
+      setResult(null);
+      setReplyHistory(createReplyHistory());
+      setPreviousOutgoingMessage('');
+      setCommitmentChoice(null);
+      setContinueDialogReply(null);
       setComposeMode(nextMode);
       setGoal(null);
       setRequestError(null);
       setHasTriedNoReplyContinue(false);
     },
-    [composeMode],
+    [composeMode, generationRequests],
   );
 
   const handleAdvancedOptionsToggle = useCallback(
@@ -4170,6 +4207,8 @@ export default function Home({
       return;
     }
 
+    if (activeConversationId !== profile.id) resetMessageDraft();
+
     const resolvedDefaults = resolveConversationDefaultsForAccess(
       profile.context,
       profile.tone,
@@ -4206,11 +4245,20 @@ export default function Home({
   }
 
   function handleConversationClear() {
+    resetMessageDraft();
+    setContext(null);
+    setTone('זורם');
     setActiveConversationId(null);
     setConversationNotice(null);
   }
 
   function openConversationMemory(profile: ConversationProfile) {
+    if (activeConversationId !== profile.id) {
+      resetMessageDraft();
+      const defaults = resolveConversationDefaultsForAccess(profile.context, profile.tone, hasMonthlyFeatureAccess);
+      setContext(defaults.context);
+      setTone(defaults.tone);
+    }
     setActiveConversationId(profile.id);
     setConversationMutationError(null);
     setConversationDialog('memory');
@@ -4425,7 +4473,14 @@ export default function Home({
       normalDefaults?: ConversationDefaults;
     },
   ) {
+    if (payload.commitmentMode === 'provided' && !payload.commitmentDetails) {
+      setRequestError('כתבו איזה מועד או מחיר אפשר להציע, או בחרו להמשיך בלי התחייבות.');
+      scrollToComposeSection();
+      window.requestAnimationFrame(() => document.getElementById('commitment-details')?.focus());
+      return;
+    }
     const request = generationRequests.begin();
+    setContinueDialogReply(null);
     setCopiedReplyIndex(null);
     setHasCopiedAllReplies(false);
     setIsLoading(false);
@@ -4534,6 +4589,12 @@ export default function Home({
       }
 
       if (typeof replyIndex === 'number') {
+        if (payload.sourceReply) {
+          const before = payload.sourceReply;
+          setReplyHistory((history) => request.isCurrent()
+            ? recordReplyRefinement(history, replyIndex, before, nextReplies[0])
+            : history);
+        }
         setResult((currentResult) => {
           if (!request.isCurrent() || !currentResult) return currentResult;
 
@@ -4566,12 +4627,15 @@ export default function Home({
         return;
       }
 
+      setReplyHistory(createReplyHistory());
       setResult({
         intent: nextIntent,
         replies: nextReplies.slice(0, 3),
       });
 
-      if (options?.normalDefaults) {
+      if (payload.previousOutgoingMessage || payload.commitmentDetails) {
+        setLastSuccessfulConversationDefaults(null);
+      } else if (options?.normalDefaults) {
         recordSuccessfulConversationGeneration(
           options.conversationIdForReuse ?? null,
           options.normalDefaults,
@@ -4644,7 +4708,20 @@ export default function Home({
     }
   }
 
+  function getReplyContextForRequest(): ReplyContext {
+    const hasCommitmentQuestion = !isNoReplyMode && getMissingCommitmentKind(message) !== null;
+    const choice = commitmentChoice?.message === message ? commitmentChoice : null;
+    return {
+      languagePreferences,
+      previousOutgoingMessage: !isNoReplyMode && previousOutgoingMessage ? previousOutgoingMessage : undefined,
+      commitmentMode: hasCommitmentQuestion ? choice?.mode ?? 'ask' : undefined,
+      commitmentDetails: hasCommitmentQuestion && choice?.mode === 'provided' ? choice.details.trim() : undefined,
+    };
+  }
+
   async function handleMainSubmit() {
+    const replyContext = getReplyContextForRequest();
+
     const trimmedMessage = message.trim().slice(0, MAX_INCOMING_MESSAGE_LENGTH);
     const trimmedLastOutgoingMessage = lastOutgoingMessage
       .trim()
@@ -4714,6 +4791,7 @@ export default function Home({
     });
 
     await runGeneration({
+      ...replyContext,
       message: isNoReplyMode ? '' : trimmedMessage,
       imageBase64: isNoReplyMode ? null : imageBase64,
       context: context ?? undefined,
@@ -4776,6 +4854,7 @@ export default function Home({
 
     await runGeneration(
       {
+        ...getReplyContextForRequest(),
         message: isNoReplyMode ? '' : trimmedMessage,
         imageBase64: isNoReplyMode ? null : imageBase64,
         context: context ?? undefined,
@@ -4815,6 +4894,7 @@ export default function Home({
 
     await runGeneration(
       {
+        ...getReplyContextForRequest(),
         message: isNoReplyMode ? '' : trimmedMessage,
         imageBase64: isNoReplyMode ? null : imageBase64,
         context: context ?? undefined,
@@ -4957,6 +5037,7 @@ export default function Home({
       return;
     }
 
+    setReplyHistory((history) => clearReplyRevision(history, index));
     setResult((currentResult) => {
       if (!currentResult || !currentResult.replies[index]) {
         return currentResult;
@@ -5014,10 +5095,16 @@ export default function Home({
   }
 
   function handleNewMessage() {
+    trackEvent('result_new_message', { compose_mode: composeMode });
+    resetMessageDraft();
+  }
+
+  function resetMessageDraft() {
     cancelPendingInput();
-    trackEvent('result_new_message', {
-      compose_mode: composeMode,
-    });
+    setReplyHistory(createReplyHistory());
+    setPreviousOutgoingMessage('');
+    setCommitmentChoice(null);
+    setContinueDialogReply(null);
     setResult(null);
     setRequestError(null);
     setImageError(null);
@@ -5050,6 +5137,10 @@ export default function Home({
 
   function applyExample(scenario: ExampleScenario) {
     cancelPendingInput();
+    setReplyHistory(createReplyHistory());
+    setPreviousOutgoingMessage('');
+    setCommitmentChoice(null);
+    setContinueDialogReply(null);
     trackEvent('example_click', {
       example_id: scenario.id,
       context: scenario.context,
@@ -5095,6 +5186,44 @@ export default function Home({
     }
   }
 
+  function handleRestoreReply(index: number) {
+    if (!result || isGenerating) return;
+    const previous = getPreviousReply(replyHistory, index, result.replies[index]);
+    if (previous === null) return;
+    setResult((current) => {
+      if (!current) return current;
+      const replies = [...current.replies];
+      replies[index] = previous;
+      return { ...current, replies };
+    });
+    setReplyHistory((history) => clearReplyRevision(history, index));
+    setCopiedReplyIndex(null);
+    setHasCopiedAllReplies(false);
+  }
+
+  function handleContinueConversation(sentMessage: string, incomingMessage: string) {
+    cancelPendingInput();
+    setComposeMode('incoming');
+    setPreviousOutgoingMessage(sentMessage);
+    setMessage(incomingMessage);
+    setCommitmentChoice(null);
+    setResult(null);
+    setReplyHistory(createReplyHistory());
+    setContinueDialogReply(null);
+    setLastOutgoingMessage('');
+    setNoReplyDurationValue('');
+    setNoReplyDurationUnit('');
+    setConversationBackground('');
+    setGoal(null);
+    setContinuePreference(null);
+    setRequestError(null);
+    setCopiedReplyIndex(null);
+    setHasCopiedAllReplies(false);
+    setLastSuccessfulConversationDefaults(null);
+    setMobilePrimaryView('compose');
+    scrollToComposeSection();
+  }
+
   function handleMessagePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
     const pastedText = event.clipboardData.getData('text')?.trim() ?? '';
 
@@ -5111,6 +5240,7 @@ export default function Home({
   function handleIncomingMessageChange(event: ChangeEvent<HTMLTextAreaElement>) {
     const nextMessage = event.target.value.slice(0, MAX_INCOMING_MESSAGE_LENGTH);
     setMessage(nextMessage);
+    setCommitmentChoice(null);
 
     if (nextMessage.trim()) {
       markGeneratorInputStart('typing');
@@ -5489,6 +5619,23 @@ export default function Home({
                 </div>
               )}
 
+              {!isNoReplyMode && previousOutgoingMessage ? (
+                <details className="rounded-2xl border border-[#b8e7df] bg-[#f0faf7] p-3">
+                  <summary className={`min-h-11 cursor-pointer py-2 text-sm font-bold text-[#123a36] ${lightSurfaceFocusClass}`}>בהמשך למה ששלחת · הקשר זמני</summary>
+                  <p dir="auto" className="whitespace-pre-wrap text-start text-sm leading-6 text-[#463b33] [overflow-wrap:anywhere]">{previousOutgoingMessage}</p>
+                  <button type="button" onClick={() => setPreviousOutgoingMessage('')} className={`mt-2 min-h-11 rounded-xl px-3 text-xs font-bold underline ${lightSurfaceFocusClass}`}>להמשיך בלי ההקשר הקודם</button>
+                </details>
+              ) : null}
+
+              {!isNoReplyMode && getMissingCommitmentKind(message) ? (
+                <CommitmentControls
+                  kind={getMissingCommitmentKind(message)!}
+                  mode={commitmentChoice?.message === message ? commitmentChoice.mode : 'ask'}
+                  details={commitmentChoice?.message === message ? commitmentChoice.details : ''}
+                  onChange={(mode, details) => setCommitmentChoice({ message, mode, details })}
+                />
+              ) : null}
+
               <div className="space-y-2.5">
                 <button
                   type="button"
@@ -5632,10 +5779,12 @@ export default function Home({
                       }}
                     />
 
+                    <LanguagePreferenceControls value={languagePreferences} onChange={setLanguagePreferences} />
+
                     {!isNoReplyMode ? (
                       <ChipGroup
                         title="רוצים להמשיך את השיחה?"
-                        description="אפשר להשאיר לא מוגדר ולתת להודעה להוביל."
+                        description="זה קובע אם להשאיר את השיחה פתוחה — לא אם להסכים למה שנכתב."
                         headerAlign="right"
                         options={continuePreferenceOptions}
                         primaryVisibleCount={2}
@@ -5822,6 +5971,9 @@ export default function Home({
                       onAdjust={handleReplyAction}
                       onCustomAdjust={handleCustomReplyAdjustment}
                       onEdit={handleReplyEdit}
+                      previousReply={getPreviousReply(replyHistory, index, reply)}
+                      onRestore={handleRestoreReply}
+                      onContinue={setContinueDialogReply}
                     />
                   ))}
                 </div>
@@ -6071,6 +6223,10 @@ export default function Home({
         </footer>
       </div>
 
+
+      {continueDialogReply !== null ? (
+        <ContinueConversationDialog suggestedReply={continueDialogReply} onCancel={() => setContinueDialogReply(null)} onContinue={handleContinueConversation} />
+      ) : null}
 
       <SaveConversationDialog
         key={conversationDialog === 'save' ? 'save-open' : 'save-closed'}

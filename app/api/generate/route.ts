@@ -31,6 +31,7 @@ import { readVisitorIdentity, resolveUserId } from "@/lib/visitor-identity";
 import { MAX_NO_REPLY_DURATION_VALUE } from "@/lib/message-limits";
 import { recordServerProductEvent } from "@/lib/product-events";
 import { after } from "next/server";
+import { normalizeReplyContext, type ReplyContext } from "@/lib/reply-context";
 import { isIP } from "node:net";
 import { selectRelevantRelationshipMemory, type MemorySelection } from "@/lib/relationship-memory";
 import {
@@ -62,7 +63,7 @@ const BILLING_BYPASS_USER_QUOTA = {
   windowMs: 2 * 60 * 60_000,
 } as const;
 
-interface GenerateRequestBody {
+interface GenerateRequestBody extends ReplyContext {
   message?: string;
   imageBase64?: string;
   context?: string;
@@ -176,6 +177,12 @@ export async function POST(request: Request) {
       },
       400,
     );
+  }
+
+  try {
+    Object.assign(body, normalizeReplyContext(body));
+  } catch (error) {
+    return noStoreJson({ error: error instanceof Error ? error.message : "ההקשר שצורף לא תקין." }, 400);
   }
 
   if (authenticatedUserUid) {
@@ -537,7 +544,9 @@ function relationshipTimeBucket(ageMs: number) {
 }
 
 function isNewConversationTurn(body: GenerateRequestBody) {
-  return !body.action && !body.sourceReply && !body.refineInstruction;
+  // Temporary exchange context must not leak through generated lastIntent or memory writes.
+  return !body.action && !body.sourceReply && !body.refineInstruction &&
+    !body.previousOutgoingMessage && !body.commitmentDetails;
 }
 
 function withAccountIdentity<T extends { accountEmail: string | null; isRecoverableAccount: boolean }>(
