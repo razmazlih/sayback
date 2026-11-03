@@ -178,9 +178,13 @@ export async function generateRepliesWithModelSource(
     MAX_LAST_OUTGOING_MESSAGE_LENGTH,
   );
   const action = normalizeAction(input.action);
+  if (typeof input.sourceReply === "string" && input.sourceReply.trim().length > 220) {
+    throw new AIRequestError("הנוסח ארוך מדי לשיפור. אפשר לקצר אותו ל־220 תווים ולנסות שוב.", 400);
+  }
   const sourceReply = normalizeOptionalText(input.sourceReply, 220);
+  const explicitRefineInstruction = normalizeOptionalText(input.refineInstruction, 220);
   const refineInstruction = buildRefineInstruction({
-    explicitInstruction: normalizeOptionalText(input.refineInstruction, 220),
+    explicitInstruction: explicitRefineInstruction,
     action,
     sourceReply,
   });
@@ -190,6 +194,10 @@ export async function generateRepliesWithModelSource(
 
   if (input.refineInstruction !== undefined && !normalizeOptionalText(input.refineInstruction, 220)) {
     throw new AIRequestError("כתבו מה תרצו לשנות בניסוח.", 400);
+  }
+
+  if ((action || explicitRefineInstruction) && !sourceReply) {
+    throw new AIRequestError("צריך לבחור תשובה קיימת כדי לשפר את הניסוח.", 400);
   }
 
   if (noReplyMode) {
@@ -230,7 +238,7 @@ export async function generateRepliesWithModelSource(
 
   if (FREE_AI_MODE_ENABLED) {
     return {
-      result: generateFreeReplies({
+      result: changedRefinement(generateFreeReplies({
         replyContext,
         message,
         context,
@@ -244,8 +252,8 @@ export async function generateRepliesWithModelSource(
         lastOutgoingMessage,
         action,
         sourceReply,
-        refineInstruction,
-      }),
+        refineInstruction: explicitRefineInstruction,
+      }), sourceReply),
       modelSource: "local",
     };
   }
@@ -275,12 +283,13 @@ export async function generateRepliesWithModelSource(
       noReplyDurationUnit,
       lastOutgoingMessage,
       refineInstruction,
+      sourceReply,
       savedConversationMemory,
       myVoiceInstruction,
     });
 
     return {
-      result: protectReplyCommitments(result, replyContext, message, goal, continuePreference),
+      result: changedRefinement(protectReplyCommitments(changedRefinement(result, sourceReply), replyContext, message, goal, continuePreference), sourceReply),
       modelSource: "api",
     };
   } catch (error) {
@@ -307,6 +316,7 @@ async function generateRepliesViaOpenAI({
   noReplyDurationUnit,
   lastOutgoingMessage,
   refineInstruction,
+  sourceReply,
   savedConversationMemory,
   myVoiceInstruction,
 }: {
@@ -324,6 +334,7 @@ async function generateRepliesViaOpenAI({
   noReplyDurationUnit?: NoReplyDurationUnit;
   lastOutgoingMessage?: string;
   refineInstruction?: string;
+  sourceReply?: string;
   savedConversationMemory?: SavedConversationMemory;
   myVoiceInstruction?: string;
 }): Promise<GenerateRepliesResult> {
@@ -361,6 +372,7 @@ async function generateRepliesViaOpenAI({
             noReplyDurationUnit,
             lastOutgoingMessage,
             refineInstruction,
+            sourceReply,
             savedConversationMemory,
             myVoiceInstruction,
           }),
@@ -467,20 +479,94 @@ function generateFreeReplies({
     replies = conversationOpenReplies(tone ?? (context === "לקוח" || context === "בוס" ? "ענייני" : "זורם"), language);
   }
 
-  if (sourceReply && !hasUnsupportedCommitment(sourceReply, replyContext, Boolean(kind || replyContext.commitmentMode)) && continuePreference !== "לא") {
-    // Never remove uncertainty words: making a reply sharper is not authorization.
-    const instruction = refineInstruction ?? "";
-    let refined = sourceReply;
-    if (/בלי אימוג/.test(instruction)) refined = refined.replace(/[\p{Extended_Pictographic}\uFE0F]/gu, "").trim();
-    else if (/עם אימוג/.test(instruction) && !/[\p{Extended_Pictographic}]/u.test(refined)) refined += " 🙂";
-    else if (/קצר/.test(instruction)) refined = refined.split(/[.!?]/)[0]?.trim() || refined;
-    else if (action === "softer") refined = `היי, ${refined}`;
-    else if (action === "sharper") refined = `בקצרה: ${refined}`;
-    // A retry may choose a fresh safe formulation instead of echoing raw instructions.
-    if (refined.trim() && (action !== "retry" || /אימוג|קצר/.test(instruction))) replies[0] = refined;
+  if (sourceReply) {
+    replies = localRefineReplies({ source: sourceReply, action, instruction: refineInstruction, base: replies, context: replyContext, kind, closing: continuePreference === "לא" || goal === "לסגור בנימוס" || goal === "שחרור מכבד", noReply: noReplyMode, goal, tone });
   }
 
   return { intent, replies: replies.map((reply) => adaptLocalLanguage(reply, language).slice(0, 220)) as [string, string, string] };
+}
+
+function normalizedRefinement(value: string): string {
+  return value.normalize('NFKC').trim().replace(/^(?:(?:היי|בקצרה|בניסוח אחר)[,:\s]+)+/u, '').replace(/[\s\p{P}]+/gu, '').toLowerCase();
+}
+
+function changedRefinement(result: GenerateRepliesResult, source?: string): GenerateRepliesResult {
+  if (!source) return result;
+  const index = result.replies.findIndex((reply) => reply.trim().length > 0 && normalizedRefinement(reply) !== normalizedRefinement(source));
+  if (index < 0) throw new AIRequestError('לא התקבל ניסוח שונה מספיק. אפשר לנסות שינוי אחר או לערוך בעצמך.', 422);
+  const replies = [...result.replies] as [string, string, string];
+  [replies[0], replies[index]] = [replies[index], replies[0]];
+  return { ...result, replies };
+}
+
+function localRefineReplies({ source, action, instruction, base, context, kind, closing, noReply, goal, tone }: {
+  source: string; action?: ReplyActionOption; instruction?: string; base: [string, string, string]; context: ReplyContext;
+  kind: 'time' | 'price' | null; closing: boolean; noReply?: boolean; goal?: GoalOption; tone?: ToneOption;
+}): [string, string, string] {
+  const language = context.languagePreferences;
+  const current = adaptLocalLanguage(source, language);
+  const style = /עדין|חם|רך|נעים/.test(instruction ?? '') ? 'softer' : /חד|ישיר/.test(instruction ?? '') ? 'sharper' : action ?? 'retry';
+  const variants = (mode: ReplyActionOption): [string, string, string] => {
+    if (closing) return mode === 'softer'
+      ? ['תודה ששיתפת. עדיף לי שנסיים את השיחה כאן, ושיהיה לך טוב.', 'תודה על ההודעה, אבל ארצה להשאיר את השיחה כאן.', 'תודה על השיחה. מבחינתי זה המקום לעצור.']
+      : mode === 'sharper' ? ['אני רוצה לסיים את השיחה כאן.', 'לא ארצה להמשיך לדבר על זה.', 'מבחינתי השיחה הסתיימה. תודה.']
+      : ['תודה על הדברים. אין לי רצון להמשיך את השיחה.', 'אשאיר את השיחה בנקודה הזאת. תודה.', 'כאן מתאים לי לעצור את השיחה.'];
+    if (context.commitmentMode === 'provided' && context.commitmentDetails) {
+      const details = context.commitmentDetails;
+      return mode === 'softer' ? [`אשמח לבדוק אם זה מתאים לך: ${details}`, `אם זה מתאים גם לך, אפשר להתקדם עם: ${details}`, `אשמח לשמוע מה דעתך על הפרטים: ${details}`]
+        : mode === 'sharper' ? [`ההצעה שלי היא ${details}`, `אלה הפרטים שעליהם אוכל להתחייב: ${details}`, `כדי להתקדם, הפרטים מבחינתי הם ${details}`]
+        : [`לגבי הפרטים ששאלת עליהם: ${details}`, `אפשר לתאם לפי הפרטים האלה: ${details}`, `זאת האפשרות שאוכל להציע: ${details}`];
+    }
+    if (kind || context.commitmentMode) {
+      if (context.commitmentMode === 'defer') return mode === 'softer' ? ['אשמח להמשיך לדבר, אבל עוד לא אוכל לאשר את הפרטים.', 'אפשר להשאיר את זה פתוח עד שיהיו לי הפרטים?', 'כדי לא להבטיח משהו שלא בדקתי, עדיף שנמתין עם הסיכום.'] : mode === 'sharper' ? ['כרגע אין אישור לפרטים. נשאיר את זה פתוח.', 'עוד אי אפשר להתחייב על זה.', 'צריך בירור לפני סיכום הפרטים.'] : ['הפרטים עוד לא סגורים מבחינתי.', 'אפשר לדבר על האפשרויות בלי להתחייב כרגע.', 'בינתיים נשאיר מקום לבדוק את הפרטים.'];
+      const detail = kind === 'time' ? 'ימים ושעות' : kind === 'price' ? 'מחיר ותנאים' : 'פרטים';
+      const definiteDetail = kind === 'time' ? 'הימים והשעות' : kind === 'price' ? 'המחיר והתנאים' : 'הפרטים';
+      return mode === 'softer' ? [`אשמח לשמוע אילו ${detail} מתאימים לך, לפני שאאשר.`, `אפשר לבדוק יחד את ${definiteDetail} לפני שמחליטים?`, `כדי שנמצא משהו שמתאים לשנינו, אפשר להרחיב על ${definiteDetail}?`]
+        : mode === 'sharper' ? [`מה ${definiteDetail} שעליהם מדובר?`, `צריך להבהיר ${detail} לפני אישור.`, `בלי ${detail} ברורים עוד אי אפשר להתחייב.`]
+        : [`אילו אפשרויות יש מבחינת ${detail}?`, `לפני החלטה, אשמח להבין את ${definiteDetail}.`, `אפשר לפרט את ${definiteDetail} כדי שנוכל להתקדם?`];
+    }
+    if (noReply) return mode === 'softer' ? ['היי, רק רציתי להזכיר בעדינות את ההודעה שלי. אשמח לעדכון כשיתאפשר.', 'כשנוח לך, אשמח לשמוע אם יש חדש לגבי ההודעה שלי.', 'רק תזכורת קטנה בלי לחץ, כדי לדעת אם זה עדיין רלוונטי.'] : mode === 'sharper' ? ['יש עדכון לגבי ההודעה שלי?', 'אפשר לדעת איפה זה עומד?', 'ההודעה שלי עדיין רלוונטית מבחינתך?'] : ['רציתי לחזור להודעה הקודמת ולבדוק אם יש תשובה.', 'היי, ההודעה הקודמת שלי נשארה פתוחה. יש חדש?', 'אשמח לדעת אם אפשר להתקדם מההודעה האחרונה.'];
+    if (goal === 'להציב גבול') return mode === 'softer' ? ['חשוב לי להגיד בעדינות שזה לא מתאים לי.', 'הבקשה ברורה לי, אבל חשוב לי לשמור על הגבול שלי.', 'תודה על ההבנה, אבל זה גבול שחשוב לי לשמור.'] : mode === 'sharper' ? ['זה לא מתאים לי. חשוב לי שהגבול הזה יישמר.', 'זה הגבול שלי ולא ארצה לעבור אותו.', 'אני רוצה שנכבד את הגבול שהצבתי.'] : ['כאן עובר הגבול שלי, וחשוב לי לשמור עליו.', 'לא ארצה להתקדם בדרך הזאת.', 'מבחינתי זה לא מתאים, גם אם הכוונה טובה.'];
+    if (goal === 'לבקש הבהרה') return mode === 'softer' ? ['אשמח להבין קצת יותר למה הכוונה, אם אפשר.', 'אפשר לעזור לי להבין את הדברים קצת יותר?', 'כדי שלא אפספס, אפשר להסביר קצת יותר?'] : mode === 'sharper' ? ['למה בדיוק הכוונה?', 'מה חשוב שאבין מזה?', 'אפשר הסבר ברור יותר?'] : ['מה עומד מאחורי הדברים?', 'רציתי לוודא שהבנתי. אפשר לפרט?', 'איך כדאי להבין את מה שכתבת?'];
+    return conversationOpenReplies(mode === 'softer' ? 'עדין' : mode === 'sharper' ? 'ישיר' : tone ?? 'זורם', language);
+  };
+  const pool = [...base, ...variants('softer'), ...variants('sharper'), ...variants('retry'), ...TONE_OPTIONS.flatMap((t) => conversationOpenReplies(t, language))].map((r) => adaptLocalLanguage(r, language));
+  const known = pool.some((r) => normalizedRefinement(r) === normalizedRefinement(current));
+  let candidates = variants(style).map((r) => adaptLocalLanguage(r, language)) as [string, string, string];
+  if (instruction) {
+    const allowedWords = new Set(['שיהיה', 'קצר', 'קצרה', 'חם', 'חמה', 'עדין', 'עדינה', 'רך', 'רכה', 'נעים', 'נעימה', 'חד', 'חדה', 'ישיר', 'ישירה', 'יותר', 'בלי', 'ללא', 'עם', 'אימוגי', 'אימוגים', 'בבקשה', 'ניסוח', 'תגובה', 'תשובה', 'זה', 'את', 'אפשר', 'להוסיף', 'להסיר', 'אחר', 'אחרת', 'שונה', 'חדש', 'חדשה']);
+    const words = instruction.replace(/[׳״'".,!?]/gu, '').split(/\s+/).filter(Boolean);
+    if (words.some((word) => !allowedWords.has(word) && !(word.startsWith('ו') && allowedWords.has(word.slice(1))))) throw new AIRequestError('לא הצלחתי לבצע את השינוי המבוקש. אפשר לנסות הנחיה קצרה אחרת או לערוך בעצמך.', 422);
+    if (/אימוג/.test(instruction)) {
+      const modified = /בלי|ללא|להסיר/.test(instruction) ? current.replace(/[\p{Extended_Pictographic}\uFE0F]/gu, '').replace(/ {2,}/g, ' ').trim() : /[\p{Extended_Pictographic}]/u.test(current) ? current : `${current} 🙂`;
+      candidates = [modified, modified, modified];
+    } else if (/קצר/.test(instruction)) {
+      const shorterPool = /חם|עדין|רך|נעים/.test(instruction) ? candidates : [...candidates, ...variants('sharper')];
+      const shorter = known ? shorterPool.filter((candidate) => candidate.length < current.length) : [];
+      const compact = current.replace(/רק כדי להבין,?\s*/gu, '').replace(/אשמח מאוד/gu, 'אשמח').replace(/אני רוצה מאוד/gu, 'ארצה').replace(/בבקשה,?\s*/gu, '').trim();
+      candidates = shorter.length ? [shorter[0], shorter[1] ?? shorter[0], shorter[2] ?? shorter[0]] : [compact, compact, compact];
+    } else if (!known) {
+      candidates = constrainedLocalRewrite(current, style);
+    }
+  } else if (!known && !hasUnsupportedCommitment(current, context, Boolean(kind))) {
+    candidates = constrainedLocalRewrite(current, style);
+  }
+  if (candidates.some((reply) => hasUnsupportedCommitment(reply, context, Boolean(kind)))) {
+    throw new AIRequestError('לא הצלחתי לבצע את השינוי בלי להוסיף התחייבות שלא אושרה. אפשר לערוך את הנוסח ולנסות שוב.', 422);
+  }
+  const safe = candidates.map((reply) => adaptLocalLanguage(reply, language)).filter((reply) => reply.length <= 220) as [string, string, string];
+  const result = changedRefinement({ intent: '', replies: safe }, source);
+  // Keep the response shape while selecting a changed, safe first reply for the UI.
+  const distinct = [...new Set([result.replies[0], ...result.replies, ...base].filter((reply) => reply.trim()))];
+  return distinct.slice(0, 3) as [string, string, string];
+}
+
+function constrainedLocalRewrite(source: string, action: ReplyActionOption): [string, string, string] {
+  let revised = source;
+  if (action === 'softer') revised = source.replace(/אני (מעוניין|מעוניינת) להמשיך/gu, 'אני $1 שנמשיך בנחת').replace(/אפשר לשמוע עוד\?/gu, 'אשמח לשמוע עוד, אם נוח לך לשתף.').replace(/זה לא מתאים לי/gu, 'זה פחות מתאים לי כרגע');
+  else if (action === 'sharper') revised = source.replace(/אולי זה יתאים אם/gu, 'זה עשוי להתאים, אם').replace(/אשמח מאוד לשמוע/gu, 'אשמח לשמוע').replace(/רק כדי להבין,?\s*/gu, '');
+  else revised = source.replace(/אפשר לשמוע עוד\?/gu, 'מה עוד חשוב לך לשתף?').replace(/תודה שכתבת/gu, 'תודה על ההודעה');
+  return [revised, revised, revised];
 }
 
 function conversationOpenReplies(tone: ToneOption, language: ReplyContext['languagePreferences']): [string, string, string] {
@@ -684,6 +770,7 @@ function buildInputContent({
   noReplyDurationUnit,
   lastOutgoingMessage,
   refineInstruction,
+  sourceReply,
   savedConversationMemory,
   myVoiceInstruction,
 }: {
@@ -700,6 +787,7 @@ function buildInputContent({
   noReplyDurationUnit?: NoReplyDurationUnit;
   lastOutgoingMessage?: string;
   refineInstruction?: string;
+  sourceReply?: string;
   savedConversationMemory?: SavedConversationMemory;
   myVoiceInstruction?: string;
 }): InputContentItem[] {
@@ -731,6 +819,7 @@ function buildInputContent({
       : null,
     savedConversationMemory ? buildSavedConversationMemoryText(savedConversationMemory) : null,
     myVoiceInstruction ?? null,
+    sourceReply ? `הנוסח הנוכחי לשיפור (יש לשכתב אותו, לא לחזור עליו):\n"""\n${sourceReply}\n"""` : null,
     refineInstruction ? `שינוי מבוקש: ${refineInstruction}` : null,
     message
       ? `הודעה שהמשתמש קיבל:\n"""\n${message}\n"""`
@@ -911,42 +1000,12 @@ function normalizeAction(value?: string): ReplyActionOption | undefined {
   throw new AIRequestError("פעולת השיפור לא תקינה.", 400);
 }
 
-function buildRefineInstruction({
-  explicitInstruction,
-  action,
-  sourceReply,
-}: {
-  explicitInstruction?: string;
-  action?: ReplyActionOption;
-  sourceReply?: string;
-}): string | undefined {
-  if (explicitInstruction) {
-    return explicitInstruction;
-  }
-
-  if (!action) {
-    return sourceReply
-      ? `בסס את התשובה החדשה על הטיוטה הבאה ושפר אותה: ${sourceReply}`
-      : undefined;
-  }
-
-  const actionInstruction = (() => {
-    if (action === "softer") {
-      return "הצעה חדשה, עדינה יותר ונעימה יותר בלי לוותר על בהירות.";
-    }
-
-    if (action === "sharper") {
-      return "הצעה חדשה, יותר חדה וישירה אך עדיין מכבדת.";
-    }
-
-    return "הצעה חדשה ושונה מהניסוח הקודם.";
-  })();
-
-  if (!sourceReply) {
-    return actionInstruction;
-  }
-
-  return `${actionInstruction}\nטיוטה קודמת לשיפור: ${sourceReply}`;
+function buildRefineInstruction({ explicitInstruction, action, sourceReply }: { explicitInstruction?: string; action?: ReplyActionOption; sourceReply?: string }): string | undefined {
+  if (!sourceReply && !action && !explicitInstruction) return undefined;
+  const actionInstruction = action === "softer" ? "שכתב את הטיוטה לניסוח עדין ונעים יותר, תוך שמירת המשמעות והגבולות."
+    : action === "sharper" ? "שכתב את הטיוטה לניסוח חד וישיר יותר, בלי להחליש תנאים או להוסיף התחייבות."
+    : "הצע ניסוחים שונים ממש של אותה כוונה, לא חזרה על הנוסח הקיים.";
+  return `${actionInstruction}\n${explicitInstruction ? `הנחיית המשתמש לשינוי: ${explicitInstruction}\n` : ''}כל שלוש האפשרויות צריכות לשנות את הניסוח בפועל; אל תסתפק בהוספת היי או בקצרה. הנוסח הראשון הוא זה שיוצג למשתמש.`;
 }
 
 function normalizeImage(value?: string): string | undefined {

@@ -191,3 +191,41 @@ test('an interrupted refinement never resurrects previous conversation text in h
   await next;
   assert.equal(h.state.replyHistory.every((revision) => revision === null), true);
 });
+
+for (const action of ['softer', 'sharper', 'retry']) {
+  test(`${action}: updates the selected card and repeated request uses its latest revision`, async () => {
+    const h = harness();
+    const first = h.runGeneration({ ...payload, action, sourceReply: 'two' }, { replyIndex: 1 });
+    assert.equal(h.state.busyReplyIndex, 1);
+    h.network[0].resolve(response());
+    await first;
+    assert.deepEqual(Array.from(h.state.result.replies), ['old', 'new', 'three']);
+    assert.equal(h.state.replyHistory[1].before, 'two');
+    const second = h.runGeneration({ ...payload, action, sourceReply: 'new' }, { replyIndex: 1 });
+    h.network[1].resolve({ ok: true, status: 200, json: async () => ({ intent: 'intent', replies: ['newer', 'other', 'third'] }) });
+    await second;
+    assert.deepEqual(Array.from(h.state.result.replies), ['old', 'newer', 'three']);
+    assert.equal(h.state.replyHistory[1].before, 'new');
+    assert.equal(h.state.busyReplyIndex, null);
+  });
+}
+
+for (const outcome of ['network', 'server', 'unchanged']) {
+  test(`refine ${outcome} errors stay on the card, preserve text/history and release loading`, async () => {
+    const h = harness();
+    h.state.replyHistory = historyModule.exports.recordReplyRefinement(h.state.replyHistory, 0, 'older', 'old');
+    const pending = h.runGeneration({ ...payload, action: 'retry', sourceReply: 'old', refineInstruction: 'קצר יותר' }, { replyIndex: 0 });
+    if (outcome === 'network') h.network[0].reject(new Error('network failed'));
+    else h.network[0].resolve({ status: outcome === 'server' ? 422 : 200, ok: outcome !== 'server', json: async () => ({ error: 'לא התקבל נוסח שונה', intent: 'intent', replies: ['old', 'two', 'three'] }) });
+    await pending;
+    assert.equal(h.state.result.replies[0], 'old');
+    assert.equal(h.state.replyHistory[0].before, 'older');
+    assert.equal(h.state.replyError.index, 0);
+    assert.ok(h.state.replyError.message);
+    assert.equal(h.state.requestError, null);
+    assert.equal(h.state.busyReplyIndex, null);
+    assert.equal(h.calls.some(([name, event]) => name === 'trackEvent' && event === 'generate_success'), false);
+    h.handleNewMessage();
+    assert.equal(h.state.replyError, null);
+  });
+}

@@ -1524,6 +1524,7 @@ function ReplyCard({
   onCustomAdjust,
   onEdit,
   previousReply,
+  refineError,
   onRestore,
   onContinue,
   isBusy,
@@ -1538,6 +1539,7 @@ function ReplyCard({
   onCustomAdjust: (index: number, instruction: string) => void;
   onEdit: (reply: string, index: number) => void;
   previousReply: string | null;
+  refineError: string | null;
   onRestore: (index: number) => void;
   onContinue: (reply: string) => void;
   isBusy: boolean;
@@ -1615,6 +1617,8 @@ function ReplyCard({
           </div>
         </>
       )}
+
+      {refineError ? <p role="alert" className="mt-3 rounded-xl border border-[#efb7ad] bg-[#fff0ea] p-3 text-sm leading-6 text-[#8c2e20]">{refineError}</p> : null}
 
       {previousReply && !isEditing ? (
         <details className="mt-3 rounded-2xl border border-[#e2d7c8] bg-[#f8f3eb] p-3">
@@ -2656,6 +2660,7 @@ export default function Home({
   const [imageError, setImageError] = useState<string | null>(null);
   const [showDeepLinkPrefillBanner, setShowDeepLinkPrefillBanner] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [replyError, setReplyError] = useState<{ index: number; message: string } | null>(null);
   const [result, setResult] = useState<GenerateResponse | null>(null);
   const [hasSentFirstGeneration, setHasSentFirstGeneration] = useState(false);
   const [freeUsed, setFreeUsed] = useState(0);
@@ -4480,6 +4485,7 @@ export default function Home({
       return;
     }
     const request = generationRequests.begin();
+    setReplyError(null);
     setContinueDialogReply(null);
     setCopiedReplyIndex(null);
     setHasCopiedAllReplies(false);
@@ -4589,6 +4595,9 @@ export default function Home({
       }
 
       if (typeof replyIndex === 'number') {
+        if (payload.sourceReply?.trim() === nextReplies[0].trim()) {
+          throw new Error('לא התקבל נוסח שונה. הנוסח הקודם נשמר; אפשר לבקש שינוי אחר.');
+        }
         if (payload.sourceReply) {
           const before = payload.sourceReply;
           setReplyHistory((history) => request.isCurrent()
@@ -4687,11 +4696,14 @@ export default function Home({
         no_reply_duration_value: payload.noReplyDurationValue ?? null,
         no_reply_duration_unit: payload.noReplyDurationUnit ?? null,
       });
-      setRequestError(
-        mapApiErrorMessage(
-          error instanceof Error ? error.message : 'משהו השתבש. נסה שוב בעוד רגע.',
-        ),
+      const errorMessage = mapApiErrorMessage(
+        error instanceof Error ? error.message : 'משהו השתבש. נסה שוב בעוד רגע.',
       );
+      if (isReplyUpdate) {
+        setReplyError({ index: requestedReplyIndex, message: errorMessage });
+      } else {
+        setRequestError(errorMessage);
+      }
 
       if (!isReplyUpdate && isCompactViewport()) {
         setMobilePrimaryView('compose');
@@ -5037,6 +5049,7 @@ export default function Home({
       return;
     }
 
+    setReplyError(null);
     setReplyHistory((history) => clearReplyRevision(history, index));
     setResult((currentResult) => {
       if (!currentResult || !currentResult.replies[index]) {
@@ -5086,6 +5099,7 @@ export default function Home({
   }
 
   function cancelPendingInput() {
+    setReplyError(null);
     generationRequests.invalidate();
     imageRequests.invalidate();
     setIsLoading(false);
@@ -5196,6 +5210,7 @@ export default function Home({
       replies[index] = previous;
       return { ...current, replies };
     });
+    setReplyError(null);
     setReplyHistory((history) => clearReplyRevision(history, index));
     setCopiedReplyIndex(null);
     setHasCopiedAllReplies(false);
@@ -5972,6 +5987,7 @@ export default function Home({
                       onCustomAdjust={handleCustomReplyAdjustment}
                       onEdit={handleReplyEdit}
                       previousReply={getPreviousReply(replyHistory, index, reply)}
+                      refineError={replyError?.index === index ? replyError.message : null}
                       onRestore={handleRestoreReply}
                       onContinue={setContinueDialogReply}
                     />

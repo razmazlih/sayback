@@ -90,7 +90,7 @@ test('all refine actions avoid unconfirmed concrete commitments and sharper pres
     assert.doesNotMatch(result.replies.join(' '), /18:00|מחר|סגור[,.!]/);
   }
   const result = await ai.generateReplies({ message: 'אפשר?', action: 'sharper', sourceReply: 'אולי זה יתאים אם נבדוק קודם.' });
-  assert.match(result.replies[0], /אולי.*אם נבדוק/);
+  assert.match(result.replies[0], /(?:אולי|עשוי).*אם נבדוק/);
 });
 
 test('no-reply and new-turn context do not invent previous messages or commitments', async () => {
@@ -161,9 +161,9 @@ test('male agreement from the model is not authorized by keep-talking preference
 });
 
 
-test('removing an emoji-only local source still returns three nonempty replies', async () => {
+test('removing an emoji-only source reports no usable change rather than unrelated text', async () => {
   const ai = engine();
-  shape(await ai.generateReplies({ message: 'היי', action: 'retry', sourceReply: '🙂', refineInstruction: 'בלי אימוג׳י' }));
+  await assert.rejects(ai.generateReplies({ message: 'היי', action: 'retry', sourceReply: '🙂', refineInstruction: 'בלי אימוג׳י' }), (error) => error.status === 422);
 });
 
 
@@ -207,4 +207,110 @@ test('all ten local tones remain distinct while continuing without agreeing', as
     openings.push(result.replies[0]);
   }
   assert.equal(new Set(openings).size, 10);
+});
+
+
+test('each local preset changes the first result meaningfully, including repeated actions', async () => {
+  const ai = engine();
+  const input = { message: 'היי, מה נשמע?', tone: 'זורם' };
+  for (const action of ['softer', 'sharper', 'retry']) {
+    let sourceReply = (await ai.generateReplies(input)).replies[0];
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const result = await ai.generateReplies({ ...input, action, sourceReply });
+      shape(result);
+      assert.notEqual(result.replies[0], sourceReply);
+      assert.notEqual(result.replies[0], `היי, ${sourceReply}`);
+      assert.notEqual(result.replies[0], `בקצרה: ${sourceReply}`);
+      sourceReply = result.replies[0];
+    }
+  }
+  assert.equal(ai.requests.length, 0);
+});
+
+test('refining a deterministic safety fallback does not repeat it', async () => {
+  const ai = engine();
+  const input = { message: 'מתי ניפגש?', tone: 'זורם' };
+  const sourceReply = (await ai.generateReplies(input)).replies[0];
+  for (const action of ['softer', 'sharper', 'retry']) {
+    const result = await ai.generateReplies({ ...input, sourceReply, action });
+    shape(result);
+    assert.notEqual(result.replies[0], sourceReply);
+    assert.doesNotMatch(result.replies.join(' '), /מחר|18:00/);
+  }
+});
+
+test('custom instructions include their exact source separately in the API input', async () => {
+  const ai = engine({ local: false });
+  const sourceReply = 'היי דנה, רציתי לשאול על הספר שהשאלתי לך.';
+  await ai.generateReplies({ message: 'על מה רצית לדבר?', sourceReply, action: 'retry', refineInstruction: 'שיהיה קצר וחם יותר' });
+  const text = ai.requests[0].input[0].content[0].text;
+  assert.match(text, /הנוסח הנוכחי לשיפור/);
+  assert.ok(text.includes(sourceReply));
+  assert.ok(text.includes('שיהיה קצר וחם יותר'));
+});
+
+test('the API selects a changed candidate when first is unchanged', async () => {
+  const sourceReply = 'אשמח לשמוע עוד.';
+  const ai = engine({ local: false, result: { intent: 'להמשיך', replies: [sourceReply, 'מה עוד חשוב לך לשתף?', 'אפשר לפרט קצת?'] } });
+  const result = await ai.generateReplies({ message: 'נדבר?', sourceReply, action: 'retry' });
+  assert.equal(result.replies[0], 'מה עוד חשוב לך לשתף?');
+});
+
+test('identical or superficial API results fail before success and before fallback deduplication', async () => {
+  const sourceReply = 'אפשר לשמוע עוד?';
+  const ai = engine({ local: false, result: { intent: 'להמשיך', replies: [sourceReply, `היי, ${sourceReply}`, `בקצרה: ${sourceReply}`] } });
+  await assert.rejects(ai.generateReplies({ message: 'היי', sourceReply, action: 'softer' }), (error) => error.status === 422 && /ניסוח שונה/.test(error.message));
+});
+
+test('unsupported local custom edits report failure instead of unrelated generated text', async () => {
+  const ai = engine();
+  await assert.rejects(ai.generateReplies({ message: 'מה דעתך?', sourceReply: 'אשמח לשמוע עוד.', action: 'retry', refineInstruction: 'תוסיף בדיחה על פסנתר' }), (error) => error.status === 422);
+});
+
+test('local custom shortening and emoji requests either change exactly as requested or fail explicitly', async () => {
+  const ai = engine();
+  const noEmoji = await ai.generateReplies({ message: 'היי', sourceReply: 'תודה רבה 🙂', action: 'retry', refineInstruction: 'בלי אימוג׳י' });
+  assert.equal(noEmoji.replies[0], 'תודה רבה');
+  const shorter = await ai.generateReplies({ message: 'היי', sourceReply: 'אשמח מאוד לשמוע עוד, בבקשה.', action: 'retry', refineInstruction: 'קצר יותר' });
+  assert.ok(shorter.replies[0].length < 'אשמח מאוד לשמוע עוד, בבקשה.'.length);
+  await assert.rejects(ai.generateReplies({ message: 'היי', sourceReply: 'תודה', action: 'retry', refineInstruction: 'קצר יותר' }), (error) => error.status === 422);
+});
+
+test('overlong edited source fails before truncation or any model request', async () => {
+  for (const local of [true, false]) {
+    const ai = engine({ local });
+    await assert.rejects(ai.generateReplies({ message: 'היי', sourceReply: 'א'.repeat(221), action: 'retry' }), (error) => error.status === 400 && /220/.test(error.message));
+    assert.equal(ai.requests.length, 0);
+  }
+});
+
+test('typical local custom shorter and warm requests rewrite the source', async () => {
+  const ai = engine();
+  const input = { message: 'היי, מה נשמע?', tone: 'זורם' };
+  const sourceReply = (await ai.generateReplies(input)).replies[0];
+  for (const refineInstruction of ['קצר יותר', 'שיהיה קצר וחם יותר', 'אפשר ניסוח אחר']) {
+    const result = await ai.generateReplies({ ...input, sourceReply, action: 'retry', refineInstruction });
+    shape(result);
+    assert.notEqual(result.replies[0], sourceReply);
+    if (refineInstruction.includes('קצר')) assert.ok(result.replies[0].length < sourceReply.length);
+  }
+});
+
+test('custom emoji edits cannot preserve an unsupported concrete commitment', async () => {
+  const ai = engine();
+  await assert.rejects(ai.generateReplies({ message: 'מתי ניפגש?', sourceReply: 'ניפגש מחר בשמונה', action: 'retry', refineInstruction: 'עם אימוגי' }), (error) => error.status === 422);
+});
+
+test('refinement retains the full maximum-length confirmed details including conditions', async () => {
+  const ai = engine();
+  const commitmentDetails = 'מחיר 300 שח, ' + 'א'.repeat(157) + ' בלי משלוח';
+  assert.equal(commitmentDetails.length, 180);
+  const input = { message: 'כמה עולה?', commitmentMode: 'provided', commitmentDetails };
+  const sourceReply = (await ai.generateReplies(input)).replies[0];
+  for (const action of ['softer', 'sharper', 'retry']) {
+    const result = await ai.generateReplies({ ...input, sourceReply, action });
+    shape(result);
+    assert.ok(result.replies[0].includes(commitmentDetails));
+    assert.match(result.replies[0], /בלי משלוח$/);
+  }
 });
