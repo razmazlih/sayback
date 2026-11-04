@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Analytics } from "@vercel/analytics/next";
 import { Rubik } from "next/font/google";
 import { resolveSiteUrl } from "@/lib/site-url";
 import {
@@ -9,7 +8,7 @@ import {
   SITE_LOCALE,
   SITE_NAME,
 } from "@/lib/seo";
-import { AnalyticsScripts } from "@/app/analytics-scripts";
+import { SiteAnalytics } from "@/app/site-analytics";
 import "./globals.css";
 
 const rubik = Rubik({
@@ -76,8 +75,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         {children}
-        <AnalyticsScripts />
-        <Analytics />
+        <SiteAnalytics />
       </body>
     </html>
   );

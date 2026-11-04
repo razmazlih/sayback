@@ -192,8 +192,12 @@ export async function recordServerProductEvent(params: {
     const storedAttribution = normalizeAttributionDocument(attributionSnapshot.data());
     const attribution = storedAttribution ?? mergeServerAttribution(null, null, occurredAt);
     const priorUser = (userSnapshot.data() ?? {}) as Record<string, unknown>;
-    const priorActiveDate = readString(priorUser.lastActiveDateUtc);
-    const isReturning = Boolean(priorActiveDate && priorActiveDate < activeDateUtc);
+    const firstActiveDateUtc = readString(priorUser.firstActiveDateUtc)
+      ?? readString(priorUser.lastActiveDateUtc)
+      ?? activeDateUtc;
+    // Returning describes every event after the acquisition day, not only the
+    // first event that advances lastActiveDateUtc on a later day.
+    const isReturning = firstActiveDateUtc < activeDateUtc;
     const metadata = sanitizeServerEventMetadata(params.metadata ?? {});
     transaction.set(eventRef, {
       schemaVersion: 1,
@@ -213,7 +217,7 @@ export async function recordServerProductEvent(params: {
     transaction.set(userRef, {
       schemaVersion: 1, uid,
       firstSeenAt: readString(priorUser.firstSeenAt) ?? occurredAt,
-      firstActiveDateUtc: readString(priorUser.firstActiveDateUtc) ?? activeDateUtc,
+      firstActiveDateUtc,
       lastSeenAt: occurredAt, lastActiveDateUtc: activeDateUtc,
       isReturning: priorUser.isReturning === true || isReturning,
       updatedAt: occurredAt,
@@ -253,8 +257,12 @@ export async function persistClientProductEvent(
     const storedAttribution = normalizeAttributionDocument(attributionSnapshot.data());
     const attribution = mergeServerAttribution(storedAttribution, params.request.attribution, occurredAt);
     const priorUser = (userSnapshot.data() ?? {}) as Record<string, unknown>;
-    const priorActiveDate = readString(priorUser.lastActiveDateUtc);
-    const isReturning = Boolean(priorActiveDate && priorActiveDate < activeDateUtc);
+    const firstActiveDateUtc = readString(priorUser.firstActiveDateUtc)
+      ?? readString(priorUser.lastActiveDateUtc)
+      ?? activeDateUtc;
+    // Returning describes every event after the acquisition day, not only the
+    // first event that advances lastActiveDateUtc on a later day.
+    const isReturning = firstActiveDateUtc < activeDateUtc;
     const event: Omit<ProductEventEntry, "id"> = {
       schemaVersion: 1,
       eventName: params.request.eventName,
@@ -285,7 +293,7 @@ export async function persistClientProductEvent(
       uid,
       visitorId: normalizeIdentifier(params.visitorId),
       firstSeenAt: readString(priorUser.firstSeenAt) ?? occurredAt,
-      firstActiveDateUtc: readString(priorUser.firstActiveDateUtc) ?? activeDateUtc,
+      firstActiveDateUtc,
       lastSeenAt: occurredAt,
       lastActiveDateUtc: activeDateUtc,
       isReturning: priorUser.isReturning === true || isReturning,
@@ -372,16 +380,29 @@ function normalizeProductEventEntry(id: string, value: unknown): ProductEventEnt
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const data = value as Record<string, unknown>;
   if (typeof data.eventName !== "string" || !PRODUCT_EVENT_NAME_SET.has(data.eventName)) return null;
+  const source = data.source === "server" ? "server" : "client";
+  // A malformed entry must not make the whole analytics history unavailable.
+  if (data.source != null && data.source !== "server" && data.source !== "client") return null;
+  if (source === "client" ? !EVENT_NAME_SET.has(data.eventName) : EVENT_NAME_SET.has(data.eventName)) return null;
+  let metadata: ProductEventMetadata;
+  try {
+    metadata = source === "server"
+      ? sanitizeServerEventMetadata(data.metadata)
+      : sanitizeEventMetadata(data.eventName as ClientProductEventName, data.metadata);
+  } catch (error) {
+    if (error instanceof ProductEventValidationError) return null;
+    throw error;
+  }
   const attribution = normalizeAttributionState(data.attribution);
   const uid = readString(data.uid);
   const occurredAt = readString(data.occurredAt);
   const dedupeKey = readString(data.dedupeKey);
-  if (!attribution || !uid || !occurredAt || !dedupeKey || typeof data.occurredAtMs !== "number") return null;
+  if (!attribution || !uid || !occurredAt || !dedupeKey || typeof data.occurredAtMs !== "number" || !Number.isFinite(data.occurredAtMs)) return null;
   return {
     id,
     schemaVersion: 1,
     eventName: data.eventName as ProductEventName,
-    source: data.source === "server" ? "server" : "client",
+    source,
     uid,
     visitorId: readString(data.visitorId),
     sessionId: readString(data.sessionId),
@@ -390,9 +411,7 @@ function normalizeProductEventEntry(id: string, value: unknown): ProductEventEnt
     occurredAtMs: data.occurredAtMs,
     activeDateUtc: readString(data.activeDateUtc) ?? occurredAt.slice(0, 10),
     isReturning: data.isReturning === true,
-    metadata: data.source === "server"
-      ? sanitizeServerEventMetadata(data.metadata)
-      : sanitizeEventMetadata(data.eventName as ClientProductEventName, data.metadata),
+    metadata,
     attribution,
   };
 }
