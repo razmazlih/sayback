@@ -37,11 +37,12 @@ export async function requireInsightsViewer(request: Request): Promise<void> {
   const unauthenticated = () => new InsightsAccessError(401, "INSIGHTS_UNAUTHENTICATED", "צריך להתחבר לחשבון מאושר כדי לצפות בנתונים.");
   if (!token) throw unauthenticated();
   const viewers = new Set((process.env.ANALYTICS_VIEWER_UIDS ?? "").split(",").map((uid) => uid.trim()).filter(Boolean));
-  if (viewers.size === 0) {
+  const viewerEmails = new Set((process.env.ANALYTICS_VIEWER_EMAILS ?? "").split(",").map(normalizeViewerEmail).filter(Boolean));
+  if (viewers.size === 0 && viewerEmails.size === 0) {
     throw new InsightsAccessError(403, "INSIGHTS_NOT_CONFIGURED", "הגישה לנתוני האתר עדיין לא הוגדרה.");
   }
 
-  const auth = await getAdminAuth() as Pick<Auth, "verifyIdToken">;
+  const auth = await getAdminAuth() as Pick<Auth, "verifyIdToken" | "getUser">;
   let decoded;
   try {
     // Revocation checking also rejects disabled accounts.
@@ -52,9 +53,23 @@ export async function requireInsightsViewer(request: Request): Promise<void> {
   if (!decoded.uid || !decoded.firebase?.sign_in_provider || decoded.firebase.sign_in_provider === "anonymous") {
     throw unauthenticated();
   }
-  if (!viewers.has(decoded.uid)) {
-    throw new InsightsAccessError(403, "INSIGHTS_FORBIDDEN", "החשבון הזה אינו מורשה לצפות בנתוני האתר.");
+  if (viewers.has(decoded.uid)) return;
+  const email = normalizeViewerEmail(decoded.email);
+  if (decoded.email_verified === true && email && viewerEmails.has(email)) {
+    // A still-valid token can carry an old email. Require the same verified
+    // address on the current account before allowing email-based access.
+    const currentUser = await auth.getUser(decoded.uid);
+    if (currentUser.uid === decoded.uid && currentUser.disabled !== true &&
+      currentUser.emailVerified === true && normalizeViewerEmail(currentUser.email) === email) return;
   }
+  throw new InsightsAccessError(403, "INSIGHTS_FORBIDDEN", "החשבון הזה אינו מורשה לצפות בנתוני האתר.");
+}
+
+function normalizeViewerEmail(value: unknown) {
+  if (typeof value !== "string") return "";
+  const normalized = value.trim().toLowerCase();
+  // Exact email addresses only: no wildcards, domain rules or display names.
+  return /^[^@\s*<>]+@[^@\s*<>]+\.[^@\s*<>]+$/.test(normalized) ? normalized : "";
 }
 
 export function insightsPeriod(days: InsightsDays, now = new Date()) {

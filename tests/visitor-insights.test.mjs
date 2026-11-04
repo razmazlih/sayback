@@ -8,7 +8,8 @@ import ts from "typescript";
 const root = resolve(import.meta.dirname, "..");
 const require = createRequire(import.meta.url);
 const now = new Date("2026-11-04T12:00:00Z");
-function harness({ uid = "owner", provider = "google.com", authFails = false, storageFails = false, docs = [] } = {}) {
+function harness({ uid = "owner", provider = "google.com", authFails = false, storageFails = false, docs = [],
+  email, emailVerified = false, currentUser, userLookupFails = false } = {}) {
   const calls = [];
   const query = {};
   for (const method of ["where", "orderBy", "select", "limit"]) {
@@ -23,7 +24,11 @@ function harness({ uid = "owner", provider = "google.com", authFails = false, st
     getAdminAuth: async () => ({ verifyIdToken: async (...args) => {
       calls.push(["verifyIdToken", ...args]);
       if (authFails) throw new Error("revoked or invalid");
-      return { uid, firebase: { sign_in_provider: provider } };
+      return { uid, email, email_verified: emailVerified, firebase: { sign_in_provider: provider } };
+    }, getUser: async (lookupUid) => {
+      calls.push(["getUser", lookupUid]);
+      if (userLookupFails) throw new Error("private user lookup detail");
+      return currentUser ?? { uid, email, emailVerified, disabled: false };
     } }),
     getFirestore: async () => ({ collection: (name) => { calls.push(["collection", name]); return query; } }),
   };
@@ -118,14 +123,19 @@ test("reader uses bounded range and projected fields with a truncation sentinel"
 function request(query = "", bearer = true) {
   return new Request(`http://localhost/api/insights${query}`, { headers: bearer ? { Authorization: "Bearer test-token" } : {} });
 }
-async function withViewers(value, fn) {
+async function withViewers(value, fn, emails) {
   const previous = process.env.ANALYTICS_VIEWER_UIDS;
+  const previousEmails = process.env.ANALYTICS_VIEWER_EMAILS;
   if (value === undefined) delete process.env.ANALYTICS_VIEWER_UIDS;
   else process.env.ANALYTICS_VIEWER_UIDS = value;
+  if (emails === undefined) delete process.env.ANALYTICS_VIEWER_EMAILS;
+  else process.env.ANALYTICS_VIEWER_EMAILS = emails;
   try { await fn(); }
   finally {
     if (previous === undefined) delete process.env.ANALYTICS_VIEWER_UIDS;
     else process.env.ANALYTICS_VIEWER_UIDS = previous;
+    if (previousEmails === undefined) delete process.env.ANALYTICS_VIEWER_EMAILS;
+    else process.env.ANALYTICS_VIEWER_EMAILS = previousEmails;
   }
 }
 
@@ -140,6 +150,57 @@ test("private route denies missing, invalid, revoked and anonymous authenticatio
       if (bearer) assert.ok(h.calls.some(([name, , checkRevoked]) => name === "verifyIdToken" && checkRevoked === true));
     }
   });
+});
+
+test("email access requires an exact normalized verified address on both token and current account", async () => {
+  await withViewers(undefined, async () => {
+    const h = harness({ email: "OWNER@EXAMPLE.COM", emailVerified: true,
+      currentUser: { uid: "owner", email: "owner@example.com", emailVerified: true, disabled: false } });
+    assert.equal((await h.GET(request())).status, 200);
+    assert.deepEqual(h.calls.find(([name]) => name === "getUser"), ["getUser", "owner"]);
+    assert.ok(h.calls.some(([name, , revoked]) => name === "verifyIdToken" && revoked === true));
+  }, " other@example.com, Owner@Example.com ");
+});
+
+test("email access denies unverified, stale, disabled, mismatched and anonymous accounts", async () => {
+  await withViewers(undefined, async () => {
+    const valid = { email: "owner@example.com", emailVerified: true };
+    const current = { uid: "owner", ...valid, disabled: false };
+    for (const options of [
+      { ...valid, emailVerified: false },
+      { ...valid, currentUser: { ...current, emailVerified: false } },
+      { ...valid, currentUser: { ...current, email: "changed@example.com" } },
+      { ...valid, currentUser: { ...current, disabled: true } },
+      { ...valid, currentUser: { ...current, uid: "different-account" } },
+      { ...valid, email: "owner+alias@example.com" },
+      { ...valid, provider: "anonymous" },
+    ]) {
+      const h = harness(options);
+      assert.equal((await h.GET(request())).status, options.provider === "anonymous" ? 401 : 403);
+      assert.equal(h.calls.some(([name]) => name === "collection"), false);
+    }
+    const unavailable = harness({ ...valid, userLookupFails: true });
+    assert.equal((await unavailable.GET(request())).status, 503);
+    assert.equal(unavailable.calls.some(([name]) => name === "collection"), false);
+  }, "owner@example.com");
+});
+
+test("email allowlist does not interpret wildcards, domain entries, display names or substring matches", async () => {
+  for (const emails of ["*", "*@example.com", "example.com", "Owner <owner@example.com>", "another-owner@example.com"]) {
+    await withViewers(undefined, async () => {
+      const h = harness({ email: "owner@example.com", emailVerified: true });
+      assert.equal((await h.GET(request())).status, 403);
+      assert.equal(h.calls.some(([name]) => name === "collection" || name === "getUser"), false);
+    }, emails);
+  }
+});
+
+test("explicit UID authorization still works without a verified email or email lookup", async () => {
+  await withViewers("owner", async () => {
+    const h = harness({ email: "unverified@example.com", emailVerified: false, userLookupFails: true });
+    assert.equal((await h.GET(request())).status, 200);
+    assert.equal(h.calls.some(([name]) => name === "getUser"), false);
+  }, "different@example.com");
 });
 
 test("empty allowlist fails closed; exact UIDs only, never display names or substring matches", async () => {
