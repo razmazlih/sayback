@@ -5032,6 +5032,7 @@ export default function Home({
       setCopiedReplyIndex(index);
       setHasCopiedAllReplies(false);
       trackEvent('reply_share', { index, method: 'clipboard_fallback' });
+      void recordProductEvent('reply_copy', { index });
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         return;
@@ -5087,6 +5088,7 @@ export default function Home({
         reply_count: result.replies.length,
         has_saved_conversation: Boolean(activeConversationId),
       });
+      void recordProductEvent('reply_copy', { index: 'all' });
     } catch {
       setRequestError('העתקת כל התשובות נכשלה. נסה שוב.');
     }

@@ -197,19 +197,13 @@ const UTM_QUERY_KEYS = [
   "utm_id",
 ] as const;
 
-function readPublicEnvVar(name: string) {
-  const value = process.env[name];
-  return typeof value === "string" ? value.trim() : "";
-}
-
+// Next.js only inlines public environment variables referenced by their literal name.
 export const analyticsConfig = {
-  gaMeasurementId:
-    readPublicEnvVar("NEXT_PUBLIC_GA4_MEASUREMENT_ID") ||
-    readPublicEnvVar("NEXT_PUBLIC_GA_MEASUREMENT_ID"),
-  clarityProjectId: readPublicEnvVar("NEXT_PUBLIC_CLARITY_PROJECT_ID"),
-  debug:
-    process.env.NODE_ENV !== "production" &&
-    readPublicEnvVar("NEXT_PUBLIC_ANALYTICS_DEBUG").toLowerCase() === "true",
+  gaMeasurementId: process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID?.trim() ||
+    process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "",
+  clarityProjectId: process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID?.trim() || "",
+  debug: process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_ANALYTICS_DEBUG?.trim().toLowerCase() === "true",
 } as const;
 
 function sanitizePayload(payload: AnalyticsPayload): AnalyticsPayload {
