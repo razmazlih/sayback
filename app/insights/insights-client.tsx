@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import type { User } from "firebase/auth";
 import type { VisitorInsights } from "@/lib/visitor-insights";
 
@@ -212,7 +211,9 @@ export default function InsightsClient() {
       <div className="mx-auto w-full max-w-5xl space-y-6">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div><p className="text-xs font-black tracking-wide text-[#8f371e]">SAYBACK · מסך פרטי</p><h1 className="mt-2 text-3xl font-black">נתוני שימוש</h1><p className="mt-2 max-w-xl text-sm leading-6 text-[#6d6259]">תמונת מצב מצטברת של ביקורים, יצירת תשובות והעתקות.</p></div>
-          <Link href="/" className={`inline-flex min-h-11 items-center rounded-full border border-[#ded2c3] bg-white px-4 text-sm font-bold ${focusClass}`}>חזרה ל־SayBack</Link>
+          {/* Full document navigation prevents homepage tracking scripts surviving SPA back into this private report. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- This private-page boundary requires a new document. */}
+          <a href="/" className={`inline-flex min-h-11 items-center rounded-full border border-[#ded2c3] bg-white px-4 text-sm font-bold ${focusClass}`}>חזרה ל־SayBack</a>
         </header>
         {authState.status === "ready" ? (
           <div className="flex flex-wrap items-end gap-3">
@@ -229,7 +230,13 @@ export default function InsightsClient() {
         ) : state.status === "ready" && "data" in state ? <Report data={state.data} /> : (
           <section role="status" className="rounded-[22px] border border-[#e2d7c8] bg-white p-6">
             <h2 className="text-lg font-bold">{stateMessage.title}</h2><p className="mt-2 max-w-xl text-sm leading-6 text-[#6d6259]">{stateMessage.body}</p>
-            {signedOut || state.status === "forbidden" ? <Link href="/" className={`mt-4 inline-flex min-h-11 items-center rounded-xl bg-[#241d18] px-4 text-sm font-bold text-white ${focusClass}`}>לכניסה דרך דף הבית</Link> : null}
+            {signedOut || state.status === "forbidden" ? (
+              <>
+                {/* Full document navigation prevents homepage tracking scripts surviving SPA back into this private report. */}
+                {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- This private-page boundary requires a new document. */}
+                <a href="/" className={`mt-4 inline-flex min-h-11 items-center rounded-xl bg-[#241d18] px-4 text-sm font-bold text-white ${focusClass}`}>לכניסה דרך דף הבית</a>
+              </>
+            ) : null}
             {authState.status === "error" ? <button type="button" onClick={() => window.location.reload()} className={`mt-4 min-h-11 rounded-xl border border-[#ded2c3] px-4 text-sm font-bold ${focusClass}`}>טעינה מחדש</button> : null}
           </section>
         )}
