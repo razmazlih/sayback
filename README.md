@@ -66,11 +66,7 @@ Open `http://localhost:3000`.
 npm run check
 ```
 
-This runs:
-
-- `lint`
-- `typecheck`
-- `build`
+This runs lint, TypeScript checks, identity/conversation/personalization/deep-link/product-contract/generator-flow regression tests, and the production build.
 
 ## Deploy (Vercel)
 
@@ -116,3 +112,30 @@ Firestore collections used by coupon flow:
 - API routes are configured for `no-store` responses.
 - Checkout return URLs prefer `SITE_URL`/`NEXT_PUBLIC_SITE_URL` when configured.
 - Security headers are set in `next.config.ts`.
+
+
+## Conversation experience UI verification
+
+`node scripts/verify-conversation-experience.mjs` checks the public experience at
+360, 390, 768, 1024 and 1440 pixels. It uses Playwright and a running local server
+(default `http://127.0.0.1:3100`; override with `SAYBACK_SMOKE_BASE_URL`).
+Use an installed Playwright module, or set `SAYBACK_PLAYWRIGHT_MODULE` to the
+absolute path of an existing Playwright `index.mjs` with Chromium installed.
+
+Start the verification server with dummy Firebase configuration:
+
+```sh
+NEXT_PUBLIC_FIREBASE_API_KEY=fixture-key \
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=sayback-ui-test.firebaseapp.com \
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=sayback-ui-test \
+NEXT_PUBLIC_FIREBASE_APP_ID=fixture-app \
+BILLING_BYPASS=false NEXT_PUBLIC_BILLING_BYPASS=false \
+NEXT_PUBLIC_GA4_MEASUREMENT_ID= NEXT_PUBLIC_GA_MEASUREMENT_ID= \
+NEXT_PUBLIC_CLARITY_PROJECT_ID= npm run dev -- --hostname 127.0.0.1 --port 3100
+```
+
+The browser runner intercepts Firebase authentication and all application APIs,
+blocks other external traffic, and uses synthetic data. It never validates live
+Firebase writes, AI responses, Stripe charges, or webhook delivery. Screenshots
+and a JSON report are saved in the ignored `output/playwright/` directory.
+Restart the server without these dummy environment overrides for normal use.

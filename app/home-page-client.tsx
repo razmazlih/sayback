@@ -14,6 +14,8 @@ import {
 } from 'react';
 import dynamic from 'next/dynamic';
 import Image, { type StaticImageData } from 'next/image';
+import { AccountDialog, ConversationDemo, ConversationGuide, ConversationHeader } from '@/components/conversation-experience';
+import './conversation-experience.css';
 import {
   ConversationMemoryDialog,
   ManageConversationsDialog,
@@ -196,7 +198,7 @@ type CouponRedeemResponse = {
 };
 
 const FREE_LIMIT = 3;
-const GENERATOR_FLOW_VERSION = 'simplified_v1' as const;
+const GENERATOR_FLOW_VERSION = 'conversation_v2' as const;
 const MAX_IMAGE_UPLOAD_BYTES = 4 * 1024 * 1024;
 const MIN_LOADING_DISPLAY_MS = 200;
 const AUTH_EMAIL_STORAGE_KEY = 'sayback.auth.email';
@@ -471,7 +473,7 @@ const lightSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-
 const whiteSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-white`;
 const darkSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-[#181411]`;
 const interactiveBadgeClass =
-  'inline-flex min-h-[28px] items-center rounded-full border border-[#d8cab9] bg-[#181411] px-2.5 py-1 text-[0.62rem] font-black uppercase tracking-[0.12em] text-[#fffdfa]';
+  'inline-flex min-h-[28px] items-center rounded-full border border-[#d8cab9] bg-[#181411] px-2.5 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-[#fffdfa]';
 const focusableSelector =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), details summary, [tabindex]:not([tabindex="-1"])';
 
@@ -565,7 +567,8 @@ function getFocusableElements(container: HTMLElement | null) {
       return false;
     }
 
-    return !element.hasAttribute('disabled');
+    return !element.hasAttribute('disabled') && element.getClientRects().length > 0 &&
+      getComputedStyle(element).visibility !== 'hidden' && !element.closest('[inert], [aria-hidden="true"]');
   });
 }
 
@@ -712,6 +715,35 @@ function parseHomeDeepLinkPrefill(searchParams: URLSearchParams): HomeDeepLinkPr
   };
 }
 
+function PrecisionChoice({ label, value, open, onToggle, children }: {
+  label: string;
+  value: string | null;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  const id = useId();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open && contentRef.current?.contains(document.activeElement)) {
+      triggerRef.current?.focus({ preventScroll: true });
+    }
+  }, [open]);
+  return (
+    <div className="sb-precision-choice" data-open={open} data-selected={Boolean(value)}>
+      <button ref={triggerRef} type="button" aria-expanded={open} aria-controls={id} onClick={onToggle} className="sb-precision-choice-trigger">
+        <span>{label}</span>
+        <span className="sb-precision-choice-value">{value || 'לבחירה'}{value ? <span aria-hidden="true"> ✓</span> : null}</span>
+        <span className="sb-precision-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <div ref={contentRef} id={id} className="sb-precision-choice-panel" inert={!open} aria-hidden={!open}>
+        <div className="sb-precision-panel-inner">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 function ChipGroup<T extends string>({
   title,
   description,
@@ -735,6 +767,8 @@ function ChipGroup<T extends string>({
   headerAlign = 'center',
   illustrations,
   warmOptionCards = false,
+  compact = false,
+  optionLabels,
 }: {
   title: string;
   description?: string;
@@ -758,6 +792,8 @@ function ChipGroup<T extends string>({
   headerAlign?: 'center' | 'right';
   illustrations?: Partial<Record<T, StaticImageData>>;
   warmOptionCards?: boolean;
+  compact?: boolean;
+  optionLabels?: Partial<Record<T, string>>;
 }) {
   const hasSelection = value !== null;
   const normalizedPrimaryVisibleCount = Math.min(
@@ -878,7 +914,7 @@ function ChipGroup<T extends string>({
     const isLockedOption = lockedOptionsSet.has(option);
     const shouldCloseDialogOnSelect = mode === 'dialog';
     const illustration = illustrations?.[option];
-    const usesWarmOptionCards = warmOptionCards || illustrations !== undefined;
+    const usesWarmOptionCards = compact || warmOptionCards || illustrations !== undefined;
 
     return (
       <button
@@ -931,7 +967,7 @@ function ChipGroup<T extends string>({
           ].join(' ')}
         >
           <span className="inline-flex min-w-0 items-center justify-center gap-1.5 sm:gap-2">
-            {illustration ? (
+            {illustration && !compact ? (
               <Image
                 src={illustration}
                 width={primaryColumns === 3 ? 24 : 32}
@@ -947,12 +983,13 @@ function ChipGroup<T extends string>({
                 ].join(' ')}
               />
             ) : null}
-            <span>{option}</span>
+            <span>{optionLabels?.[option] ?? option}</span>
           </span>
+          {compact && mode === 'inline' ? <span className="sb-precision-check" aria-hidden="true">✓</span> : null}
           {isLockedOption ? (
             <span
               className={[
-                'rounded-full border px-2 py-0.5 text-[0.6rem] font-black uppercase tracking-[0.08em]',
+                'rounded-full border px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.08em]',
                 usesWarmOptionCards
                   ? 'border-[#d8ad52] bg-white/75 text-[#6b4610]'
                   : 'border-[#f7cf76] bg-[#1d1608] text-[#ffe7b2]',
@@ -970,9 +1007,11 @@ function ChipGroup<T extends string>({
     <section
       role="group"
       aria-labelledby={groupTitleId}
+      data-columns={compact ? primaryColumns : undefined}
       className={[
         'w-full min-w-0 rounded-[22px] border border-[#e2d7c8] bg-white shadow-[0_10px_26px_rgba(49,23,13,0.06)] sm:p-3.5',
         primaryColumns === 3 ? 'p-2.5' : 'p-3',
+        compact ? 'sb-precision-group' : '',
       ].join(' ')}
     >
       <div
@@ -987,36 +1026,36 @@ function ChipGroup<T extends string>({
             isHeaderRightAligned ? 'justify-start text-right' : 'justify-center text-center',
           ].join(' ')}
         >
-          <p id={groupTitleId} className="text-[0.92rem] font-black text-[#241d18] sm:text-[0.95rem]">
+          <p id={groupTitleId} className="text-[0.92rem] font-semibold text-[#241d18] sm:text-[0.95rem]">
             {title}
           </p>
-          <span
+          {!compact ? <span
             className={[
-              'rounded-full border px-2 py-0.5 text-[0.62rem] font-black uppercase tracking-[0.12em]',
+              'rounded-full border px-2 py-0.5 text-[0.62rem] font-semibold uppercase tracking-[0.12em]',
               optional ? 'border-[#e4d8c8] bg-[#f8f3eb] text-[#5b4d42]' : 'border-[#b8e7df] bg-[#e3fbf7] text-[#123a36]',
             ].join(' ')}
           >
             {optional ? 'אופציונלי' : 'לבחירה'}
-          </span>
+          </span> : null}
         </div>
 
-        {canClearSelection ? (
+        {canClearSelection && !compact ? (
           <button
             type="button"
             onClick={() => onChange(null)}
-            className={`min-h-[32px] rounded-full border border-[#ded2c3] bg-[#f8f3eb] px-2.5 py-1 text-[0.68rem] font-black text-[#5b4d42] transition hover:bg-[#efe5d8] ${whiteSurfaceFocusClass}`}
+            className={`min-h-[32px] rounded-full border border-[#ded2c3] bg-[#f8f3eb] px-2.5 py-1 text-[0.68rem] font-semibold text-[#5b4d42] transition hover:bg-[#efe5d8] ${whiteSurfaceFocusClass}`}
           >
             נקה
           </button>
         ) : null}
       </div>
 
-      {description ? (
+      {description && !compact ? (
         <p className="mt-1 hidden text-xs font-bold leading-5 text-[#6d6259] md:block">{description}</p>
       ) : null}
 
       <div className="mt-2 space-y-2">
-        <div className={primaryColumns === 3 ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-2 gap-2'}>
+        <div className={compact ? 'sb-precision-choices' : primaryColumns === 3 ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-2 gap-2'}>
           {primaryOptions.map((option) => renderOption(option, 'inline'))}
         </div>
 
@@ -1036,7 +1075,7 @@ function ChipGroup<T extends string>({
               <button
                 type="button"
                 onClick={openMoreOptionsDialog}
-                className={`inline-flex min-h-[36px] items-center justify-center gap-2 rounded-full bg-[#181411] px-3.5 py-1.5 text-xs font-black text-white transition hover:-translate-y-0.5 ${primaryColumns === 3 ? 'w-full' : ''} ${whiteSurfaceFocusClass}`}
+                className={`inline-flex min-h-[36px] items-center justify-center gap-2 rounded-full bg-[#181411] px-3.5 py-1.5 text-xs font-semibold text-white transition hover:-translate-y-0.5 ${primaryColumns === 3 ? 'w-full' : ''} ${whiteSurfaceFocusClass}`}
               >
                 <span>{primaryColumns === 3 ? `${moreOptionsLabel} חודשיים` : moreOptionsLabel}</span>
                 <span className="rounded-full bg-white px-1.5 py-0.5 text-[0.62rem] text-[#181411]">
@@ -1045,15 +1084,15 @@ function ChipGroup<T extends string>({
               </button>
 
               {primaryColumns === 3 ? null : selectedFromMoreOptions && value ? (
-                <span className="rounded-full border border-[#ded2c3] bg-white px-2.5 py-1 text-xs font-black text-[#241d18]">
+                <span className="rounded-full border border-[#ded2c3] bg-white px-2.5 py-1 text-xs font-semibold text-[#241d18]">
                   נבחר מתוך עוד: {value}
                 </span>
               ) : hasLockedOptions && lockedExtraOptionsCount > 0 ? (
-                <span className="rounded-full border border-[#d8ad52] bg-[#1c1507] px-2.5 py-1 text-xs font-black text-[#f7db96]">
+                <span className="rounded-full border border-[#d8ad52] bg-[#1c1507] px-2.5 py-1 text-xs font-semibold text-[#f7db96]">
                   עוד {lockedExtraOptionsCount} אפשרויות פרימיום למנוי חודשי
                 </span>
               ) : (
-                <span className="text-xs font-black text-[#5b4d42]">
+                <span className="text-xs font-semibold text-[#5b4d42]">
                   עוד {extraOptions.length} אפשרויות זמינות בלחיצה
                 </span>
               )}
@@ -1100,7 +1139,7 @@ function ChipGroup<T extends string>({
           >
             <div className="flex items-start justify-between gap-3 border-b-2 border-black bg-[#fff6d8] px-4 py-3">
               <div className="space-y-1">
-                <p id={moreOptionsDialogTitleId} className="text-base font-black text-black sm:text-lg">
+                <p id={moreOptionsDialogTitleId} className="text-base font-semibold text-black sm:text-lg">
                   {title}: בחירה מורחבת
                 </p>
                 <p id={moreOptionsDialogDescriptionId} className="text-xs font-bold text-neutral-700 sm:text-sm">
@@ -1112,7 +1151,7 @@ function ChipGroup<T extends string>({
               <button
                 type="button"
                 onClick={closeMoreOptionsDialog}
-                className={`inline-flex min-h-[38px] items-center justify-center rounded-full border-2 border-black bg-white px-3 text-xs font-black text-black transition hover:bg-[#fff8da] ${whiteSurfaceFocusClass}`}
+                className={`inline-flex min-h-[38px] items-center justify-center rounded-full border-2 border-black bg-white px-3 text-xs font-semibold text-black transition hover:bg-[#fff8da] ${whiteSurfaceFocusClass}`}
               >
                 סגור
               </button>
@@ -1122,7 +1161,7 @@ function ChipGroup<T extends string>({
               <div className="space-y-3">
                 {showMoreOptionsSearch ? (
                   <label className="block">
-                    <span className="mb-1.5 block text-xs font-black text-neutral-800">חיפוש מהיר</span>
+                    <span className="mb-1.5 block text-xs font-semibold text-neutral-800">חיפוש מהיר</span>
                     <input
                       type="text"
                       value={moreOptionsSearchTerm}
@@ -1140,7 +1179,7 @@ function ChipGroup<T extends string>({
                       onChange(null);
                       closeMoreOptionsDialog();
                     }}
-                    className={`inline-flex min-h-[40px] items-center justify-center rounded-full border-2 border-black bg-[#f8f4ed] px-3.5 py-2 text-xs font-black text-neutral-800 transition hover:bg-[#efe8dd] ${whiteSurfaceFocusClass}`}
+                    className={`inline-flex min-h-[40px] items-center justify-center rounded-full border-2 border-black bg-[#f8f4ed] px-3.5 py-2 text-xs font-semibold text-neutral-800 transition hover:bg-[#efe8dd] ${whiteSurfaceFocusClass}`}
                   >
                     לנקות בחירה
                   </button>
@@ -1158,10 +1197,10 @@ function ChipGroup<T extends string>({
 
                 {hasLockedOptions && showLockedOptionsNotice ? (
                   <div className="rounded-[22px] border-2 border-[#d8ad52] bg-[radial-gradient(circle_at_top,_#5a4617_0%,_#1f1709_56%,_#0b0905_100%)] p-3.5 text-[#fdf3d4] shadow-[0_14px_28px_-14px_rgba(0,0,0,0.9)] motion-safe:animate-[sb-paywall-in_220ms_ease-out]">
-                    <p className="text-[0.64rem] font-black uppercase tracking-[0.18em] text-[#f8d67f]">
+                    <p className="text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-[#f8d67f]">
                       פרימיום חודשי
                     </p>
-                    <p className="mt-1 text-sm font-black text-[#fff1cc]">
+                    <p className="mt-1 text-sm font-semibold text-[#fff1cc]">
                       {lockedOptionsNoticeTitle ?? 'האופציות המורחבות פתוחות במסלול החודשי'}
                     </p>
                     <p className="mt-1 text-xs font-bold leading-5 text-[#fceaca]/85">
@@ -1174,7 +1213,7 @@ function ChipGroup<T extends string>({
                         closeMoreOptionsDialogImmediately();
                         onLockedOptionsNoticeCtaClick?.();
                       }}
-                      className={`mt-3 inline-flex min-h-[40px] items-center justify-center rounded-full border-2 border-[#2a1e09] bg-gradient-to-b from-[#f9e4a8] to-[#e9bf5f] px-3.5 py-2 text-xs font-black text-[#2b1d04] shadow-[0_4px_0_0_#2a1d07] transition hover:-translate-y-0.5 hover:brightness-105 ${whiteSurfaceFocusClass}`}
+                      className={`mt-3 inline-flex min-h-[40px] items-center justify-center rounded-full border-2 border-[#2a1e09] bg-gradient-to-b from-[#f9e4a8] to-[#e9bf5f] px-3.5 py-2 text-xs font-semibold text-[#2b1d04] shadow-[0_4px_0_0_#2a1d07] transition hover:-translate-y-0.5 hover:brightness-105 ${whiteSurfaceFocusClass}`}
                     >
                       {lockedOptionsNoticeCta}
                     </button>
@@ -1204,12 +1243,12 @@ function HomeHero({
       <div className="relative flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 space-y-2 sm:space-y-3">
           <div className="flex items-center justify-center lg:justify-start">
-            <span className="inline-flex min-h-[30px] items-center rounded-full bg-[#181411] px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-white shadow-[0_10px_22px_rgba(24,20,17,0.12)] sm:min-h-[34px] sm:px-4 sm:py-1.5 sm:text-xs">
+            <span className="inline-flex min-h-[30px] items-center rounded-full bg-[#181411] px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white shadow-[0_10px_22px_rgba(24,20,17,0.12)] sm:min-h-[34px] sm:px-4 sm:py-1.5 sm:text-xs">
               SayBack
             </span>
           </div>
           <div className="max-w-3xl text-center lg:text-right">
-            <h1 className="text-[3.25rem] leading-none font-black text-[#181411] sm:text-[4.5rem] lg:text-[5.5rem]">
+            <h1 className="text-[3.25rem] leading-none font-semibold text-[#181411] sm:text-[4.5rem] lg:text-[5.5rem]">
               מה לענות עכשיו?
             </h1>
             <p className="mx-auto mt-1.5 max-w-2xl text-sm font-bold leading-6 text-[#5b4d42] sm:mt-2 sm:text-lg sm:leading-7 lg:mx-0">
@@ -1222,7 +1261,7 @@ function HomeHero({
           <button
             type="button"
             onClick={onStart}
-            className={`inline-flex min-h-[48px] w-full items-center justify-center rounded-full bg-[#ff5a2a] px-5 py-2.5 text-base font-black text-white shadow-[0_14px_26px_rgba(255,90,42,0.26)] transition hover:-translate-y-0.5 hover:bg-[#f04d1f] active:translate-y-0 sm:min-h-[52px] sm:px-6 sm:py-3 lg:w-auto ${lightSurfaceFocusClass}`}
+            className={`inline-flex min-h-[48px] w-full items-center justify-center rounded-full bg-[#ff5a2a] px-5 py-2.5 text-base font-semibold text-white shadow-[0_14px_26px_rgba(255,90,42,0.26)] transition hover:-translate-y-0.5 hover:bg-[#f04d1f] active:translate-y-0 sm:min-h-[52px] sm:px-6 sm:py-3 lg:w-auto ${lightSurfaceFocusClass}`}
           >
             {ctaLabel}
           </button>
@@ -1236,39 +1275,13 @@ function HomeHero({
         {['3 שימושים חינם', 'לא שומרים הודעות', 'עברית טבעית'].map((item) => (
           <div
             key={item}
-            className="flex min-h-[42px] items-center justify-center rounded-[16px] border border-[#e4d8c8] bg-[#f8f3eb] px-2 py-2 text-center text-xs leading-4 font-black text-[#2c241f] sm:rounded-[18px] sm:px-3 sm:py-2.5 sm:text-sm"
+            className="flex min-h-[42px] items-center justify-center rounded-[16px] border border-[#e4d8c8] bg-[#f8f3eb] px-2 py-2 text-center text-xs leading-4 font-semibold text-[#2c241f] sm:rounded-[18px] sm:px-3 sm:py-2.5 sm:text-sm"
           >
             {item}
           </div>
         ))}
       </div>
     </section>
-  );
-}
-
-function GeneratorHeader({ accountStatusLine }: { accountStatusLine: string }) {
-  return (
-    <header className="rounded-[24px] border border-[#e2d7c8] bg-[#fffdfa] px-4 py-3 shadow-[0_14px_38px_rgba(49,23,13,0.09)] sm:px-5 sm:py-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex min-h-[28px] items-center rounded-full bg-[#181411] px-3 py-1 text-[0.66rem] font-black uppercase tracking-[0.16em] text-white">
-              SayBack
-            </span>
-            <span className="text-[0.68rem] font-black text-[#8f371e]">3 תשובות. בלי להסתבך.</span>
-          </div>
-          <h1 className="mt-2 text-[1.9rem] leading-tight font-black text-[#181411] sm:text-[2.4rem]">
-            מה לענות עכשיו?
-          </h1>
-          <p className="mt-1 text-sm font-bold leading-5 text-[#5b4d42] sm:text-base sm:leading-6">
-            מדביקים הודעה ומקבלים 3 תשובות קצרות וטבעיות.
-          </p>
-        </div>
-        <span className="mt-1 hidden shrink-0 rounded-full border border-[#e4d8c8] bg-[#f8f3eb] px-3 py-1.5 text-xs font-bold text-[#6d6259] sm:inline-flex">
-          {accountStatusLine}
-        </span>
-      </div>
-    </header>
   );
 }
 
@@ -1280,8 +1293,8 @@ function QuickStartStrip() {
     >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#a45334]">ברוכים הבאים</p>
-          <h2 className="mt-1 text-2xl font-black text-[#181411] sm:text-3xl">שלושה צעדים לתשובה מוכנה</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#a45334]">ברוכים הבאים</p>
+          <h2 className="mt-1 text-2xl font-semibold text-[#181411] sm:text-3xl">שלושה צעדים לתשובה מוכנה</h2>
         </div>
         <p className="max-w-xl text-sm font-bold leading-6 text-[#6d6259]">
           קצר, ישיר, ובעיקר בנוי כדי להגיע לתשובה הראשונה מהר.
@@ -1294,10 +1307,10 @@ function QuickStartStrip() {
             key={step.step}
             className="rounded-[20px] border border-[#e4d8c8] bg-[#fbf7f1] p-3.5"
           >
-            <p className="text-[0.68rem] font-black uppercase tracking-[0.16em] text-[#a45334]">
+            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-[#a45334]">
               {step.step}
             </p>
-            <h3 className="mt-2 text-base font-black text-[#181411]">{step.title}</h3>
+            <h3 className="mt-2 text-base font-semibold text-[#181411]">{step.title}</h3>
             <p className="mt-1.5 text-sm font-bold leading-6 text-[#6d6259]">{step.body}</p>
           </article>
         ))}
@@ -1320,7 +1333,7 @@ function ExampleCard({
       className={`group flex min-h-44 w-full cursor-pointer touch-manipulation flex-col justify-between rounded-[22px] border border-[#e4d8c8] bg-[#fbf7f1] p-4 text-right shadow-[0_10px_24px_rgba(49,23,13,0.06)] transition duration-200 hover:-translate-y-0.5 hover:border-[#ffc4b5] hover:bg-[#fff8ef] ${lightSurfaceFocusClass}`}
     >
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3 text-xs font-black text-[#5b4d42]">
+        <div className="flex items-center justify-between gap-3 text-xs font-semibold text-[#5b4d42]">
           <span className="rounded-full border border-[#ded2c3] bg-white px-3 py-1 text-[#463b33]">
             {scenario.context}
           </span>
@@ -1329,12 +1342,12 @@ function ExampleCard({
             <span className={interactiveBadgeClass}>לחיץ</span>
           </div>
         </div>
-        <h3 className="text-lg font-black text-[#181411]">{scenario.title}</h3>
+        <h3 className="text-lg font-semibold text-[#181411]">{scenario.title}</h3>
         <p className="text-sm leading-6 text-[#5b4d42]">
           &quot;{scenario.message}&quot;
         </p>
       </div>
-      <span className="mt-4 text-sm font-black text-[#7a2d19]">לחיצה אחת, והדוגמה נכנסת לטופס</span>
+      <span className="mt-4 text-sm font-semibold text-[#7a2d19]">לחיצה אחת, והדוגמה נכנסת לטופס</span>
     </button>
   );
 }
@@ -1344,9 +1357,11 @@ function ReplyRefineMenu({
   isBusy,
   onAdjust,
   onCustomAdjust,
+  usageHint,
 }: {
   index: number;
   isBusy: boolean;
+  usageHint: string;
   onAdjust: (index: number, action: ReplyAction) => void;
   onCustomAdjust: (index: number, instruction: string) => void;
 }) {
@@ -1372,7 +1387,7 @@ function ReplyRefineMenu({
         aria-expanded={isOpen}
         aria-controls={panelId}
         onClick={() => setIsOpen((current) => !current)}
-        className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 py-2 text-right text-sm font-bold text-[#6d6259] hover:bg-[#f8f3eb] ${whiteSurfaceFocusClass}`}
+        className={`flex min-h-[42px] w-full items-center justify-between gap-2 px-3.5 py-2 text-right text-sm font-semibold text-[#241d18] ${whiteSurfaceFocusClass}`}
       >
         <span>לשפר ניסוח</span>
         <span className={`text-xs transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true">⌄</span>
@@ -1381,7 +1396,7 @@ function ReplyRefineMenu({
       <DisclosurePanel open={isOpen} id={panelId}>
         <div className="px-2.5 pb-2.5 pt-0.5">
             <p className="mb-2 text-xs font-bold leading-5 text-[#6d6259]">
-              כל שיפור משתמש בשימוש אחד.
+              ניסוח מחדש · {usageHint}
             </p>
             <div className="grid grid-cols-3 gap-1.5">
               <button
@@ -1438,7 +1453,7 @@ function ReplyRefineMenu({
                   type="button"
                   disabled={isBusy || !instruction.trim()}
                   onClick={submitCustomAdjustment}
-                  className={`min-h-11 shrink-0 rounded-xl bg-[#181411] px-3 py-2 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                  className={`min-h-[42px] shrink-0 rounded-xl bg-[#181411] px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
                 >
                   שפר
                 </button>
@@ -1537,6 +1552,9 @@ function ReplyCard({
   isBusy,
   isUpdating,
   copied,
+  error,
+  manualCopy,
+  usageHint,
 }: {
   reply: string;
   index: number;
@@ -1544,7 +1562,7 @@ function ReplyCard({
   onShare: (reply: string, index: number) => void;
   onAdjust: (index: number, action: ReplyAction) => void;
   onCustomAdjust: (index: number, instruction: string) => void;
-  onEdit: (reply: string, index: number) => void;
+  onEdit: (reply: string, index: number) => boolean;
   previousReply: string | null;
   refineError: string | null;
   onRestore: (index: number) => void;
@@ -1552,6 +1570,9 @@ function ReplyCard({
   isBusy: boolean;
   isUpdating: boolean;
   copied: boolean;
+  error?: string;
+  manualCopy: boolean;
+  usageHint: string;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftReply, setDraftReply] = useState(reply);
@@ -1573,7 +1594,7 @@ function ReplyCard({
   function finishEditing(save: boolean) {
     if (save) {
       if (!draftReply.trim()) return;
-      onEdit(draftReply, index);
+      if (!onEdit(draftReply, index)) return;
     } else {
       setDraftReply(reply);
     }
@@ -1640,8 +1661,15 @@ function ReplyCard({
       ) : null}
 
       <div className="mt-3 border-t border-[#eee5da] pt-2">
-        <ReplyRefineMenu index={index} isBusy={isBusy || isEditing} onAdjust={onAdjust} onCustomAdjust={onCustomAdjust} />
+        <ReplyRefineMenu index={index} isBusy={isBusy || isEditing} onAdjust={onAdjust} onCustomAdjust={onCustomAdjust} usageHint={usageHint} />
       </div>
+      {error ? <p className="sb-error mt-3" role="alert">{error}</p> : null}
+      {manualCopy ? (
+        <div className="mt-2">
+          <label htmlFor={`manual-copy-${index}`} className="text-sm">העתקה ידנית של תשובה {index + 1}</label>
+          <textarea id={`manual-copy-${index}`} readOnly value={reply} onFocus={(event) => event.currentTarget.select()} className="sb-message-input mt-2 w-full" />
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -1670,13 +1698,13 @@ function LoadingReplies({ isNoReplyMode }: { isNoReplyMode: boolean }) {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7a6e64]">בדיוק בשבילך</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7a6e64]">בדיוק בשבילך</p>
               <span className="sb-loading-block h-6 w-16 rounded-full" aria-hidden="true" />
             </div>
-            <h3 className="mt-2 text-xl font-black text-[#181411] sm:text-2xl">{title}</h3>
+            <h3 className="mt-2 text-xl font-semibold text-[#181411] sm:text-2xl">{title}</h3>
             <p className="mt-1 text-sm font-bold leading-6 text-[#6d6259]">{description}</p>
           </div>
-          <div className="inline-flex min-h-[36px] min-w-[154px] shrink-0 items-center self-start rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1 text-xs font-black text-[#7a2d19] sm:self-auto">
+          <div className="inline-flex min-h-[36px] min-w-[154px] shrink-0 items-center self-start rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1 text-xs font-semibold text-[#7a2d19] sm:self-auto">
             <span className="sb-loading-pulse-dot ml-2 h-2 w-2 rounded-full bg-[#ff5a2a]" aria-hidden="true" />
             <span className="sb-loading-status-stack" aria-hidden="true">
               {LOADING_REPLY_STATUSES.map((status, index) => (
@@ -1707,10 +1735,10 @@ function LoadingReplies({ isNoReplyMode }: { isNoReplyMode: boolean }) {
           >
             <div className="absolute inset-y-0 right-0 w-1.5 bg-gradient-to-b from-[#ff5a2a] via-[#ff8b67] to-[#ffc4b5]" />
             <div className="flex items-center justify-between gap-2">
-              <span className="rounded-full border border-[#e4d8c8] bg-[#f8f3eb] px-3 py-1 text-xs font-black text-[#7a6e64]">אפשרות {index + 1}</span>
+              <span className="rounded-full border border-[#e4d8c8] bg-[#f8f3eb] px-3 py-1 text-xs font-semibold text-[#7a6e64]">אפשרות {index + 1}</span>
               <span className="sb-loading-block h-6 w-16 rounded-full" />
             </div>
-            <p className="mt-4 text-[1.05rem] leading-8 font-black text-[#8c8075] sm:text-lg">
+            <p className="mt-4 text-[1.05rem] leading-8 font-semibold text-[#8c8075] sm:text-lg">
               {LOADING_REPLY_PREVIEWS[index].split(/(\s+)/).map((segment, segmentIndex) =>
                 /^\s+$/.test(segment) ? (
                   segment
@@ -1811,14 +1839,14 @@ function BillingSnapshotPanel({
 
   return (
     <div className={`w-full min-w-0 rounded-[22px] border border-[#e2d7c8] bg-[#f8f3eb] p-3 ${className}`.trim()}>
-      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#a45334]">מה נשאר לך בחשבון</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#a45334]">מה נשאר לך בחשבון</p>
       <div className="mt-2 grid gap-2">
         {rows.map((row) => (
           <div
             key={`${row.label}-${row.value}`}
             className={`rounded-2xl border border-[#e2d7c8] px-3 py-2 ${row.bgClass}`}
           >
-            <p className="text-[0.68rem] font-black uppercase tracking-[0.12em] text-[#7a6e64]">
+            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[#7a6e64]">
               {row.label}
             </p>
             <p className="mt-1 text-sm font-bold text-[#241d18]">{row.value}</p>
@@ -1872,7 +1900,7 @@ function SubscriptionManagementPanel({
 
   return (
     <div className={`w-full min-w-0 rounded-[22px] border border-[#e2d7c8] bg-white p-3 ${className}`.trim()}>
-      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#a45334]">ניהול מנוי חודשי</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#a45334]">ניהול מנוי חודשי</p>
       <p className="mt-1 text-sm font-bold text-[#241d18]">{statusLine}</p>
       <p className="mt-2 text-xs font-bold text-[#6d6259]">
         אפשר לעצור רק את החיוב הבא, ועדיין להמשיך להשתמש עד סוף התקופה.
@@ -1884,7 +1912,7 @@ function SubscriptionManagementPanel({
             type="button"
             onClick={() => onAction('cancel_next_charge')}
             disabled={!canSubmitAction}
-            className={`min-h-[42px] rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3.5 py-2 text-sm font-black text-[#7a2d19] transition hover:bg-[#ffe2d8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+            className={`min-h-[42px] rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3.5 py-2 text-sm font-semibold text-[#7a2d19] transition hover:bg-[#ffe2d8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
           >
             {isLoading ? 'מעדכנים...' : 'לעצור את החיוב הבא'}
           </button>
@@ -1895,7 +1923,7 @@ function SubscriptionManagementPanel({
             type="button"
             onClick={() => onAction('resume_renewal')}
             disabled={!canSubmitAction}
-            className={`min-h-[42px] rounded-full border border-[#b8e7df] bg-[#e3fbf7] px-3.5 py-2 text-sm font-black text-[#123a36] transition hover:bg-[#cef6ef] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+            className={`min-h-[42px] rounded-full border border-[#b8e7df] bg-[#e3fbf7] px-3.5 py-2 text-sm font-semibold text-[#123a36] transition hover:bg-[#cef6ef] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
           >
             {isLoading ? 'מעדכנים...' : 'להפעיל חידוש אוטומטי'}
           </button>
@@ -1946,7 +1974,7 @@ function CouponRedeemPanel({
     <div
       className={`w-full min-w-0 rounded-[22px] border border-[#e2d7c8] bg-white p-3 ${className}`.trim()}
     >
-      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#a45334]">הזן קוד קופון</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#a45334]">הזן קוד קופון</p>
       <p className="mt-1 text-sm font-bold text-[#6d6259]">
         מזינים כאן קוד ומקבלים עוד שימושים לחשבון.
       </p>
@@ -1970,12 +1998,12 @@ function CouponRedeemPanel({
           spellCheck={false}
           autoCapitalize="characters"
           autoCorrect="off"
-          className={`min-h-[44px] w-full rounded-2xl border border-[#ded2c3] bg-white px-3 py-2 text-base font-black uppercase text-[#241d18] placeholder:text-[#9b8f83] ${whiteSurfaceFocusClass}`}
+          className={`min-h-[44px] w-full rounded-2xl border border-[#ded2c3] bg-white px-3 py-2 text-base font-semibold uppercase text-[#241d18] placeholder:text-[#9b8f83] ${whiteSurfaceFocusClass}`}
         />
         <button
           type="submit"
           disabled={!canRedeem}
-          className={`min-h-[44px] shrink-0 rounded-full bg-[#181411] px-4 py-2 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+          className={`min-h-[44px] shrink-0 rounded-full bg-[#181411] px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
         >
           {isRedeemingCoupon ? 'מממשים...' : 'לממש קופון'}
         </button>
@@ -2018,6 +2046,7 @@ type AccountCenterPanelProps = {
   onRefreshBilling: () => void;
   className?: string;
   compact?: boolean;
+  billingBypassEnabled?: boolean;
 };
 
 function AccountCenterPanel({
@@ -2042,13 +2071,14 @@ function AccountCenterPanel({
   onRefreshBilling,
   className = '',
   compact = false,
+  billingBypassEnabled = false,
 }: AccountCenterPanelProps) {
   const emailInputId = useId();
   const dailyResetLabel = formatShortDateTime(dailyResetAt);
   const nextUseLabel = isBillingLoading
     ? 'בודקים מאיפה יגיע השימוש הבא.'
     : nextConsumptionSource === 'unlimited'
-      ? 'השימוש הבא יגיע מהמסלול החודשי.'
+      ? billingBypassEnabled ? 'כרגע אפשר ליצור תשובות ללא הגבלה.' : 'השימוש הבא כלול במנוי החודשי.'
       : nextConsumptionSource === 'credits'
         ? 'השימוש הבא ירד מיתרת הקרדיטים.'
         : nextConsumptionSource === 'initial_free'
@@ -2079,27 +2109,19 @@ function AccountCenterPanel({
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#a45334]">החשבון שלי</p>
-          <h2 className={compact ? 'mt-1 text-xl font-black text-[#181411]' : 'mt-1 text-2xl font-black text-[#181411]'}>
-            הגישה והתשלום במקום אחד
+          {!compact ? <p className="text-xs font-semibold text-[#a45334]">החשבון שלי</p> : null}
+          <h2 className={compact ? 'mt-1 text-xl font-semibold text-[#181411]' : 'mt-1 text-2xl font-semibold text-[#181411]'}>
+            גישה ושחזור
           </h2>
           <p className="mt-1 text-sm font-bold leading-6 text-[#6d6259]">{accountStatusLine}</p>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {hasUnlimitedAccess || managedSubscription ? (
-            <a
-              href="#plans-section"
-              className={`inline-flex min-h-[42px] items-center rounded-full border border-[#b8e7df] bg-[#e3fbf7] px-3.5 py-2 text-xs font-black text-[#123a36] transition hover:bg-[#cef6ef] ${whiteSurfaceFocusClass}`}
-            >
-              ניהול מנוי
-            </a>
-          ) : null}
           <button
             type="button"
             onClick={onRefreshBilling}
             disabled={!isSessionReady || isBillingLoading}
-            className={`min-h-[42px] rounded-full border border-[#ded2c3] bg-[#f8f3eb] px-3.5 py-2 text-xs font-black text-[#241d18] transition hover:bg-[#efe5d8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+            className={`min-h-[42px] rounded-full border border-[#ded2c3] bg-[#f8f3eb] px-3.5 py-2 text-xs font-semibold text-[#241d18] transition hover:bg-[#efe5d8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
           >
             {isBillingLoading ? 'מרעננים...' : 'רענון מצב חשבון'}
           </button>
@@ -2108,21 +2130,21 @@ function AccountCenterPanel({
 
       <div className="mt-3 grid gap-2 md:grid-cols-3">
         <div className="rounded-[18px] border border-[#b8e7df] bg-[#e3fbf7] px-3 py-2">
-          <p className="text-[0.68rem] font-black uppercase tracking-[0.12em] text-[#4f6d68]">גישה</p>
-          <p className="mt-1 text-sm font-black text-[#123a36]">{nextUseLabel}</p>
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[#4f6d68]">גישה</p>
+          <p className="mt-1 text-sm font-semibold text-[#123a36]">{nextUseLabel}</p>
           {dailyResetLabel && nextConsumptionSource === 'blocked' ? (
             <p className="mt-1 text-xs font-bold text-[#4f6d68]">החינם היומי יתחדש סביב {dailyResetLabel}.</p>
           ) : null}
         </div>
         <div className="rounded-[18px] border border-[#e2d7c8] bg-[#f8f3eb] px-3 py-2">
-          <p className="text-[0.68rem] font-black uppercase tracking-[0.12em] text-[#7a6e64]">שחזור גישה</p>
-          <p className="mt-1 text-sm font-black text-[#241d18]">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[#7a6e64]">שחזור גישה</p>
+          <p className="mt-1 text-sm font-semibold text-[#241d18]">
             {isRecoverableAccount && accountEmail ? accountEmail : 'עדיין לא נשמר אימייל לשחזור.'}
           </p>
         </div>
         <div className="rounded-[18px] border border-[#e2d7c8] bg-white px-3 py-2">
-          <p className="text-[0.68rem] font-black uppercase tracking-[0.12em] text-[#7a6e64]">מנוי וחבילות</p>
-          <p className="mt-1 text-sm font-black text-[#241d18]">{subscriptionLabel ?? 'אין חבילה או מנוי פעיל כרגע.'}</p>
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[#7a6e64]">מנוי וחבילות</p>
+          <p className="mt-1 text-sm font-semibold text-[#241d18]">{subscriptionLabel ?? 'אין חבילה או מנוי פעיל כרגע.'}</p>
         </div>
       </div>
 
@@ -2134,7 +2156,7 @@ function AccountCenterPanel({
             onStartEmailLink('checkout', null);
           }}
         >
-          <label htmlFor={emailInputId} className="text-sm font-black text-[#241d18]">
+          <label htmlFor={emailInputId} className="text-sm font-semibold text-[#241d18]">
             שמירת גישה באימייל
           </label>
           <p className="mt-1 text-xs font-bold leading-5 text-[#6d6259]">
@@ -2155,7 +2177,7 @@ function AccountCenterPanel({
             <button
               type="submit"
               disabled={isSendingAuthEmail || isCompletingEmailLink}
-              className={`min-h-[44px] shrink-0 rounded-full bg-[#181411] px-4 py-2 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+              className={`min-h-[44px] shrink-0 rounded-full bg-[#181411] px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
             >
               {isCompletingEmailLink
                 ? 'מחברים...'
@@ -2170,7 +2192,7 @@ function AccountCenterPanel({
             type="button"
             onClick={() => onStartEmailLink('recover', null)}
             disabled={isSendingAuthEmail || isCompletingEmailLink}
-            className={`mt-2 min-h-[38px] rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-black text-[#241d18] transition hover:bg-[#f8f3eb] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+            className={`mt-2 min-h-[38px] rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-semibold text-[#241d18] transition hover:bg-[#f8f3eb] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
           >
             כבר שילמת? התחבר/י לשחזור גישה
           </button>
@@ -2277,6 +2299,8 @@ function PaywallModal({
 }) {
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
   const selectedPlanCopy = checkoutSession
     ? checkoutSession.plan === 'credits_50'
       ? CREDIT_PLAN_COPY
@@ -2298,7 +2322,7 @@ function PaywallModal({
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -2343,7 +2367,7 @@ function PaywallModal({
       document.removeEventListener('keydown', handleKeyDown);
       activeElement?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) {
     return null;
@@ -2351,7 +2375,7 @@ function PaywallModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-[#181411]/60 p-3 motion-safe:animate-[sb-fade-in_220ms_ease-out] sm:items-center sm:p-4"
+      className="sb-paywall fixed inset-0 z-50 flex items-end justify-center bg-[#181411]/60 p-3 motion-safe:animate-[sb-fade-in_220ms_ease-out] sm:items-center sm:p-4"
       onClick={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
@@ -2369,14 +2393,14 @@ function PaywallModal({
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#a45334]">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#a45334]">
               {!isRecoverableAccount
                 ? 'שלב 1 מתוך 3'
                 : checkoutSession
                   ? 'שלב 3 מתוך 3'
                   : 'שלב 2 מתוך 3'}
             </p>
-            <h2 id="paywall-title" className="mt-2 text-2xl font-black text-[#181411] sm:text-3xl">
+            <h2 id="paywall-title" className="mt-2 text-2xl font-semibold text-[#181411] sm:text-3xl">
               {PAYWALL_TITLE}
             </h2>
             <p id="paywall-description" className="mt-2 text-sm font-bold text-[#6d6259]">
@@ -2452,7 +2476,7 @@ function PaywallModal({
             <>
               <div
                 className={[
-                  'rounded-[24px] border-2 border-black p-4',
+                  'rounded-[24px] border border-[#ded2c3] p-4',
                   checkoutSession.plan === 'credits_50' ? 'bg-white text-black' : 'bg-[#111111] text-white',
                 ].join(' ')}
               >
@@ -2461,16 +2485,16 @@ function PaywallModal({
                     {selectedPlanCopy ? (
                       <span
                         className={[
-                          'rounded-full border px-3 py-1 text-xs font-black',
+                          'rounded-full border px-3 py-1 text-xs font-semibold',
                           checkoutSession.plan === 'credits_50'
-                            ? 'border-black bg-[#f7ff4f] text-black'
+                            ? 'border-black bg-[#e3fbf7] text-black'
                             : 'border-white/40 bg-white/10 text-white',
                         ].join(' ')}
                       >
                         {selectedPlanCopy.badge}
                       </span>
                     ) : null}
-                    <h3 className="mt-3 text-lg font-black">{selectedPlanCopy?.title}</h3>
+                    <h3 className="mt-3 text-lg font-semibold">{selectedPlanCopy?.title}</h3>
                     <p className={checkoutSession.plan === 'credits_50' ? 'mt-1 text-sm font-bold text-neutral-700' : 'mt-1 text-sm font-bold text-white/80'}>
                       {selectedPlanCopy?.helper}
                     </p>
@@ -2478,7 +2502,7 @@ function PaywallModal({
                       {selectedPlanCopy?.body}
                     </p>
                   </div>
-                  <p className="text-2xl font-black">
+                  <p className="text-2xl font-semibold">
                     {selectedPlanCopy?.price}
                   </p>
                 </div>
@@ -2487,7 +2511,7 @@ function PaywallModal({
                   type="button"
                   onClick={onResetCheckout}
                   className={[
-                    `mt-4 min-h-[42px] rounded-full border-2 px-3.5 py-2 text-sm font-black transition ${whiteSurfaceFocusClass}`,
+                    `mt-4 min-h-[42px] rounded-full border-2 px-3.5 py-2 text-sm font-semibold transition ${whiteSurfaceFocusClass}`,
                     checkoutSession.plan === 'credits_50'
                       ? 'border-black bg-[#fff6d8] text-black hover:bg-[#fff2bf]'
                       : 'border-white bg-[#ff623d] text-black hover:bg-[#ff7a56]',
@@ -2510,8 +2534,8 @@ function PaywallModal({
           ) : (
             <>
               {resumePlan ? (
-                <div className="rounded-[22px] border-2 border-black bg-[#d7f9ff] p-3">
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8b2d10]">תשלום פתוח</p>
+                <div className="rounded-[22px] border border-[#ded2c3] bg-[#e3fbf7] p-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8b2d10]">תשלום פתוח</p>
                   <p className="mt-1 text-sm font-bold leading-6 text-black">
                     אפשר להמשיך את התשלום האחרון, לבחור מסלול אחר, או לרענן את מצב החשבון אם כבר שילמתם.
                   </p>
@@ -2520,14 +2544,14 @@ function PaywallModal({
                       type="button"
                       onClick={() => onResumeCheckout(resumePlan)}
                       disabled={isCheckoutLoading || !canStartCheckout}
-                      className={`min-h-[42px] rounded-full border-2 border-black bg-[#f7ff4f] px-3.5 py-2 text-sm font-black text-black transition disabled:cursor-not-allowed disabled:opacity-70 ${lightSurfaceFocusClass}`}
+                      className={`min-h-[42px] rounded-full border border-[#ded2c3] bg-[#e3fbf7] px-3.5 py-2 text-sm font-semibold text-black transition disabled:cursor-not-allowed disabled:opacity-70 ${lightSurfaceFocusClass}`}
                     >
                       להמשיך תשלום
                     </button>
                     <button
                       type="button"
                       onClick={onResetCheckout}
-                      className={`min-h-[42px] rounded-full border-2 border-black bg-white px-3.5 py-2 text-sm font-black text-black transition hover:bg-[#fff6d8] ${whiteSurfaceFocusClass}`}
+                      className={`min-h-[42px] rounded-full border border-[#ded2c3] bg-white px-3.5 py-2 text-sm font-semibold text-black transition hover:bg-[#fff6d8] ${whiteSurfaceFocusClass}`}
                     >
                       לבחור מסלול אחר
                     </button>
@@ -2535,23 +2559,23 @@ function PaywallModal({
                 </div>
               ) : null}
 
-              <div className="rounded-[24px] border-2 border-black bg-white p-4">
+              <div className="rounded-[24px] border border-[#ded2c3] bg-white p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <span className="rounded-full border border-black bg-[#f7ff4f] px-3 py-1 text-xs font-black text-black">
+                    <span className="rounded-full border border-black bg-[#e3fbf7] px-3 py-1 text-xs font-semibold text-black">
                       {CREDIT_PLAN_COPY.badge}
                     </span>
-                    <h3 className="mt-3 text-lg font-black text-black">{CREDIT_PLAN_COPY.title}</h3>
+                    <h3 className="mt-3 text-lg font-semibold text-black">{CREDIT_PLAN_COPY.title}</h3>
                     <p className="mt-1 text-sm font-bold text-neutral-700">{CREDIT_PLAN_COPY.helper}</p>
                     <p className="mt-1 text-sm text-neutral-700">{CREDIT_PLAN_COPY.body}</p>
                   </div>
-                  <p className="text-2xl font-black text-black">{CREDIT_PLAN_COPY.price}</p>
+                  <p className="text-2xl font-semibold text-black">{CREDIT_PLAN_COPY.price}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => onSelectPlan('credits_50')}
                   disabled={isCheckoutLoading || !canStartCheckout}
-                  className={`mt-4 min-h-[48px] w-full rounded-2xl border-2 border-black bg-[#f7ff4f] px-4 py-3 text-sm font-black text-black transition disabled:cursor-not-allowed disabled:opacity-70 ${lightSurfaceFocusClass}`}
+                  className={`sb-primary-button mt-4 min-h-[48px] w-full rounded-2xl border border-[#ded2c3] bg-[#e3fbf7] px-4 py-3 text-sm font-semibold text-black transition disabled:cursor-not-allowed disabled:opacity-70 ${lightSurfaceFocusClass}`}
                 >
                   {!isRecoverableAccount
                     ? 'קודם שומרים גישה באימייל'
@@ -2562,23 +2586,23 @@ function PaywallModal({
               </div>
 
               {shouldShowUnlimitedPlanOption ? (
-                <div className="rounded-[24px] border-2 border-black bg-[#111111] p-4 text-white">
+                <div className="rounded-[24px] border border-[#ded2c3] bg-[#111111] p-4 text-white">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <span className="rounded-full border border-white/40 bg-white/10 px-3 py-1 text-xs font-black">
+                      <span className="rounded-full border border-white/40 bg-white/10 px-3 py-1 text-xs font-semibold">
                         {UNLIMITED_PLAN_COPY.badge}
                       </span>
-                      <h3 className="mt-3 text-lg font-black">{UNLIMITED_PLAN_COPY.title}</h3>
+                      <h3 className="mt-3 text-lg font-semibold">{UNLIMITED_PLAN_COPY.title}</h3>
                       <p className="mt-1 text-sm font-bold text-white/80">{UNLIMITED_PLAN_COPY.helper}</p>
                       <p className="mt-1 text-sm text-white/80">{UNLIMITED_PLAN_COPY.body}</p>
                     </div>
-                    <p className="text-2xl font-black">{UNLIMITED_PLAN_COPY.price}</p>
+                    <p className="text-2xl font-semibold">{UNLIMITED_PLAN_COPY.price}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => onSelectPlan('unlimited_monthly')}
                     disabled={isCheckoutLoading || !canStartCheckout}
-                    className={`mt-4 min-h-[48px] w-full rounded-2xl border-2 border-white bg-[#ff623d] px-4 py-3 text-sm font-black text-black transition disabled:cursor-not-allowed disabled:opacity-70 ${darkSurfaceFocusClass}`}
+                    className={`sb-primary-button mt-4 min-h-[48px] w-full rounded-2xl border border-[#ded2c3] bg-[#ff623d] px-4 py-3 text-sm font-semibold text-black transition disabled:cursor-not-allowed disabled:opacity-70 ${darkSurfaceFocusClass}`}
                   >
                     {!isRecoverableAccount
                       ? 'קודם שומרים גישה באימייל'
@@ -2589,14 +2613,14 @@ function PaywallModal({
                 </div>
               ) : null}
 
-              <div className="rounded-[20px] border-2 border-black bg-white px-4 py-3 text-sm font-bold text-neutral-800">
+              <div className="rounded-[20px] border border-[#ded2c3] bg-white px-4 py-3 text-sm font-bold text-neutral-800">
                 <p>התשלום קצר, ברור ובטוח.</p>
               </div>
             </>
           )}
 
           {checkoutError ? (
-            <p className="rounded-2xl border-2 border-black bg-[#ffd6ce] px-4 py-3 text-sm font-bold text-black">
+            <p className="rounded-2xl border border-[#ded2c3] bg-[#ffd6ce] px-4 py-3 text-sm font-bold text-black">
               {checkoutError}
             </p>
           ) : null}
@@ -2626,8 +2650,29 @@ export default function Home({
   const lastOutgoingInputRef = useRef<HTMLTextAreaElement | null>(null);
   const noReplyDurationInputRef = useRef<HTMLInputElement | null>(null);
   const noReplyDurationUnitRef = useRef<HTMLSelectElement | null>(null);
-  const advancedOptionsRef = useRef<HTMLDetailsElement | null>(null);
-  const toneOptionsRef = useRef<HTMLDetailsElement | null>(null);
+  const advancedOptionsRef = useRef<HTMLButtonElement | null>(null);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [precisionField, setPrecisionField] = useState<string | null>(null);
+  const precisionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (precisionTimer.current) clearTimeout(precisionTimer.current);
+  }, []);
+  function togglePrecision(field: string) {
+    if (precisionTimer.current) clearTimeout(precisionTimer.current);
+    setPrecisionField((current) => current === field ? null : field);
+  }
+  function finishPrecisionChoice() {
+    if (precisionTimer.current) clearTimeout(precisionTimer.current);
+    precisionTimer.current = setTimeout(() => setPrecisionField(null),
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 320);
+  }
+  const toneOptionsRef = useRef<HTMLButtonElement | null>(null);
+  const [isToneOpen, setIsToneOpen] = useState(false);
+  const [isToneConfirmed, setIsToneConfirmed] = useState(false);
+  const toneCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (toneCloseTimer.current) clearTimeout(toneCloseTimer.current);
+  }, []);
   const composeSectionRef = useRef<HTMLDivElement | null>(null);
   const resultsSectionRef = useRef<HTMLDivElement | null>(null);
   const mobileScrollSequenceRef = useRef(0);
@@ -2669,6 +2714,11 @@ export default function Home({
   const [showDeepLinkPrefillBanner, setShowDeepLinkPrefillBanner] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [replyError, setReplyError] = useState<{ index: number; message: string } | null>(null);
+  const [replyErrors, setReplyErrors] = useState<Record<number, string>>({});
+  const [resultsError, setResultsError] = useState<string | null>(null);
+  const [manualCopyIndex, setManualCopyIndex] = useState<number | null>(null);
+  const [resultRequest, setResultRequest] = useState<GenerateRequest | null>(null);
+  const [showAccount, setShowAccount] = useState(false);
   const [result, setResult] = useState<GenerateResponse | null>(null);
   const [hasSentFirstGeneration, setHasSentFirstGeneration] = useState(false);
   const [freeUsed, setFreeUsed] = useState(0);
@@ -2762,9 +2812,7 @@ export default function Home({
     ? 'מכינים 3 תשובות...'
     : isNoReplyMode
       ? 'קבלו 3 פולו-אפים לשליחה'
-      : 'תנו לי 3 תשובות';
-  const canReturnToGeneratorFromResults =
-    isGeneratorPrimaryMode && mobilePrimaryView === 'results' && Boolean(result) && !isGenerating;
+      : 'ליצור לי 3 תשובות';
   const heroGenerateCtaLabel = 'יאללה, מתחילים לענות';
   const heroStartUsingCtaLabel = 'התחילו להשתמש עכשיו';
   const mobileComposeHelper = useMemo(() => {
@@ -2820,7 +2868,7 @@ export default function Home({
           : 'המכסה החינמית הסתיימה. אפשר לבחור חבילה ולהמשיך.';
   const accountStatusLine = isSessionReady
     ? billingStatusLine
-    : 'רגע, מחברים את החשבון...';
+    : requestError ? 'החיבור לא הושלם. אפשר לנסות שוב.' : 'מכינים את החיבור המאובטח...';
   const accessState = hasUnlimitedAccess
     ? 'unlimited'
     : hasCreditBalance
@@ -3024,8 +3072,9 @@ export default function Home({
   );
 
   const handleAdvancedOptionsToggle = useCallback(
-    (event: React.SyntheticEvent<HTMLDetailsElement>) => {
-      if (!event.currentTarget.open || hasTrackedAdvancedOpenRef.current) {
+    () => {
+      setIsAdvancedOpen(!isAdvancedOpen);
+      if (isAdvancedOpen || hasTrackedAdvancedOpenRef.current) {
         return;
       }
 
@@ -3035,7 +3084,7 @@ export default function Home({
         flow_version: GENERATOR_FLOW_VERSION,
       });
     },
-    [composeMode],
+    [composeMode, isAdvancedOpen],
   );
 
   function getActivationTimingPayload() {
@@ -3090,6 +3139,10 @@ export default function Home({
     setImageError(null);
     setRequestError(null);
     setResult(null);
+    setResultRequest(null);
+    setReplyErrors({});
+    setResultsError(null);
+    setManualCopyIndex(null);
     setShowDeepLinkPrefillBanner(true);
 
     trackEvent('deep_link_prefill_applied', {
@@ -3482,6 +3535,7 @@ export default function Home({
       await refreshBillingStatus();
 
       if (intent === 'checkout') {
+        setShowAccount(false);
         setShowPaywall(true);
       }
 
@@ -3818,6 +3872,7 @@ export default function Home({
       }
 
       if (data.session.status === 'open') {
+        setShowAccount(false);
         setShowPaywall(true);
         setCheckoutSession(null);
         setCheckoutResumePlan(resolvedPlan && isCheckoutPlan(resolvedPlan) ? resolvedPlan : null);
@@ -3872,6 +3927,7 @@ export default function Home({
       setPaymentNotice('התשלום נקלט. מאמתים ומעדכנים את החשבון שלך...');
       trackEvent('checkout_success', { plan: planFromCheckout });
     } else if (checkoutStatus === 'cancelled') {
+      setShowAccount(false);
       setShowPaywall(true);
       setCheckoutResumePlan(isCheckoutPlan(planFromCheckout) ? planFromCheckout : null);
       setPaymentNotice('התשלום בוטל, אפשר לנסות שוב בכל רגע.');
@@ -3958,6 +4014,7 @@ export default function Home({
       return;
     }
 
+    setShowAccount(false);
     setShowPaywall(true);
     setCheckoutSession(null);
     setCheckoutResumePlan(null);
@@ -4138,6 +4195,7 @@ export default function Home({
     }
 
     if (!isRecoverableAccount) {
+      setShowAccount(false);
       setShowPaywall(true);
       setCheckoutSession(null);
       setCheckoutError('לפני תשלום צריך לשמור גישה עם אימייל, כדי שהרכישה לא תאבד.');
@@ -4145,6 +4203,7 @@ export default function Home({
       return;
     }
 
+    setShowAccount(false);
     setShowPaywall(true);
 
     setCheckoutPlan(plan);
@@ -4503,6 +4562,13 @@ export default function Home({
     const requestedReplyIndex = options?.replyIndex;
     const isReplyUpdate = typeof requestedReplyIndex === 'number';
     const loadingStartedAt = isReplyUpdate ? null : window.performance.now();
+    setResultsError(null);
+    setManualCopyIndex(null);
+    if (isReplyUpdate) {
+      setReplyErrors((current) => { const next = { ...current }; delete next[requestedReplyIndex]; return next; });
+    } else {
+      setReplyErrors({});
+    }
 
     if (isReplyUpdate) {
       setBusyReplyIndex(requestedReplyIndex);
@@ -4557,6 +4623,7 @@ export default function Home({
           no_reply_duration_value: payload.noReplyDurationValue ?? null,
           no_reply_duration_unit: payload.noReplyDurationUnit ?? null,
         });
+        if (!result && isCompactViewport()) setMobilePrimaryView('compose');
         openPaywall();
         return;
       }
@@ -4643,6 +4710,9 @@ export default function Home({
         intent: nextIntent,
         replies: nextReplies.slice(0, 3),
       });
+      setResultRequest({ ...payload });
+      setCopiedReplyIndex(null);
+      setHasCopiedAllReplies(false);
 
       if (payload.previousOutgoingMessage || payload.commitmentDetails) {
         setLastSuccessfulConversationDefaults(null);
@@ -4736,6 +4806,7 @@ export default function Home({
   async function handleMainSubmit() {
     const replyContext = getReplyContextForRequest();
 
+    if (isGenerating || !isSessionReady) return;
     const trimmedMessage = message.trim().slice(0, MAX_INCOMING_MESSAGE_LENGTH);
     const trimmedLastOutgoingMessage = lastOutgoingMessage
       .trim()
@@ -4825,111 +4896,45 @@ export default function Home({
     );
   }
 
-  async function handleReplyAction(index: number, action: ReplyAction) {
-    if (!result?.replies[index]) {
-      return;
-    }
-
-    const effectiveContinuePreference = isNoReplyMode ? null : continuePreference;
-    const trimmedMessage = message.trim().slice(0, MAX_INCOMING_MESSAGE_LENGTH);
-    const trimmedLastOutgoingMessage = lastOutgoingMessage
-      .trim()
-      .slice(0, MAX_LAST_OUTGOING_MESSAGE_LENGTH);
-    const allowedConversationBackground = hasMonthlyFeatureAccess
-      ? conversationBackground.trim().slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH)
-      : '';
-    const parsedNoReplyDuration = Number.parseInt(noReplyDurationValue, 10);
-
-    trackEvent('refine_click', {
-      action,
-      index,
-      context,
-      tone,
-      goal,
-      compose_mode: composeMode,
-      continue_preference: effectiveContinuePreference ?? 'unspecified',
-      has_image: !isNoReplyMode && Boolean(imageBase64),
-      has_text: !isNoReplyMode && Boolean(trimmedMessage),
-      has_background: Boolean(allowedConversationBackground),
-      has_last_outgoing: Boolean(trimmedLastOutgoingMessage),
-    });
-
-    if (
-      isNoReplyMode &&
-      (!trimmedLastOutgoingMessage ||
-        !Number.isInteger(parsedNoReplyDuration) ||
-        parsedNoReplyDuration < 1 ||
-        parsedNoReplyDuration > MAX_NO_REPLY_DURATION_VALUE)
-    ) {
-      setRequestError('כדי לשפר תשובה כאן, צריך הודעה אחרונה וזמן המתנה תקין.');
-      scrollToComposeSection();
-      return;
-    }
-
-    await runGeneration(
-      {
-        ...getReplyContextForRequest(),
-        message: isNoReplyMode ? '' : trimmedMessage,
-        imageBase64: isNoReplyMode ? null : imageBase64,
-        context: context ?? undefined,
-        tone,
-        goal: goal ?? undefined,
-        continuePreference: effectiveContinuePreference,
-        conversationBackground: allowedConversationBackground || undefined,
-        noReplyMode: isNoReplyMode,
-        noReplyDurationValue:
-          isNoReplyMode && Number.isInteger(parsedNoReplyDuration)
-            ? parsedNoReplyDuration
-            : undefined,
-        noReplyDurationUnit: isNoReplyMode && noReplyDurationUnit ? noReplyDurationUnit : undefined,
-        lastOutgoingMessage: isNoReplyMode ? trimmedLastOutgoingMessage : undefined,
-        action,
-        sourceReply: result.replies[index],
-        conversationId: activeConversationId ?? undefined,
-      },
-      { replyIndex: index },
+  function getResultRequestForCurrentAccess(): GenerateRequest | null {
+    if (!resultRequest) return null;
+    const defaults = resolveConversationDefaultsForAccess(
+      resultRequest.context ?? null, resultRequest.tone, hasMonthlyFeatureAccess,
     );
+    return {
+      ...resultRequest,
+      context: defaults.context ?? undefined,
+      tone: defaults.tone,
+      conversationBackground: hasMonthlyFeatureAccess ? resultRequest.conversationBackground : undefined,
+    };
+  }
+
+  async function handleReplyAction(index: number, action: ReplyAction) {
+    if (!result?.replies[index] || !resultRequest || isGenerating) return;
+    const request = getResultRequestForCurrentAccess();
+    if (!request) return;
+    trackEvent('refine_click', {
+      action, index, context: request.context, tone: request.tone,
+      goal: request.goal,
+      compose_mode: request.noReplyMode ? 'no_reply' : 'incoming',
+      continue_preference: request.continuePreference ?? 'unspecified',
+      has_image: Boolean(request.imageBase64), has_text: Boolean(request.message.trim()),
+      has_background: Boolean(request.conversationBackground), has_last_outgoing: Boolean(request.lastOutgoingMessage),
+    });
+    await runGeneration({ ...request, action, sourceReply: result.replies[index] }, { replyIndex: index });
   }
 
   async function handleCustomReplyAdjustment(index: number, refineInstruction: string) {
-    if (!result?.replies[index] || !refineInstruction.trim()) {
-      return;
-    }
-
+    if (!result?.replies[index] || !resultRequest || !refineInstruction.trim() || isGenerating) return;
+    const request = getResultRequestForCurrentAccess();
+    if (!request) return;
     trackEvent('custom_refine_submit', { index });
-    const trimmedMessage = message.trim().slice(0, MAX_INCOMING_MESSAGE_LENGTH);
-    const trimmedLastOutgoingMessage = lastOutgoingMessage
-      .trim()
-      .slice(0, MAX_LAST_OUTGOING_MESSAGE_LENGTH);
-    const parsedNoReplyDuration = Number.parseInt(noReplyDurationValue, 10);
-    const allowedConversationBackground = hasMonthlyFeatureAccess
-      ? conversationBackground.trim().slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH)
-      : '';
-
-    await runGeneration(
-      {
-        ...getReplyContextForRequest(),
-        message: isNoReplyMode ? '' : trimmedMessage,
-        imageBase64: isNoReplyMode ? null : imageBase64,
-        context: context ?? undefined,
-        tone,
-        goal: goal ?? undefined,
-        continuePreference: isNoReplyMode ? null : continuePreference,
-        conversationBackground: allowedConversationBackground || undefined,
-        noReplyMode: isNoReplyMode,
-        noReplyDurationValue:
-          isNoReplyMode && Number.isInteger(parsedNoReplyDuration)
-            ? parsedNoReplyDuration
-            : undefined,
-        noReplyDurationUnit: isNoReplyMode && noReplyDurationUnit ? noReplyDurationUnit : undefined,
-        lastOutgoingMessage: isNoReplyMode ? trimmedLastOutgoingMessage : undefined,
-        refineInstruction: refineInstruction.trim().slice(0, 220),
-        action: 'retry',
-        sourceReply: result.replies[index],
-        conversationId: activeConversationId ?? undefined,
-      },
-      { replyIndex: index },
-    );
+    await runGeneration({
+      ...request,
+      refineInstruction: refineInstruction.trim().slice(0, 220),
+      action: 'retry',
+      sourceReply: result.replies[index],
+    }, { replyIndex: index });
   }
 
   async function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
@@ -4991,12 +4996,15 @@ export default function Home({
     try {
       await navigator.clipboard.writeText(reply);
       setCopiedReplyIndex(index);
+      setReplyErrors((current) => { const next = { ...current }; delete next[index]; return next; });
+      setManualCopyIndex(null);
       setHasCopiedAllReplies(false);
       trackEvent('reply_copy', {
+        flow_version: GENERATOR_FLOW_VERSION,
         index,
-        context,
-        tone,
-        has_saved_conversation: Boolean(activeConversationId),
+        context: resultRequest?.context,
+        tone: resultRequest?.tone ?? 'זורם',
+        has_saved_conversation: Boolean(resultRequest?.conversationId),
       });
       const hasEmoji = /[\p{Extended_Pictographic}\uFE0F]/u.test(reply);
       void fetchWithAuth('/api/my-voice', {
@@ -5009,14 +5017,16 @@ export default function Home({
         }),
       }).catch((error) => console.error('Failed to record My Voice copy signal', error));
       void recordProductEvent('reply_copy', {
+        flow_version: GENERATOR_FLOW_VERSION,
         index,
-        context: context ?? 'unspecified',
-        tone,
-        has_saved_conversation: Boolean(activeConversationId),
+        context: resultRequest?.context ?? 'unspecified',
+        tone: resultRequest?.tone ?? 'זורם',
+        has_saved_conversation: Boolean(resultRequest?.conversationId),
         has_personalization: personalizationActiveRef.current,
       });
     } catch {
-      setRequestError('ההעתקה נכשלה. נסה שוב.');
+      setReplyErrors((current) => ({ ...current, [index]: 'ההעתקה לא הצליחה. אפשר לבחור את הטקסט ולהעתיק ידנית.' }));
+      setManualCopyIndex(index);
     }
   }
 
@@ -5030,6 +5040,8 @@ export default function Home({
 
       await navigator.clipboard.writeText(reply);
       setCopiedReplyIndex(index);
+      setReplyErrors((current) => { const next = { ...current }; delete next[index]; return next; });
+      setManualCopyIndex(null);
       setHasCopiedAllReplies(false);
       trackEvent('reply_share', { index, method: 'clipboard_fallback' });
       void recordProductEvent('reply_copy', { index });
@@ -5038,7 +5050,8 @@ export default function Home({
         return;
       }
 
-      setRequestError('השיתוף לא הצליח. אפשר להעתיק את התשובה ידנית.');
+      setReplyErrors((current) => ({ ...current, [index]: 'השיתוף לא הצליח. אפשר להעתיק את התשובה ידנית.' }));
+      setManualCopyIndex(index);
     }
   }
 
@@ -5048,8 +5061,8 @@ export default function Home({
     const normalizedReply = reply.trim();
 
     if (!normalizedReply) {
-      setRequestError('אי אפשר לשמור תשובה ריקה.');
-      return;
+      setReplyErrors((current) => ({ ...current, [index]: 'אי אפשר לשמור תשובה ריקה.' }));
+      return false;
     }
 
     setReplyError(null);
@@ -5068,10 +5081,9 @@ export default function Home({
       };
     });
     setRequestError(null);
-    trackEvent('reply_edit', {
-      index,
-      length: normalizedReply.length,
-    });
+    setReplyErrors((current) => { const next = { ...current }; delete next[index]; return next; });
+    trackEvent('reply_edit', { index, length: normalizedReply.length });
+    return true;
   }
 
   async function handleCopyAllReplies() {
@@ -5084,13 +5096,14 @@ export default function Home({
       await navigator.clipboard.writeText(replyText);
       setCopiedReplyIndex(null);
       setHasCopiedAllReplies(true);
+      setResultsError(null);
       trackEvent('reply_copy_all', {
         reply_count: result.replies.length,
         has_saved_conversation: Boolean(activeConversationId),
       });
       void recordProductEvent('reply_copy', { index: 'all' });
     } catch {
-      setRequestError('העתקת כל התשובות נכשלה. נסה שוב.');
+      setResultsError('העתקת כל התשובות לא הצליחה. אפשר להעתיק כל תשובה בנפרד או לבחור את הטקסט ידנית.');
     }
   }
 
@@ -5099,7 +5112,8 @@ export default function Home({
       compose_mode: composeMode,
       access_state: accessState,
     });
-    await handleMainSubmit();
+    const request = getResultRequestForCurrentAccess();
+    if (request && !isGenerating) await runGeneration(request);
   }
 
   function cancelPendingInput() {
@@ -5124,6 +5138,10 @@ export default function Home({
     setCommitmentChoice(null);
     setContinueDialogReply(null);
     setResult(null);
+    setResultRequest(null);
+    setReplyErrors({});
+    setResultsError(null);
+    setManualCopyIndex(null);
     setRequestError(null);
     setImageError(null);
     setImageBase64(null);
@@ -5147,9 +5165,7 @@ export default function Home({
     setHasCopiedAllReplies(false);
     setLastSuccessfulConversationDefaults(null);
     setMobilePrimaryView('compose');
-    if (advancedOptionsRef.current) {
-      advancedOptionsRef.current.open = false;
-    }
+    setIsAdvancedOpen(false);
     scrollToComposeSection();
   }
 
@@ -5180,6 +5196,10 @@ export default function Home({
     setShowDeepLinkPrefillBanner(false);
     setRequestError(null);
     setResult(null);
+    setResultRequest(null);
+    setReplyErrors({});
+    setResultsError(null);
+    setManualCopyIndex(null);
     setActiveConversationId(null);
     setConversationNotice(null);
     setLastSuccessfulConversationDefaults(null);
@@ -5275,14 +5295,33 @@ export default function Home({
     }
   }
 
+  const draftRequest: GenerateRequest = {
+    message: isNoReplyMode ? '' : trimmedMessage,
+    imageBase64: isNoReplyMode ? null : imageBase64,
+    context: context ?? undefined,
+    tone,
+    goal: goal ?? undefined,
+    continuePreference: isNoReplyMode ? null : continuePreference,
+    conversationBackground: hasMonthlyFeatureAccess ? conversationBackground.trim() || undefined : undefined,
+    noReplyMode: isNoReplyMode,
+    noReplyDurationValue: isNoReplyMode ? parsedNoReplyDuration : undefined,
+    noReplyDurationUnit: isNoReplyMode && noReplyDurationUnit ? noReplyDurationUnit : undefined,
+    lastOutgoingMessage: isNoReplyMode ? trimmedLastOutgoingMessage : undefined,
+    conversationId: activeConversationId ?? undefined,
+  };
+  const resultIsStale = resultRequest !== null &&
+    (Object.keys(draftRequest) as Array<keyof GenerateRequest>).some((key) => draftRequest[key] !== resultRequest[key]);
+  const usageActionHint = hasUnlimitedAccess ? 'כלול בגישה שלך' : 'שימוש אחד';
+  const advancedSummary = [context, goal, continuePreference === 'כן' ? 'להמשיך את השיחה' : continuePreference === 'לא' ? 'לסיים בנימוס' : null, conversationBackground.trim() ? 'נוסף רקע' : null].filter(Boolean).join(' · ');
+
   return (
     <main
       dir="rtl"
-      className="min-h-screen overflow-x-clip bg-[#fff9ef] px-3 pb-24 pt-3 text-right text-[#181411] sm:px-6 sm:py-6 sm:pb-6"
+      className="sb-experience min-h-screen overflow-x-clip bg-[#fff9ef] px-3 pb-24 pt-3 text-right text-[#181411] sm:px-6 sm:pt-6 lg:pb-6"
     >
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 sm:gap-5">
         {isGeneratorPrimaryMode ? (
-          <GeneratorHeader accountStatusLine={accountStatusLine} />
+          <ConversationHeader onOpenAccount={() => setShowAccount(true)} />
         ) : (
           <HomeHero
             onStart={handleHeroStartUsingClick}
@@ -5291,21 +5330,21 @@ export default function Home({
           />
         )}
 
-        <section className="grid w-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-5">
-          {hasHydrated && !isGeneratorPrimaryMode ? (
-            <div className="flex items-center justify-between gap-2 rounded-[20px] border border-[#e2d7c8] bg-white p-1.5 shadow-[0_10px_28px_rgba(49,23,13,0.08)] lg:hidden">
+        <section className="sb-workspace grid w-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-5">
+          {hasHydrated && canShowMobileResults ? (
+            <div className="sb-mobile-switch lg:hidden">
               <button
                 type="button"
-                onClick={() => setMobilePrimaryView('compose')}
+                onClick={handleReturnToGenerator}
                 aria-pressed={mobilePrimaryView === 'compose'}
                 className={[
-                  `min-h-[42px] flex-1 rounded-[14px] px-3 py-2 text-sm font-black transition ${lightSurfaceFocusClass}`,
+                  `min-h-[42px] flex-1 rounded-[14px] px-3 py-2 text-sm font-semibold transition ${lightSurfaceFocusClass}`,
                   mobilePrimaryView === 'compose'
                     ? 'bg-[#181411] text-white shadow-[0_8px_18px_rgba(24,20,17,0.16)]'
                     : 'bg-transparent text-[#5b4d42]',
                 ].join(' ')}
               >
-                שלב 1: מילוי
+                עריכת ההודעה
               </button>
               <button
                 type="button"
@@ -5317,13 +5356,13 @@ export default function Home({
                 aria-pressed={mobilePrimaryView === 'results'}
                 disabled={!canShowMobileResults}
                 className={[
-                  `min-h-[42px] flex-1 rounded-[14px] px-3 py-2 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${lightSurfaceFocusClass}`,
+                  `min-h-[42px] flex-1 rounded-[14px] px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${lightSurfaceFocusClass}`,
                   mobilePrimaryView === 'results'
                     ? 'bg-[#181411] text-white shadow-[0_8px_18px_rgba(24,20,17,0.16)]'
                     : 'bg-transparent text-[#5b4d42]',
                 ].join(' ')}
               >
-                {canShowMobileResults ? 'שלב 2: תשובות' : 'תשובות אחרי יצירה'}
+                התשובות
               </button>
             </div>
           ) : null}
@@ -5332,16 +5371,16 @@ export default function Home({
             ref={composeSectionRef}
             id="compose-section"
             className={[
-              'sb-motion-panel mobile-section-anchor w-full min-w-0 rounded-[28px] border border-[#e2d7c8] bg-[#fffdfa] shadow-[0_20px_55px_rgba(49,23,13,0.1)] sm:rounded-[32px]',
+              'sb-compose-panel sb-motion-panel mobile-section-anchor w-full min-w-0 rounded-[28px] border border-[#e2d7c8] bg-[#fffdfa] shadow-[0_20px_55px_rgba(49,23,13,0.1)] sm:rounded-[32px]',
               isGeneratorPrimaryMode ? 'space-y-3 p-2.5 sm:p-4' : 'space-y-4 p-4 sm:p-5',
               mobilePrimaryView === 'compose' ? 'block' : 'hidden lg:block',
             ].join(' ')}
           >
             {!isGeneratorPrimaryMode ? <div className="min-w-0 space-y-2">
-              <p className="inline-flex min-h-[32px] items-center rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-[#8f371e] lg:hidden">
+              <p className="inline-flex min-h-[32px] items-center rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[#8f371e] lg:hidden">
                 {mobileSectionNavItems[0].stepLabel}
               </p>
-              <h2 className="text-2xl font-black text-[#181411] sm:text-3xl">מדביקים הודעה. מקבלים ניסוח מוכן.</h2>
+              <h2 className="text-2xl font-semibold text-[#181411] sm:text-3xl">מדביקים הודעה. מקבלים ניסוח מוכן.</h2>
               <p className="text-sm font-bold leading-6 text-[#6d6259]">
                 מדביקים כמו שזה, בוחרים וייב, ומקבלים 3 תשובות קצרות לשליחה.
               </p>
@@ -5355,17 +5394,17 @@ export default function Home({
                   : 'border-[#ffc4b5] bg-[#fff0ea]',
               ].join(' ')}
             >
-              <p className="text-sm font-black text-[#241d18]">{mobileComposeHelper.title}</p>
+              <p className="text-sm font-semibold text-[#241d18]">{mobileComposeHelper.title}</p>
               <p className="mt-1 text-xs font-bold leading-5 text-[#5b4d42]">{mobileComposeHelper.body}</p>
             </div> : null}
 
             {showDeepLinkPrefillBanner ? (
               <div className="flex w-full min-w-0 flex-col gap-2 rounded-[22px] border border-[#b8e7df] bg-[#e3fbf7] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm font-black text-[#123a36]">{DEEP_LINK_PREFILL_BANNER_TEXT}</p>
+                <p className="text-sm font-semibold text-[#123a36]">{DEEP_LINK_PREFILL_BANNER_TEXT}</p>
                 <button
                   type="button"
                   onClick={() => setShowDeepLinkPrefillBanner(false)}
-                  className={`min-h-[38px] rounded-full border border-[#b8e7df] bg-white px-3 py-1 text-xs font-black text-[#123a36] ${lightSurfaceFocusClass}`}
+                  className={`min-h-[38px] rounded-full border border-[#b8e7df] bg-white px-3 py-1 text-xs font-semibold text-[#123a36] ${lightSurfaceFocusClass}`}
                 >
                   סגור
                 </button>
@@ -5373,7 +5412,7 @@ export default function Home({
             ) : null}
 
             {!isGeneratorPrimaryMode ? <div className="w-full min-w-0 space-y-2 rounded-[22px] border border-[#e2d7c8] bg-[#f8f3eb] p-3 sm:hidden">
-              <p className="text-sm font-black text-[#241d18]">להתחיל מדוגמה מוכנה</p>
+              <p className="text-sm font-semibold text-[#241d18]">להתחיל מדוגמה מוכנה</p>
               <p className="text-xs font-bold leading-5 text-[#6d6259]">
                 בחרו אחת מהדוגמאות ונמלא את הטופס אוטומטית.
               </p>
@@ -5383,7 +5422,7 @@ export default function Home({
                     key={`mobile-example-${scenario.title}`}
                     type="button"
                     onClick={() => applyExample(scenario)}
-                    className={`snap-start whitespace-nowrap rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-black text-[#241d18] ${lightSurfaceFocusClass}`}
+                    className={`snap-start whitespace-nowrap rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-semibold text-[#241d18] ${lightSurfaceFocusClass}`}
                   >
                     {scenario.title}
                   </button>
@@ -5409,23 +5448,23 @@ export default function Home({
               </p>
             ) : null}
 
-            <div className="w-full min-w-0 space-y-3 rounded-[24px] border border-[#e2d7c8] bg-white p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:space-y-4 sm:p-5">
+            <div className="w-full min-w-0 space-y-4">
               {isGeneratorPrimaryMode ? (
-                <div className="flex min-h-[46px] items-center justify-between gap-2 rounded-[16px] border border-[#e4d8c8] bg-[#fff9ef] px-3 py-1.5">
-                  <p className="min-w-0 text-sm font-black text-[#241d18]">
+                <div className="sb-compose-mode">
+                  <p className="min-w-0 text-sm font-semibold text-[#241d18]">
                     {isNoReplyMode ? 'כותבים פולו־אפ' : 'עונים להודעה שקיבלת'}
                   </p>
                   <button
                     type="button"
                     onClick={() => handleComposeModeChange(isNoReplyMode ? 'incoming' : 'no_reply')}
-                    className={`min-h-[44px] shrink-0 rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1.5 text-xs font-black text-[#7a2d19] transition hover:bg-[#ffe3da] ${lightSurfaceFocusClass}`}
+                    className={`min-h-[44px] shrink-0 rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1.5 text-xs font-semibold text-[#7a2d19] transition hover:bg-[#ffe3da] ${lightSurfaceFocusClass}`}
                   >
                     {isNoReplyMode ? 'חזרה לתשובה' : 'לא ענו? פולו־אפ'}
                   </button>
                 </div>
               ) : (
               <div className="rounded-[20px] border border-[#e4d8c8] bg-[#f8f3eb] p-3">
-                <p className="text-sm font-black text-[#241d18]">איך ממשיכים מכאן?</p>
+                <p className="text-sm font-semibold text-[#241d18]">איך ממשיכים מכאן?</p>
                 <p className="mt-1 text-xs font-bold leading-5 text-[#6d6259]">
                   בחרו מצב כתיבה כדי לראות רק את מה שצריך עכשיו.
                 </p>
@@ -5446,7 +5485,7 @@ export default function Home({
                             : 'border-[#ded2c3] bg-white text-[#241d18] hover:-translate-y-0.5 hover:bg-[#fffdfa]',
                         ].join(' ')}
                       >
-                        <span className="block text-sm font-black">{option.label}</span>
+                        <span className="block text-sm font-semibold">{option.label}</span>
                         <span
                           className={[
                             'mt-1 block text-xs font-bold leading-5',
@@ -5463,9 +5502,9 @@ export default function Home({
               )}
 
               {isNoReplyMode ? (
-                <div className="sb-motion-panel space-y-3 rounded-[22px] border border-[#e2d7c8] bg-[#fbf7f1] p-3 sm:space-y-4 sm:p-4">
+                <div className="sb-input-zone sb-motion-panel space-y-3">
                   <div>
-                    <label htmlFor="last-outgoing-message" className="text-sm font-black text-[#241d18]">
+                    <label htmlFor="last-outgoing-message" className="text-sm font-semibold text-[#241d18]">
                       מה כתבתי בהודעה האחרונה? <span aria-hidden="true" className="text-[#c23318]">*</span>
                     </label>
                     <p className="text-xs font-bold text-[#6d6259]">
@@ -5499,7 +5538,7 @@ export default function Home({
                   <div className="rounded-2xl border border-[#e2d7c8] bg-white p-3">
                     <label
                       htmlFor="no-reply-duration-value"
-                      className="text-sm font-black text-[#241d18]"
+                      className="text-sm font-semibold text-[#241d18]"
                     >
                       כמה זמן לא ענו? <span aria-hidden="true" className="text-[#c23318]">*</span>
                     </label>
@@ -5541,7 +5580,7 @@ export default function Home({
                         required
                         aria-invalid={hasTriedNoReplyContinue && !hasNoReplyDurationUnit}
                         aria-describedby={hasTriedNoReplyContinue && !hasNoReplyDurationUnit ? 'no-reply-duration-unit-error' : undefined}
-                        className={`min-h-[44px] w-full rounded-xl border bg-white px-3 py-2 text-sm font-black text-[#241d18] outline-none transition focus:bg-[#fffdfa] ${hasTriedNoReplyContinue && !hasNoReplyDurationUnit ? 'border-[#c23318]' : 'border-[#ded2c3]'} ${lightSurfaceFocusClass}`}
+                        className={`min-h-[44px] w-full rounded-xl border bg-white px-3 py-2 text-sm font-semibold text-[#241d18] outline-none transition focus:bg-[#fffdfa] ${hasTriedNoReplyContinue && !hasNoReplyDurationUnit ? 'border-[#c23318]' : 'border-[#ded2c3]'} ${lightSurfaceFocusClass}`}
                       >
                         <option value="" disabled>בחרו יחידת זמן</option>
                         {noReplyDurationUnitOptions.map((option) => (
@@ -5564,10 +5603,10 @@ export default function Home({
                   </div>
                 </div>
               ) : (
-                <div className="sb-motion-panel space-y-3 rounded-[22px] border border-[#e2d7c8] bg-[#fbf7f1] p-3 sm:space-y-4 sm:p-4">
+                <div className="sb-input-zone sb-motion-panel space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <div>
-                      <label htmlFor="incoming-message" className="text-sm font-black text-[#241d18]">
+                      <label htmlFor="incoming-message" className="text-sm font-semibold text-[#241d18]">
                         מה כתבו לך?
                       </label>
                       <p className="text-[11px] font-bold text-[#6d6259]">מדביקים טקסט או מצרפים צילום.</p>
@@ -5575,7 +5614,7 @@ export default function Home({
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className={`min-h-[44px] shrink-0 rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-black text-[#241d18] transition hover:bg-[#f8f3eb] ${lightSurfaceFocusClass}`}
+                      className={`min-h-[44px] shrink-0 rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-semibold text-[#241d18] transition hover:bg-[#f8f3eb] ${lightSurfaceFocusClass}`}
                     >
                       צילום מסך
                     </button>
@@ -5589,13 +5628,20 @@ export default function Home({
                     onPaste={handleMessagePaste}
                     placeholder='למשל: "היי, מתאים לך שנדבר בערב?"'
                     maxLength={MAX_INCOMING_MESSAGE_LENGTH}
-                    className={`min-h-28 w-full resize-none rounded-[22px] rounded-bl-[14px] border border-[#ded2c3] bg-white px-4 py-3 text-base leading-7 font-medium text-[#241d18] outline-none transition placeholder:text-[#9b8f83] focus:bg-[#fffdfa] sm:min-h-40 sm:py-4 ${lightSurfaceFocusClass}`}
+                    aria-describedby="incoming-message-help"
+                    className={`sb-message-input min-h-28 w-full resize-none rounded-[22px] rounded-bl-[14px] border border-[#ded2c3] bg-white px-4 py-3 text-base leading-7 font-medium text-[#241d18] outline-none transition placeholder:text-[#9b8f83] focus:bg-[#fffdfa] sm:min-h-40 sm:py-4 ${lightSurfaceFocusClass}`}
                   />
-                  {messageLength > MAX_INCOMING_MESSAGE_LENGTH ? (
-                    <p className="text-xs font-bold text-[#b42318]" role="alert">
-                      עד {MAX_INCOMING_MESSAGE_LENGTH} תווים להודעה ({messageLength}/
-                      {MAX_INCOMING_MESSAGE_LENGTH}).
-                    </p>
+                  <div className="sb-input-footer" id="incoming-message-help">
+                    <span>טקסט קצר או תמונה עד 4MB</span>
+                    <span dir="ltr">{messageLength}/{MAX_INCOMING_MESSAGE_LENGTH}</span>
+                  </div>
+                  {!message.trim() && !imageBase64 ? (
+                    <div className="sb-inline-examples">
+                      <span>אפשר להתחיל מדוגמה:</span>
+                      {examples.filter((item) => item.id !== 'ex-check-in').map((scenario) => (
+                        <button type="button" key={scenario.id} onClick={() => applyExample(scenario)}>{scenario.context === 'קראש' ? 'שיחה אישית' : scenario.context === 'לקוח' ? 'הודעה מלקוח' : 'קנייה ומכירה'}</button>
+                      ))}
+                    </div>
                   ) : null}
 
                   <input
@@ -5606,35 +5652,21 @@ export default function Home({
                     className="hidden"
                   />
 
-                  {imageBase64 ? (
-                    <div className="relative h-48 w-full overflow-hidden rounded-2xl border border-[#e2d7c8] bg-[#f8f3eb]">
-                      <Image
-                        src={imageBase64}
-                        alt="תצוגה מקדימה של צילום המסך שנבחר"
-                        fill
-                        unoptimized
-                        className="object-contain"
-                      />
-                    </div>
-                  ) : null}
-
-                  {imageName ? (
-                    <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-[#e2d7c8] bg-[#f8f3eb] px-4 py-3 min-[430px]:flex-row min-[430px]:items-center">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-black text-[#241d18]">{imageName}</p>
-                        <p className="text-xs font-bold text-[#6d6259]">הצילום נוסף לטופס ומוכן ליצירה</p>
+                  {imageName && imageBase64 ? (
+                    <div className="flex items-center gap-3 rounded-xl border border-[#ded2c3] p-3">
+                      <Image src={imageBase64} alt="תצוגה מקדימה של צילום המסך" width={72} height={88} unoptimized className="h-22 w-18 shrink-0 rounded-lg object-contain" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm">{imageName}</p>
+                        <div className="mt-1 flex gap-3 text-sm">
+                          <button type="button" onClick={() => fileInputRef.current?.click()} className="min-h-11 underline underline-offset-4">החלפת צילום</button>
+                          <button type="button" onClick={clearImage} className="min-h-11 underline underline-offset-4">הסרת צילום</button>
+                        </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={clearImage}
-                        className={`min-h-[44px] rounded-full bg-[#181411] px-3 py-2 text-xs font-black text-white ${lightSurfaceFocusClass}`}
-                      >
-                        להסיר
-                      </button>
                     </div>
                   ) : null}
+                  <p className="sb-status">ההודעה משמשת להכנת התשובות. <a href="/privacy" className="underline underline-offset-2">על הפרטיות</a></p>
 
-                  {imageError ? <p className="text-sm font-bold text-[#c23318]">{imageError}</p> : null}
+                  {imageError ? <p role="alert" className="sb-error">{imageError}</p> : null}
                 </div>
               )}
 
@@ -5654,22 +5686,80 @@ export default function Home({
                   onChange={(mode, details) => setCommitmentChoice({ message, mode, details })}
                 />
               ) : null}
+              <div
+                className="sb-tone-control rounded-[20px] border border-[#e2d7c8] bg-[#f8f3eb]"
+                data-open={isToneOpen}
+                data-confirmed={isToneConfirmed}
+              >
+                <button
+                  ref={toneOptionsRef}
+                  type="button"
+                  aria-expanded={isToneOpen}
+                  aria-controls="tone-options-panel"
+                  onClick={() => {
+                    if (toneCloseTimer.current) clearTimeout(toneCloseTimer.current);
+                    setIsToneConfirmed(false);
+                    setIsToneOpen((current) => !current);
+                  }}
+                  className={`flex w-full min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm text-[#241d18] marker:content-none ${lightSurfaceFocusClass}`}
+                >
+                  <span className="font-semibold" aria-live="polite">סגנון: {tone}{isToneConfirmed ? <span className="sb-tone-confirmation"> ✓ נבחר</span> : null}</span>
+                  <span className="flex items-center gap-2 font-semibold text-[#8f371e]">
+                    <span>שינוי</span>
+                    <span className="sb-tone-chevron text-xs" aria-hidden="true">⌄</span>
+                  </span>
+                </button>
+                <div id="tone-options-panel" className="sb-tone-panel" inert={!isToneOpen} aria-hidden={!isToneOpen}>
+                  <div className="sb-tone-panel-inner">
+                    <div className="border-t border-[#e2d7c8] px-3 pb-3 pt-2">
+                      <ChipGroup
+                        title="איזה וייב מתאים לך?"
+                        description="זורם נבחר כברירת מחדל. אפשר לבחור וייב אחר."
+                        headerAlign="right"
+                        illustrations={toneOptionIllustrations}
+                        options={shouldShowMonthlyFeatureOptions ? toneOptions : freeToneOptions}
+                        primaryVisibleCount={TONE_PRIMARY_VISIBLE_COUNT}
+                        primaryColumns={3}
+                        moreOptionsLabel="עוד וייבים"
+                        lockedOptions={hasUnlimitedAccess ? [] : monthlyOnlyToneOptions}
+                        lockedOptionsPreviewLabel="חודשי"
+                        lockedOptionsHint="הווייבים המורחבים פתוחים במסלול ללא הגבלה חודשי."
+                        lockedOptionsNoticeTitle={MONTHLY_LOCK_COPY.tone.title}
+                        lockedOptionsNoticeBody={MONTHLY_LOCK_COPY.tone.body}
+                        lockedOptionsNoticeCta="לפתוח ללא הגבלה חודשי"
+                        showMoreOptionsSearch={false}
+                        onLockedOptionsNoticeCtaClick={openPaywall}
+                        value={tone}
+                        onChange={(nextValue) => {
+                          if (nextValue) {
+                            trackEvent('tone_select', { value: nextValue });
+                            setTone(nextValue);
+                            if (toneCloseTimer.current) clearTimeout(toneCloseTimer.current);
+                            setIsToneConfirmed(true);
+                            toneCloseTimer.current = setTimeout(() => {
+                              toneOptionsRef.current?.focus({ preventScroll: true });
+                              setIsToneOpen(false);
+                            }, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 420);
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               <div className="space-y-2.5">
                 <button
                   type="button"
                   onClick={handleMainSubmit}
                   disabled={isGenerating || !isSessionReady || (isNoReplyMode && !isNoReplyReady)}
-                  className={`inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-[#ff5a2a] px-5 py-3 text-base font-black text-white shadow-[0_14px_26px_rgba(255,90,42,0.24)] transition duration-150 hover:bg-[#f04d1f] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 ${lightSurfaceFocusClass}`}
+                  className={`sb-primary-button inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-[#ff5a2a] px-5 py-3 text-base font-semibold text-white shadow-[0_14px_26px_rgba(255,90,42,0.24)] transition duration-150 hover:bg-[#f04d1f] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 ${lightSurfaceFocusClass}`}
                 >
-                  <span className="rounded-full bg-white/20 px-2 py-0.5 text-[0.64rem] font-black uppercase tracking-[0.12em] text-white">
-                    פעולה
-                  </span>
                   {generateButtonLabel}
                 </button>
-                <p className="text-xs font-black text-[#6d6259]">{accountStatusLine}</p>
+                <p className="sb-status">{accountStatusLine}</p>
                 {paymentNotice ? (
-                  <p className="rounded-2xl border border-[#b8e7df] bg-[#e3fbf7] px-4 py-3 text-sm font-black text-[#123a36]">
+                  <p className="rounded-2xl border border-[#b8e7df] bg-[#e3fbf7] px-4 py-3 text-sm font-semibold text-[#123a36]">
                     {paymentNotice}
                   </p>
                 ) : null}
@@ -5686,75 +5776,33 @@ export default function Home({
             </div>
 
             <div className="grid gap-2.5 sm:gap-3">
-              <details
-                ref={toneOptionsRef}
-                className="group rounded-[20px] border border-[#e2d7c8] bg-[#f8f3eb] transition-colors duration-200 open:bg-[#fff8ef]"
+              <div
+                data-open={isAdvancedOpen}
+                className="sb-advanced-control group rounded-[22px] border border-dashed border-[#d8cab9] bg-[#f8f3eb] transition-colors duration-200 open:bg-[#fff8ef]"
               >
-                <summary
-                  className={`flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm text-[#241d18] marker:content-none ${lightSurfaceFocusClass}`}
+                <button
+                  ref={advancedOptionsRef}
+                  type="button"
+                  aria-expanded={isAdvancedOpen}
+                  aria-controls="advanced-options-panel"
+                  onClick={handleAdvancedOptionsToggle}
+                  className={`flex w-full min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-semibold text-[#241d18] marker:content-none ${lightSurfaceFocusClass}`}
                 >
-                  <span className="font-black">וייב: {tone}</span>
-                  <span className="flex items-center gap-2 font-black text-[#8f371e]">
-                    <span>שינוי</span>
-                    <span className="text-xs transition-transform duration-200 group-open:rotate-180">⌄</span>
+                  <span className="min-w-0 text-right">
+                    <span>עוד דיוק <span className="sb-precision-optional">· רק אם מתאים</span></span>
+                    {!isAdvancedOpen && advancedSummary ? <span className="sb-precision-summary">{advancedSummary}</span> : null}
                   </span>
-                </summary>
-                <div className="border-t border-[#e2d7c8] px-3 pb-3 pt-2">
-                  <ChipGroup
-                    title="איזה וייב מתאים לך?"
-                    description="זורם נבחר כברירת מחדל. אפשר לבחור וייב אחר."
-                    headerAlign="right"
-                    illustrations={toneOptionIllustrations}
-                    options={shouldShowMonthlyFeatureOptions ? toneOptions : freeToneOptions}
-                    primaryVisibleCount={TONE_PRIMARY_VISIBLE_COUNT}
-                    primaryColumns={3}
-                    moreOptionsLabel="עוד וייבים"
-                    lockedOptions={hasUnlimitedAccess ? [] : monthlyOnlyToneOptions}
-                    lockedOptionsPreviewLabel="חודשי"
-                    lockedOptionsHint="הווייבים המורחבים פתוחים במסלול ללא הגבלה חודשי."
-                    lockedOptionsNoticeTitle={MONTHLY_LOCK_COPY.tone.title}
-                    lockedOptionsNoticeBody={MONTHLY_LOCK_COPY.tone.body}
-                    lockedOptionsNoticeCta="לפתוח ללא הגבלה חודשי"
-                    showMoreOptionsSearch={false}
-                    onLockedOptionsNoticeCtaClick={openPaywall}
-                    value={tone}
-                    onChange={(nextValue) => {
-                      if (nextValue) {
-                        trackEvent('tone_select', { value: nextValue });
-                        setTone(nextValue);
-                        window.requestAnimationFrame(() => {
-                          if (toneOptionsRef.current) {
-                            toneOptionsRef.current.open = false;
-                          }
-                        });
-                      }
-                    }}
-                  />
-                </div>
-              </details>
-
-              <details
-                ref={advancedOptionsRef}
-                onToggle={handleAdvancedOptionsToggle}
-                className="group rounded-[22px] border border-dashed border-[#d8cab9] bg-[#f8f3eb] transition-colors duration-200 open:bg-[#fff8ef]"
-              >
-                <summary
-                  className={`flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-black text-[#241d18] marker:content-none ${lightSurfaceFocusClass}`}
-                >
-                  <span className="flex items-center gap-2">
-                    <span>עוד דיוק · אופציונלי</span>
-                    {context || goal || continuePreference || conversationBackground ? (
-                      <span className="rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-2 py-0.5 text-[10px] font-black text-[#8f371e]">
-                        נבחר דיוק
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="text-xs transition-transform duration-200 group-open:rotate-180">⌄</span>
-                </summary>
-                <div className="sb-accordion-content">
-                  <div className="sb-accordion-content-inner space-y-3 px-3 pb-3 pt-1">
+                  <span className="sb-precision-chevron" aria-hidden="true">⌄</span>
+                </button>
+                <div id="advanced-options-panel" className="sb-precision-panel" inert={!isAdvancedOpen} aria-hidden={!isAdvancedOpen}>
+                  <div className="sb-precision-panel-inner">
+                    <div className="sb-precision-body">
+                    <p className="sb-precision-hint">בוחרים רק מה שחשוב. אפשר גם לדלג על הכול.</p>
+                    <PrecisionChoice label="עם מי מדברים?" value={context} open={precisionField === 'context'} onToggle={() => togglePrecision('context')}>
                     <ChipGroup
-                      title="מה המצב?"
+                      compact
+                      title="עם מי?"
+                      primaryColumns={3}
                       description="אם זה חשוב, אפשר לציין את הסיטואציה."
                       headerAlign="right"
                       illustrations={contextOptionIllustrations}
@@ -5777,11 +5825,16 @@ export default function Home({
                           trackEvent('situation_select', { value: nextValue });
                         }
                         setContext(nextValue);
+                        finishPrecisionChoice();
                       }}
                     />
+                    </PrecisionChoice>
 
+                    <PrecisionChoice label="מה רוצים להשיג?" value={goal} open={precisionField === 'goal'} onToggle={() => togglePrecision('goal')}>
                     <ChipGroup
-                      title={isNoReplyMode ? 'מה המטרה של הפולו־אפ?' : 'מה המטרה שלך?'}
+                      compact
+                      title="מה המטרה?"
+                      optionLabels={{ 'להתמקח / לקדם סגירה': 'מיקוח / סגירה' }}
                       description="בחירה כאן יכולה לדייק, אבל לא נדרשת ליצירה."
                       headerAlign="right"
                       options={isNoReplyMode ? noReplyGoalOptions : incomingGoalOptions}
@@ -5795,17 +5848,23 @@ export default function Home({
                           trackEvent('goal_select', { value: nextValue, compose_mode: composeMode });
                         }
                         setGoal(nextValue);
+                        finishPrecisionChoice();
                       }}
                     />
+                    </PrecisionChoice>
 
-                    <LanguagePreferenceControls value={languagePreferences} onChange={setLanguagePreferences} />
+                    <PrecisionChoice label="לשון הפנייה" value={languagePreferences.speaker === 'neutral' && languagePreferences.recipient === 'neutral' ? null : 'נבחרה העדפה'} open={precisionField === 'language'} onToggle={() => togglePrecision('language')}>
+                      <LanguagePreferenceControls value={languagePreferences} onChange={setLanguagePreferences} />
+                    </PrecisionChoice>
 
                     {!isNoReplyMode ? (
+                      <PrecisionChoice label="להמשיך את השיחה?" value={continuePreference === 'כן' ? 'כן' : continuePreference === 'לא' ? 'לסיים בנעימות' : null} open={precisionField === 'continue'} onToggle={() => togglePrecision('continue')}>
                       <ChipGroup
                         title="רוצים להמשיך את השיחה?"
                         description="זה קובע אם להשאיר את השיחה פתוחה — לא אם להסכים למה שנכתב."
                         headerAlign="right"
                         options={continuePreferenceOptions}
+                        optionLabels={{ כן: 'כן', לא: 'לסיים בנעימות' }}
                         primaryVisibleCount={2}
                         optional
                         allowEmpty
@@ -5815,19 +5874,21 @@ export default function Home({
                             trackEvent('agrees_select', { value: nextValue });
                           }
                           setContinuePreference(nextValue);
+                          finishPrecisionChoice();
                         }}
                       />
+                    </PrecisionChoice>
                     ) : null}
 
                     {shouldShowConversationBackground ? (
                       <details className="group/background rounded-[20px] border border-dashed border-[#d8cab9] bg-white transition-colors duration-200 open:bg-[#fff8ef]">
                         <summary
-                          className={`flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-black text-[#241d18] marker:content-none ${lightSurfaceFocusClass}`}
+                          className={`flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-semibold text-[#241d18] marker:content-none ${lightSurfaceFocusClass}`}
                         >
                           <span className="flex items-center gap-2">
                             <span>רקע שיחה נוסף</span>
                             {isConversationBackgroundLocked ? (
-                              <span className="rounded-full border border-[#d8cab9] bg-[#fff0ea] px-2 py-0.5 text-[10px] font-black text-[#8f371e]">
+                              <span className="rounded-full border border-[#d8cab9] bg-[#fff0ea] px-2 py-0.5 text-[10px] font-semibold text-[#8f371e]">
                                 חודשי
                               </span>
                             ) : null}
@@ -5846,6 +5907,7 @@ export default function Home({
                               </p>
                               <textarea
                                 id="conversation-background"
+                                aria-label="רקע נוסף לשיחה"
                                 value={conversationBackground}
                                 onChange={(event) =>
                                   setConversationBackground(
@@ -5863,14 +5925,14 @@ export default function Home({
                             </>
                           ) : (
                             <div className="space-y-2 rounded-[18px] bg-[#181411] p-3 text-[#fff5de]">
-                              <p className="text-sm font-black">{MONTHLY_LOCK_COPY.conversationBackground.title}</p>
+                              <p className="text-sm font-semibold">{MONTHLY_LOCK_COPY.conversationBackground.title}</p>
                               <p className="text-xs font-semibold leading-5 text-[#f6deaf]">
                                 {MONTHLY_LOCK_COPY.conversationBackground.body}
                               </p>
                               <button
                                 type="button"
                                 onClick={openPaywall}
-                                className={`min-h-[42px] w-full rounded-full bg-[#ff623d] px-4 py-2 text-sm font-black text-white ${darkSurfaceFocusClass}`}
+                                className={`min-h-[42px] w-full rounded-full bg-[#ff623d] px-4 py-2 text-sm font-semibold text-white ${darkSurfaceFocusClass}`}
                               >
                                 {MONTHLY_LOCK_COPY.conversationBackground.cta}
                               </button>
@@ -5879,9 +5941,17 @@ export default function Home({
                         </div>
                       </details>
                     ) : null}
+                    <div className="sb-precision-footer">
+                      <span>כל הבחירות כאן אופציונליות</span>
+                      <button type="button" onClick={() => {
+                        advancedOptionsRef.current?.focus({ preventScroll: true });
+                        setIsAdvancedOpen(false);
+                      }}>סיימתי <span aria-hidden="true">✓</span></button>
+                    </div>
+                    </div>
                   </div>
                 </div>
-              </details>
+              </div>
             </div>
 
           </div>
@@ -5890,23 +5960,21 @@ export default function Home({
             ref={resultsSectionRef}
             id="results-section"
             className={[
-              'sb-motion-panel mobile-section-anchor w-full min-w-0 space-y-4 rounded-[28px] border border-[#d3e4df] bg-white p-3.5 shadow-[0_20px_55px_rgba(18,58,54,0.1)] sm:rounded-[32px] sm:p-5',
+              'sb-results-panel sb-motion-panel mobile-section-anchor w-full min-w-0 space-y-4 rounded-[28px] border border-[#d3e4df] bg-white p-3.5 shadow-[0_20px_55px_rgba(18,58,54,0.1)] sm:rounded-[32px] sm:p-5',
               mobilePrimaryView === 'results' ? 'block' : 'hidden lg:block',
             ].join(' ')}
           >
-            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
-              <div className="min-w-0">
-                <p className="inline-flex min-h-[32px] items-center rounded-full border border-[#b8e7df] bg-[#e3fbf7] px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-[#123a36] lg:hidden">
-                  {mobileSectionNavItems[1].stepLabel}
-                </p>
-                <h2 className="text-2xl font-black text-[#181411] sm:text-3xl">התשובות שלך</h2>
-                <p className="mt-1.5 text-sm font-bold leading-6 text-[#6d6259]">
-                  בחרו את התשובה שהכי מתאימה לכם והעתיקו אותה.
-                </p>
+            {result || isLoading ? (
+              <div>
+                <p className="sb-status">מכאן, המילים שלכם</p>
+                <h2 className="text-2xl font-bold">התשובות שלך</h2>
+                <p className="sb-status mt-1">בחרו מה מתאים לכם. אפשר לערוך לפני ששולחים.</p>
               </div>
-            </div>
+            ) : null}
+            {result && resultIsStale ? <p className="sb-draft-notice" role="status">ההודעה או ההעדפות השתנו. התשובות כאן עדיין שייכות לבקשה הקודמת; צרו תשובות חדשות כדי לעדכן.</p> : null}
+            {resultsError ? <p className="sb-error" role="alert">{resultsError}</p> : null}
 
-            {canReturnToGeneratorFromResults ? (
+            {isGeneratorPrimaryMode && mobilePrimaryView === 'results' && Boolean(result) && !isGenerating ? (
               <div className="lg:hidden">
                 <button
                   type="button"
@@ -5944,36 +6012,12 @@ export default function Home({
                 <div className="sb-results-ready w-full min-w-0 space-y-3">
                 <div className="sb-result-intent-card sb-result-intent-ready w-full min-w-0 rounded-[22px] border border-[#e2d7c8] bg-[#f8f3eb] p-3.5 shadow-[0_10px_28px_rgba(49,23,13,0.06)] sm:p-4">
                   <div className="min-w-0">
-                    <p className="text-xs font-black tracking-[0.08em] text-[#7a6e64]">
-                      {isNoReplyMode ? 'הכיוון להודעת ההמשך' : 'מה ההודעה אומרת'}
+                    <p className="text-xs font-semibold tracking-[0.08em] text-[#7a6e64]">
+                      {resultRequest?.noReplyMode ? 'הכיוון להודעת ההמשך' : 'הכיוון לשיחה'}
                     </p>
                     <p className="mt-1.5 text-base font-bold leading-6 text-[#241d18]">{result.intent}</p>
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-[#e7dccf] pt-3">
-                      <button
-                        type="button"
-                        onClick={handleCopyAllReplies}
-                        disabled={isGenerating}
-                        className={`min-h-[40px] rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-black text-[#241d18] transition hover:bg-[#fffdfa] disabled:cursor-wait disabled:opacity-50 ${whiteSurfaceFocusClass}`}
-                      >
-                        {hasCopiedAllReplies ? 'הכל הועתק' : 'העתק הכל'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleGenerateMoreReplies}
-                        disabled={isGenerating}
-                        className={`min-h-[40px] rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1.5 text-xs font-black text-[#7a2d19] transition disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
-                      >
-                        עוד 3 תשובות · שימוש אחד
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleNewMessage}
-                        className={`min-h-[40px] rounded-full border border-[#b8e7df] bg-[#e3fbf7] px-3 py-1.5 text-xs font-black text-[#123a36] transition hover:bg-[#cef6ef] ${whiteSurfaceFocusClass}`}
-                      >
-                        הודעה חדשה
-                      </button>
-                  </div>
+
                 </div>
 
                 <div className="w-full min-w-0 space-y-3">
@@ -5985,6 +6029,9 @@ export default function Home({
                       isBusy={isGenerating}
                       isUpdating={busyReplyIndex === index}
                       copied={copiedReplyIndex === index}
+                      error={replyErrors[index]}
+                      manualCopy={manualCopyIndex === index}
+                      usageHint={usageActionHint}
                       onCopy={handleCopy}
                       onShare={handleShare}
                       onAdjust={handleReplyAction}
@@ -5997,9 +6044,34 @@ export default function Home({
                     />
                   ))}
                 </div>
+                  <div className="sb-result-toolbar">
+                      <button
+                        type="button"
+                        onClick={handleCopyAllReplies}
+                        className={`min-h-[40px] rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-semibold text-[#241d18] transition hover:bg-[#fffdfa] ${whiteSurfaceFocusClass}`}
+                      >
+                        {hasCopiedAllReplies ? 'הכל הועתק' : 'העתק הכל'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleGenerateMoreReplies}
+                        disabled={isGenerating}
+                        className={`min-h-[40px] rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1.5 text-xs font-semibold text-[#7a2d19] transition disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                      >
+                        עוד 3 תשובות · {usageActionHint}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleNewMessage}
+                        disabled={isGenerating}
+                        className={`min-h-[40px] rounded-full border border-[#b8e7df] bg-[#e3fbf7] px-3 py-1.5 text-xs font-semibold text-[#123a36] transition hover:bg-[#cef6ef] ${whiteSurfaceFocusClass}`}
+                      >
+                        הודעה חדשה
+                      </button>
+                  </div>
                 <div className="rounded-2xl border border-[#e2d7c8] bg-[#fffdf8] px-3 py-2.5 text-sm">
                   {activeConversation ? (
-                    <p className="font-black text-[#5b4d42]">ממשיכים עם {activeConversation.label}</p>
+                    <p className="font-semibold text-[#5b4d42]">ממשיכים עם {activeConversation.label}</p>
                   ) : lastSuccessfulConversationDefaults ? (
                     <div>
                       <p className="mb-2 text-center text-xs font-bold text-[#6d6259]">מדברים שוב עם אותו אדם?</p>
@@ -6007,7 +6079,7 @@ export default function Home({
                         type="button"
                         onClick={openConversationSave}
                         className={[
-                          `min-h-[42px] w-full rounded-full border px-3 py-2 text-sm font-black transition ${whiteSurfaceFocusClass}`,
+                          `min-h-[42px] w-full rounded-full border px-3 py-2 text-sm font-semibold transition ${whiteSurfaceFocusClass}`,
                           copiedReplyIndex !== null || hasCopiedAllReplies
                             ? 'border-[#ff9c83] bg-[#fff0ea] text-[#7a2d19]'
                             : 'border-[#ded2c3] bg-white text-[#5b4d42] hover:border-[#ffb29f] hover:text-[#7a2d19]',
@@ -6022,173 +6094,34 @@ export default function Home({
               ) : isLoading ? (
                 <LoadingReplies isNoReplyMode={isNoReplyMode} />
               ) : (
-                <div className="flex w-full min-w-0 min-h-72 flex-col justify-center rounded-[26px] border border-dashed border-[#d8cab9] bg-[#fbf7f1] p-5 sm:min-h-80">
-                  <h3 className="text-2xl font-black text-[#181411]">
-                    כאן יופיעו 3 תשובות מוכנות להעתקה
-                  </h3>
-                  <p className="mt-3 max-w-md text-sm font-bold leading-6 text-[#6d6259]">
-                    בחרו מצב כתיבה, מלאו את השדה הראשי ותוך רגע יופיעו 3 תשובות מוכנות להעתקה.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobilePrimaryView('compose');
-                      scrollToMobileSection('compose', { source: 'navigation' });
-                    }}
-                    className={`mt-4 min-h-[44px] w-full rounded-full border border-[#ded2c3] bg-white px-4 py-2 text-sm font-black text-[#241d18] sm:hidden ${lightSurfaceFocusClass}`}
-                  >
-                    לחזור לשלב 1: מילוי
-                  </button>
-                </div>
+                <ConversationDemo />
               )}
             </div>
           </div>
         </section>
 
-        {!isGeneratorPrimaryMode && !hasSentFirstGeneration ? <QuickStartStrip /> : null}
+        {isGeneratorPrimaryMode ? <ConversationGuide billingBypassEnabled={billingBypassEnabled} /> : !hasSentFirstGeneration ? <QuickStartStrip /> : null}
 
-        {!isGeneratorPrimaryMode && !billingBypassEnabled ? (
-          <section
-            ref={plansSectionRef}
-            id="plans-section"
-            className="mobile-section-anchor w-full min-w-0 rounded-[28px] border border-[#e2d7c8] bg-[#fffdfa] p-4 shadow-[0_18px_48px_rgba(49,23,13,0.08)] sm:rounded-[32px] sm:p-6"
-          >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#a45334]">חשבון ותשלום</p>
-                <h2 className="mt-2 text-2xl font-black text-[#181411] sm:text-3xl">ממשיכים מכאן כשצריך</h2>
-              </div>
-              <p className="max-w-xl text-sm font-bold leading-6 text-[#6d6259]">
-                אחרי שמילאתם הודעה, כאן רואים מה נשאר בחשבון, שומרים גישה באימייל ופותחים עוד תשובות.
-              </p>
-            </div>
-
-            <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
-              <AccountCenterPanel
-                accountEmail={accountEmail}
-                isRecoverableAccount={isRecoverableAccount}
-                authEmailInput={authEmailInput}
-                onAuthEmailInputChange={handleAuthEmailInputChange}
-                onStartEmailLink={startAuthEmailLink}
-                isSendingAuthEmail={isSendingAuthEmail}
-                isCompletingEmailLink={isCompletingEmailLink}
-                pendingEmailCompletion={pendingEmailCompletion}
-                authEmailNotice={authEmailNotice}
-                authEmailError={authEmailError}
-                isSessionReady={isSessionReady}
-                isBillingLoading={isBillingLoading}
-                accountStatusLine={accountStatusLine}
-                nextConsumptionSource={nextConsumptionSource}
-                dailyResetAt={dailyResetAt}
-                paidCredits={paidCredits}
-                hasUnlimitedAccess={hasUnlimitedAccess}
-                managedSubscription={managedSubscription}
-                onRefreshBilling={handleManualBillingRefresh}
-                compact
-                className="h-full shadow-none"
-              />
-
-              <div className="min-w-0 space-y-3">
-                <div className="grid gap-3 lg:grid-cols-2">
-                  <BillingSnapshotPanel
-                    freeRemaining={freeRemaining}
-                    freeLimit={initialFreeLimit}
-                    dailyFreeRemaining={dailyFreeRemaining}
-                    dailyLimit={dailyFreeLimit}
-                    paidCredits={paidCredits}
-                    hasUnlimitedAccess={hasUnlimitedAccess}
-                    showDailyFreeExhaustedHelper={isBlockedOnlyByDailyFreeExhausted}
-                    className="bg-white"
-                  />
-
-                  <CouponRedeemPanel
-                    couponCode={couponCode}
-                    onCouponCodeChange={handleCouponCodeChange}
-                    onRedeemCoupon={handleRedeemCoupon}
-                    isRedeemingCoupon={isRedeemingCoupon}
-                    isSessionReady={isSessionReady}
-                    couponError={couponError}
-                    couponNotice={couponNotice}
-                    className="bg-white"
-                  />
-                </div>
-
-                <SubscriptionManagementPanel
-                  subscription={managedSubscription}
-                  isLoading={isSubscriptionLoading || isSubscriptionActionLoading}
-                  isSessionReady={isSessionReady}
-                  onAction={handleSubscriptionAction}
-                  actionError={subscriptionActionError}
-                  actionNotice={subscriptionActionNotice}
-                />
-
-                <div
-                  className={[
-                    'grid gap-3',
-                    hasUnlimitedAccess ? 'md:grid-cols-1' : 'md:grid-cols-2',
-                  ].join(' ')}
-                >
-                  <div className="rounded-[22px] border border-[#e2d7c8] bg-white p-4 shadow-[0_12px_30px_rgba(49,23,13,0.06)]">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <span className="rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1 text-xs font-black text-[#7a2d19]">
-                          {CREDIT_PLAN_COPY.badge}
-                        </span>
-                        <h3 className="mt-3 text-lg font-black text-[#181411]">{CREDIT_PLAN_COPY.title}</h3>
-                        <p className="mt-1.5 text-sm font-black text-[#5b4d42]">{CREDIT_PLAN_COPY.helper}</p>
-                        <p className="mt-1 text-sm font-bold text-[#6d6259]">{CREDIT_PLAN_COPY.body}</p>
-                      </div>
-                      <p className="shrink-0 text-2xl font-black text-[#181411]">{CREDIT_PLAN_COPY.price}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCheckout('credits_50')}
-                      disabled={checkoutPlan !== null || !isSessionReady}
-                      className={`mt-3 min-h-[46px] w-full rounded-full bg-[#ff5a2a] px-4 py-2.5 text-sm font-black text-white shadow-[0_12px_22px_rgba(255,90,42,0.22)] transition hover:-translate-y-0.5 hover:bg-[#f04d1f] disabled:cursor-not-allowed disabled:opacity-70 ${lightSurfaceFocusClass}`}
-                    >
-                      {!isRecoverableAccount
-                        ? 'שמירת גישה ואז תשלום'
-                        : checkoutPlan === 'credits_50'
-                          ? 'טוען טופס תשלום...'
-                          : CREDIT_PLAN_COPY.cta}
-                    </button>
-                  </div>
-
-                  {!hasUnlimitedAccess ? (
-                    <div className="rounded-[22px] bg-[#181411] p-4 text-white shadow-[0_18px_40px_rgba(24,20,17,0.18)]">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-black">
-                            {UNLIMITED_PLAN_COPY.badge}
-                          </span>
-                          <h3 className="mt-3 text-lg font-black">{UNLIMITED_PLAN_COPY.title}</h3>
-                          <p className="mt-1.5 text-sm font-black text-white/80">{UNLIMITED_PLAN_COPY.helper}</p>
-                          <p className="mt-1 text-sm font-bold text-white/80">{UNLIMITED_PLAN_COPY.body}</p>
-                        </div>
-                        <p className="shrink-0 text-2xl font-black">{UNLIMITED_PLAN_COPY.price}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleCheckout('unlimited_monthly')}
-                        disabled={checkoutPlan !== null || !isSessionReady}
-                        className={`mt-3 min-h-[46px] w-full rounded-full bg-[#20d6c7] px-4 py-2.5 text-sm font-black text-[#102b29] transition hover:-translate-y-0.5 hover:bg-[#51e0d4] disabled:cursor-not-allowed disabled:opacity-70 ${darkSurfaceFocusClass}`}
-                      >
-                        {!isRecoverableAccount
-                          ? 'שמירת גישה ואז תשלום'
-                          : checkoutPlan === 'unlimited_monthly'
-                            ? 'טוען טופס תשלום...'
-                            : UNLIMITED_PLAN_COPY.cta}
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-
-                {checkoutError ? (
-                  <p className="rounded-2xl border border-[#ffc4b5] bg-[#fff0ea] px-4 py-3 text-sm font-bold text-[#7a2d19]">
-                    {checkoutError}
-                  </p>
-                ) : null}
-              </div>
+        {!billingBypassEnabled ? (
+          <section ref={plansSectionRef} id="plans-section" className="sb-pricing mobile-section-anchor">
+            <p className="sb-status">מתחילים בחינם. ממשיכים כשמתאים.</p>
+            <h2 className="mt-2 text-3xl font-bold">עוד שיחות, פחות התלבטויות.</h2>
+            <p className="sb-status mt-2">3 שימושים ראשונים בחינם, ואחריהם שימוש חינם בכל יום. בכל יצירה מקבלים 3 תשובות.</p>
+            <div className="sb-pricing-grid">
+              <article className="sb-plan">
+                <p className="sb-status">לשיחות שבאות מדי פעם</p>
+                <h3 className="mt-2 text-xl font-bold">50 שימושים</h3>
+                <p className="sb-plan-price my-4 text-3xl font-bold">{CREDIT_PLAN_COPY.price} <span className="text-sm font-normal">חד־פעמי</span></p>
+                <p className="text-sm leading-7">עד 150 תשובות, בלי מנוי. כולל את הסגנונות והסיטואציות הבסיסיים.</p>
+                <button type="button" className="sb-primary-button mt-5 w-full px-4" disabled={checkoutPlan !== null || !isSessionReady} onClick={() => handleCheckout('credits_50')}>לקנות 50 שימושים</button>
+              </article>
+              <article className="sb-plan sb-plan-monthly">
+                <p className="sb-status">למי שתמיד יש מה לענות</p>
+                <h3 className="mt-2 text-xl font-bold">ללא הגבלה</h3>
+                <p className="sb-plan-price my-4 text-3xl font-bold">{UNLIMITED_PLAN_COPY.price} <span className="text-sm font-normal">לחודש</span></p>
+                <p className="text-sm leading-7">כולל סגנונות וסיטואציות מורחבים ורקע נוסף לשיחה. מתחדש מדי חודש; ניהול החידוש דרך החשבון.</p>
+                <button type="button" className="sb-primary-button mt-5 w-full px-4" disabled={checkoutPlan !== null || !isSessionReady || hasMonthlyFeatureAccess} onClick={() => handleCheckout('unlimited_monthly')}>{hasMonthlyFeatureAccess ? 'המנוי שלך פעיל' : 'לבחור מסלול חודשי'}</button>
+              </article>
             </div>
           </section>
         ) : null}
@@ -6201,11 +6134,11 @@ export default function Home({
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="inline-flex min-h-[32px] items-center rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em] text-[#7a2d19] lg:hidden">
+                <p className="inline-flex min-h-[32px] items-center rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[#7a2d19] lg:hidden">
                   {mobileSectionNavItems[2].stepLabel}
                 </p>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#a45334]">דוגמאות פתיחה</p>
-                <h2 className="mt-2 text-2xl font-black text-[#181411] sm:text-3xl">4 מצבים שמכירים מהחיים</h2>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#a45334]">דוגמאות פתיחה</p>
+                <h2 className="mt-2 text-2xl font-semibold text-[#181411] sm:text-3xl">4 מצבים שמכירים מהחיים</h2>
               </div>
               <p className="max-w-xl text-sm font-bold leading-6 text-[#6d6259]">
                 לחיצה על כרטיס מכניסה את הדוגמה לטופס ותיתן לך נקודת פתיחה מהירה.
@@ -6247,6 +6180,59 @@ export default function Home({
       {continueDialogReply !== null ? (
         <ContinueConversationDialog suggestedReply={continueDialogReply} onCancel={() => setContinueDialogReply(null)} onContinue={handleContinueConversation} />
       ) : null}
+      <AccountDialog open={showAccount} onClose={() => setShowAccount(false)}>
+        <div className="sb-account-content space-y-4">
+          <AccountCenterPanel
+                accountEmail={accountEmail}
+                isRecoverableAccount={isRecoverableAccount}
+                authEmailInput={authEmailInput}
+                onAuthEmailInputChange={handleAuthEmailInputChange}
+                onStartEmailLink={startAuthEmailLink}
+                isSendingAuthEmail={isSendingAuthEmail}
+                isCompletingEmailLink={isCompletingEmailLink}
+                pendingEmailCompletion={pendingEmailCompletion}
+                authEmailNotice={authEmailNotice}
+                authEmailError={authEmailError}
+                isSessionReady={isSessionReady}
+                isBillingLoading={isBillingLoading}
+                accountStatusLine={accountStatusLine}
+                nextConsumptionSource={nextConsumptionSource}
+                dailyResetAt={dailyResetAt}
+                paidCredits={paidCredits}
+                hasUnlimitedAccess={hasUnlimitedAccess}
+                managedSubscription={managedSubscription}
+                onRefreshBilling={handleManualBillingRefresh}
+                billingBypassEnabled={billingBypassEnabled}
+                compact
+                className="shadow-none"
+              />
+          {!billingBypassEnabled ? <>
+            {hasMonthlyFeatureAccess || managedSubscription ? <SubscriptionManagementPanel
+                  subscription={managedSubscription}
+                  isLoading={isSubscriptionLoading || isSubscriptionActionLoading}
+                  isSessionReady={isSessionReady}
+                  onAction={handleSubscriptionAction}
+                  actionError={subscriptionActionError}
+                  actionNotice={subscriptionActionNotice}
+                /> : null}
+            <details className="rounded-xl border border-[#ded2c3] bg-white p-3">
+              <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">יש לכם קופון?</summary>
+            <CouponRedeemPanel
+                    couponCode={couponCode}
+                    onCouponCodeChange={handleCouponCodeChange}
+                    onRedeemCoupon={handleRedeemCoupon}
+                    isRedeemingCoupon={isRedeemingCoupon}
+                    isSessionReady={isSessionReady}
+                    couponError={couponError}
+                    couponNotice={couponNotice}
+                    className="bg-white"
+                  />
+            </details>
+            <button type="button" onClick={() => { setShowAccount(false); openPaywall(); }} className="sb-primary-button w-full px-4">לצפייה במסלולים</button>
+          </> : null}
+          <button type="button" onClick={() => { setShowAccount(false); openConversationManagement(); }} className="min-h-11 w-full rounded-xl border border-[#ded2c3] px-4 text-sm">ניהול אנשים שמורים</button>
+        </div>
+      </AccountDialog>
 
       <SaveConversationDialog
         key={conversationDialog === 'save' ? 'save-open' : 'save-closed'}

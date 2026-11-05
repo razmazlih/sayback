@@ -88,7 +88,7 @@ const MAX_METADATA_STRING_LENGTH = 100;
 const METADATA_KEYS: Record<ClientProductEventName, ReadonlySet<string>> = {
   page_view_home: new Set(["flow_version"]),
   generator_input_start: new Set(["source", "compose_mode", "flow_version"]),
-  reply_copy: new Set(["index", "context", "tone", "has_saved_conversation", "has_personalization"]),
+  reply_copy: new Set(["flow_version", "index", "context", "tone", "has_saved_conversation", "has_personalization"]),
   conversation_selected: new Set([
     "compose_mode", "context", "tone", "profile_count", "locked_context", "locked_tone",
   ]),

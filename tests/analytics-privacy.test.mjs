@@ -25,15 +25,23 @@ visit(tree);
 const callbacks = ts.transpileModule(`${snippets.join('\n')}\nglobalThis.actions = {${names.join(',')}};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
 function harness({ fail = false, nativeShare = false } = {}) {
   const events = [], errors = [];
+  const state = { replyErrors: {}, resultsError: null, manualCopyIndex: null };
   const context = {
     navigator: { clipboard: { writeText: async () => { if (fail) throw Error('clipboard denied'); } }, ...(nativeShare ? { share: async () => {} } : {}) },
     setCopiedReplyIndex() {}, setHasCopiedAllReplies() {}, trackEvent() {},
+    setReplyErrors(value) {
+      state.replyErrors = typeof value === 'function' ? value(state.replyErrors) : value;
+      for (const error of Object.values(state.replyErrors)) errors.push(error);
+    },
+    setResultsError(error) { state.resultsError = error; if (error) errors.push(error); },
+    setManualCopyIndex(index) { state.manualCopyIndex = index; },
+    GENERATOR_FLOW_VERSION: 'conversation_v2', resultRequest: { tone: 'זורם' },
     activeConversationId: null, context: null, tone: 'natural', personalizationActiveRef: { current: false },
     result: { replies: ['a', 'b', 'c'] }, fetchWithAuth: async () => {},
     recordProductEvent: async (...args) => events.push(args), setRequestError: (error) => errors.push(error), DOMException,
   };
   vm.runInNewContext(callbacks, context);
-  return { ...context.actions, events, errors };
+  return { ...context.actions, events, errors, state };
 }
 test('every successful clipboard action records one copy action without text', async () => {
   const h = harness();
@@ -49,5 +57,8 @@ test('failed clipboard writes and native sharing are not counted as copies', asy
   const failed = harness({ fail: true });
   await failed.handleCopy('private', 0); await failed.handleCopyAllReplies(); await failed.handleShare('private', 0);
   assert.equal(failed.events.length, 0); assert.equal(failed.errors.length, 3);
+  assert.equal(failed.state.manualCopyIndex, 0);
+  assert.match(failed.state.replyErrors[0], /השיתוף לא הצליח/);
+  assert.match(failed.state.resultsError, /העתקת כל התשובות לא הצליחה/);
   const native = harness({ nativeShare: true }); await native.handleShare('private', 0); assert.equal(native.events.length, 0);
 });

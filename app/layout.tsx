@@ -35,7 +35,8 @@ export const metadata: Metadata = {
     "עברית",
   ],
   icons: {
-    icon: "/favicon.svg",
+    icon: "/sayback-logo.png",
+    apple: "/apple-icon.png",
   },
   openGraph: {
     siteName: SITE_NAME,

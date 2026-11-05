@@ -10,7 +10,7 @@ function position(marker) {
   return index;
 }
 
-test("first-generation controls keep input -> generate -> optional tuning order", () => {
+test("first-generation controls keep input -> tone -> generate -> advanced tuning order", () => {
   const noReplyMessage = position('id="last-outgoing-message"');
   const noReplyDuration = position('id="no-reply-duration-value"');
   const noReplyUnit = position('id="no-reply-duration-unit"');
@@ -25,20 +25,20 @@ test("first-generation controls keep input -> generate -> optional tuning order"
   assert.ok(noReplyUnit < primaryGenerate, "no_reply CTA must follow all required inputs");
   assert.ok(incomingMessage < screenshotInput);
   assert.ok(screenshotInput < primaryGenerate, "incoming CTA must follow text/screenshot input");
-  assert.ok(primaryGenerate < compactTone, "generate must precede tone tuning");
-  assert.ok(compactTone < advancedOptions, "tone tuning must precede advanced tuning");
+  assert.ok(screenshotInput < compactTone, "tone selection must follow the incoming message");
+  assert.ok(compactTone < primaryGenerate, "tone selection must precede the primary generation action");
+  assert.ok(primaryGenerate < advancedOptions, "advanced tuning follows the primary action");
 });
 
 test("tone stays optional, defaults to flowing, and preserves selection and locks", () => {
   assert.match(source, /useState<ToneOption>\('זורם'\)/);
-  assert.match(source, /<span className="font-black">וייב: \{tone\}<\/span>/);
   assert.match(source, /options=\{shouldShowMonthlyFeatureOptions \? toneOptions : freeToneOptions\}/);
   assert.match(source, /lockedOptions=\{hasUnlimitedAccess \? \[\] : monthlyOnlyToneOptions\}/);
   assert.match(source, /trackEvent\('tone_select', \{ value: nextValue \}\);\s*setTone\(nextValue\);/);
 });
 
-test("generate analytics retain the simplified flow and activation timing payload", () => {
-  assert.match(source, /GENERATOR_FLOW_VERSION = 'simplified_v1'/);
+test("generate analytics identify the conversation flow and retain activation timing", () => {
+  assert.match(source, /GENERATOR_FLOW_VERSION = 'conversation_v2'/);
 
   const generateHandlerStart = position("async function handleMainSubmit()");
   const generateHandlerEnd = position("async function handleReplyAction(");

@@ -36,7 +36,7 @@ export function CheckoutPaymentForm({
 }: CheckoutPaymentFormProps) {
   if (!PUBLISHABLE_KEY) {
     return (
-      <p className="rounded-2xl border-2 border-black bg-[#ffd6ce] px-4 py-3 text-sm font-bold text-black">
+      <p role="alert" className="rounded-2xl border border-[#e2d7c8] bg-[#fff0ea] px-4 py-3 text-sm font-medium text-[#181411]">
         לא הצלחנו לפתוח תשלום כרגע. נסו שוב בעוד רגע.
       </p>
     );
@@ -52,6 +52,11 @@ export function CheckoutPaymentForm({
           appearance: {
             variables: {
               fontSizeBase: '16px',
+              colorPrimary: '#ff5a2a',
+              colorText: '#181411',
+              colorBackground: '#fffdfa',
+              colorDanger: '#7a2d19',
+              borderRadius: '12px',
             },
           },
         },
@@ -191,7 +196,7 @@ function CheckoutPaymentFormInner({
 
   if (checkoutState.type === 'loading') {
     return (
-      <div className="rounded-[24px] border-2 border-black bg-white px-4 py-6 text-center text-sm font-bold text-neutral-700">
+      <div role="status" className="rounded-[20px] border border-[#e2d7c8] bg-white px-4 py-6 text-center text-sm font-medium text-neutral-700">
         רגע, מכינים את התשלום...
       </div>
     );
@@ -199,7 +204,7 @@ function CheckoutPaymentFormInner({
 
   if (checkoutState.type === 'error') {
     return (
-      <p className="rounded-2xl border-2 border-black bg-[#ffd6ce] px-4 py-3 text-sm font-bold text-black">
+      <p role="alert" className="rounded-2xl border border-[#e2d7c8] bg-[#fff0ea] px-4 py-3 text-sm font-medium text-[#181411]">
         {mapCheckoutError(checkoutState.error.message)}
       </p>
     );
@@ -207,29 +212,32 @@ function CheckoutPaymentFormInner({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-[24px] border-2 border-black bg-white p-3">
-        <label htmlFor="checkout-full-name" className="text-xs font-black uppercase tracking-[0.16em] text-neutral-600">
+      <div className="rounded-[20px] border border-[#e2d7c8] bg-white p-3">
+        <label htmlFor="checkout-full-name" className="text-xs font-semibold text-neutral-600">
           שם מלא
         </label>
         <input
           id="checkout-full-name"
           type="text"
           autoComplete="name"
+          aria-required="true"
+          aria-invalid={Boolean(normalizedFullName) && !hasValidFullName}
+          aria-describedby={!hasValidFullName && normalizedFullName ? 'checkout-name-error' : undefined}
           value={fullName}
           onChange={(event) => {
             setFullName(event.target.value);
             setSubmitError(null);
           }}
           placeholder="ישראל ישראלי"
-          className="mt-2 min-h-[48px] w-full rounded-2xl border-2 border-black bg-white px-3 text-base font-bold text-black placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#6ce8ff] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+          className="mt-2 min-h-[48px] w-full rounded-2xl border border-[#e2d7c8] bg-white px-3 text-base font-medium text-[#181411] placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a2a] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
         />
         {!hasValidFullName && normalizedFullName ? (
-          <p className="mt-2 text-xs font-bold text-[#a03a24]">השם קצר מדי. הזן שם מלא.</p>
+          <p id="checkout-name-error" className="mt-2 text-xs font-medium text-[#a03a24]">השם קצר מדי. הזן שם מלא.</p>
         ) : null}
       </div>
 
-      <div className="rounded-[24px] border-2 border-black bg-white p-3">
-        <label htmlFor="checkout-email" className="text-xs font-black uppercase tracking-[0.16em] text-neutral-600">
+      <div className="rounded-[20px] border border-[#e2d7c8] bg-white p-3">
+        <label htmlFor="checkout-email" className="text-xs font-semibold text-neutral-600">
           אימייל לקבלת אישור תשלום
         </label>
         <input
@@ -238,66 +246,71 @@ function CheckoutPaymentFormInner({
           inputMode="email"
           autoComplete="email"
           dir="ltr"
+          aria-required="true"
+          aria-invalid={Boolean(normalizedEmail) && !hasValidEmail}
+          aria-describedby={!hasValidEmail && normalizedEmail ? 'checkout-email-error' : isEmailLocked ? 'checkout-email-hint' : undefined}
           value={email}
           readOnly={isEmailLocked}
           onChange={(event) => {
             setEmail(event.target.value);
             setSubmitError(null);
           }}
-          className="mt-2 min-h-[48px] w-full rounded-2xl border-2 border-black bg-white px-3 text-base font-bold text-black placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#6ce8ff] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+          className="mt-2 min-h-[48px] w-full rounded-2xl border border-[#e2d7c8] bg-white px-3 text-base font-medium text-[#181411] placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff5a2a] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
         />
         {!hasValidEmail && normalizedEmail ? (
-          <p className="mt-2 text-xs font-bold text-[#a03a24]">האימייל לא תקין. בדוק שוב.</p>
+          <p id="checkout-email-error" className="mt-2 text-xs font-medium text-[#a03a24]">האימייל לא תקין. בדוק שוב.</p>
         ) : null}
         {isEmailLocked ? (
-          <p className="mt-2 text-xs font-bold text-neutral-600">האימייל נמשך אוטומטית מהחשבון שלך.</p>
+          <p id="checkout-email-hint" className="mt-2 text-xs font-medium text-neutral-600">האימייל נמשך אוטומטית מהחשבון שלך.</p>
         ) : null}
       </div>
 
       {walletAvailability === 'available' ? (
-        <div className="rounded-[24px] border-2 border-black bg-white p-3">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-neutral-600">בחירת אמצעי תשלום</p>
+        <div className="rounded-[20px] border border-[#e2d7c8] bg-white p-3">
+          <p className="text-xs font-semibold text-neutral-600">בחירת אמצעי תשלום</p>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             <button
               type="button"
+              aria-pressed={paymentPath === 'wallet'}
               onClick={() => {
                 setSubmitError(null);
                 setPaymentPath('wallet');
               }}
               className={[
-                'min-h-[48px] rounded-2xl border-2 px-3 py-2 text-right transition',
+                'min-h-[48px] rounded-2xl border px-3 py-2 text-right transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff5a2a]',
                 paymentPath === 'wallet'
-                  ? 'border-black bg-[#d7f9ff] shadow-[0_4px_0_0_#111111]'
-                  : 'border-black bg-white hover:bg-[#f7f7f7]',
+                  ? 'border-[#ff5a2a] bg-[#fff0ea]'
+                  : 'border-[#e2d7c8] bg-white hover:bg-[#fffdfa]',
               ].join(' ')}
             >
-              <p className="text-sm font-black text-black">{walletLabel}</p>
-              <p className="mt-0.5 text-xs font-bold text-neutral-700">תשלום מהיר</p>
+              <p className="text-sm font-semibold text-[#181411]">{walletLabel}</p>
+              <p className="mt-0.5 text-xs font-medium text-neutral-700">תשלום מהיר</p>
             </button>
 
             <button
               type="button"
+              aria-pressed={paymentPath === 'card'}
               onClick={() => {
                 setSubmitError(null);
                 setPaymentPath('card');
               }}
               className={[
-                'min-h-[48px] rounded-2xl border-2 px-3 py-2 text-right transition',
+                'min-h-[48px] rounded-2xl border px-3 py-2 text-right transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff5a2a]',
                 paymentPath === 'card'
-                  ? 'border-black bg-[#fff6d8] shadow-[0_4px_0_0_#111111]'
-                  : 'border-black bg-white hover:bg-[#f7f7f7]',
+                  ? 'border-[#ff5a2a] bg-[#fff0ea]'
+                  : 'border-[#e2d7c8] bg-white hover:bg-[#fffdfa]',
               ].join(' ')}
             >
-              <p className="text-sm font-black text-black">כרטיס אשראי</p>
-              <p className="mt-0.5 text-xs font-bold text-neutral-700">תשלום בכרטיס</p>
+              <p className="text-sm font-semibold text-[#181411]">כרטיס אשראי</p>
+              <p className="mt-0.5 text-xs font-medium text-neutral-700">תשלום בכרטיס</p>
             </button>
           </div>
         </div>
       ) : null}
 
       {paymentPath === 'wallet' && walletAvailability !== 'unavailable' ? (
-        <div className="space-y-2 rounded-[24px] border-2 border-black bg-white p-3">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-neutral-600">
+        <div className="space-y-2 rounded-[20px] border border-[#e2d7c8] bg-white p-3">
+          <p className="text-xs font-semibold text-neutral-600">
             תשלום מהיר
           </p>
           <div className={hasRequiredDetails ? '' : 'pointer-events-none opacity-60'}>
@@ -329,7 +342,7 @@ function CheckoutPaymentFormInner({
             />
           </div>
           {!hasRequiredDetails ? (
-            <div className="rounded-2xl border-2 border-black bg-[#fff6d8] px-3 py-3 text-sm font-bold text-black">
+            <div className="rounded-2xl border border-[#e2d7c8] bg-[#fffdfa] px-3 py-3 text-sm font-medium text-[#181411]">
               כדי לשלם עם {walletLabel}, צריך קודם להזין שם מלא ואימייל תקין.
             </div>
           ) : null}
@@ -344,8 +357,8 @@ function CheckoutPaymentFormInner({
             void confirmCheckout();
           }}
         >
-          <div className="rounded-[24px] border-2 border-black bg-white p-3">
-            <p className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-neutral-600">
+          <div className="rounded-[20px] border border-[#e2d7c8] bg-white p-3">
+            <p className="mb-2 text-xs font-semibold text-neutral-600">
               פרטי אשראי
             </p>
             <PaymentElement />
@@ -354,7 +367,7 @@ function CheckoutPaymentFormInner({
           <button
             type="submit"
             disabled={isSubmitting || !hasRequiredDetails}
-            className="min-h-[48px] w-full rounded-2xl border-2 border-black bg-[#f7ff4f] px-4 py-3 text-sm font-black text-black transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
+            className="min-h-[48px] w-full rounded-2xl border border-[#e2d7c8] bg-[#ff5a2a] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#6d6259] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff5a2a] disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isSubmitting ? 'מעבד תשלום...' : submitLabel}
           </button>
@@ -362,24 +375,24 @@ function CheckoutPaymentFormInner({
       ) : null}
 
       {paymentPath === 'wallet' && walletAvailability === 'unknown' ? (
-        <div className="rounded-2xl border-2 border-black bg-white px-3 py-2 text-xs font-bold text-neutral-700">
+        <div className="rounded-2xl border border-[#e2d7c8] bg-white px-3 py-2 text-xs font-medium text-neutral-700">
           בודקים אם אפשר לשלם בתשלום מהיר במכשיר הזה. אם לא, נעבור אוטומטית לכרטיס אשראי.
         </div>
       ) : null}
 
       {walletAvailability === 'unavailable' ? (
-        <div className="rounded-2xl border-2 border-black bg-[#fff6d8] px-3 py-2 text-xs font-bold text-black">
+        <div className="rounded-2xl border border-[#e2d7c8] bg-[#fffdfa] px-3 py-2 text-xs font-medium text-[#181411]">
           תשלום מהיר לא זמין כרגע במכשיר הזה. אפשר להמשיך בכרטיס אשראי.
         </div>
       ) : null}
 
       {submitError ? (
-        <p className="rounded-2xl border-2 border-black bg-[#ffd6ce] px-4 py-3 text-sm font-bold text-black">
+        <p role="alert" className="rounded-2xl border border-[#e2d7c8] bg-[#fff0ea] px-4 py-3 text-sm font-medium text-[#181411]">
           {submitError}
         </p>
       ) : null}
 
-      <p className="px-1 text-xs font-bold leading-5 text-neutral-600">אפשר לעבור בין אמצעי התשלום בכל רגע.</p>
+      <p className="px-1 text-xs font-medium leading-5 text-neutral-600">אפשר לעבור בין אמצעי התשלום בכל רגע.</p>
     </div>
   );
 }
