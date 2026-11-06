@@ -2,6 +2,38 @@
 
 Next.js 16 (App Router) app for generating Hebrew reply suggestions, with Firebase auth and Stripe billing.
 
+## Reply directions
+
+The Hebrew RTL composer offers six direct controls above **ליצור לי 3 תשובות**:
+tone, recipient context, goal, grammatical preferences, conversation continuation,
+and extra background. Each opens the same inline editor, with no nested menus.
+All 10 tones and 12 contexts remain available under their existing access rules.
+
+- No direction choice is required; the default tone is **זורם**.
+- Single-choice editors close immediately after selection and restore keyboard focus.
+  Language and background editors stay open until **סיימתי** or a different field is selected.
+- Active values remain visible, including both grammatical preferences. Each field
+  has an explicit clear action; tone resets to **זורם**.
+- Follow-up mode shows its own goals and omits the conversation-continuation control.
+- Monthly features still require a monthly subscription; credits do not unlock them.
+  Billing bypass keeps its existing free-options-only behavior.
+- Editing directions never consumes a use. Only explicit generation/refinement does.
+  Directions remain in page memory; saved-person defaults change only through the
+  existing save flow. No automatic message or preference persistence was added.
+- Changed grammatical preferences, previous outgoing context, or approved time/price
+  details mark earlier results as out of date. Refining an existing result continues
+  to use that result's original request.
+
+The initial compact bar is designed for at most 120px height at 360px viewport width,
+with touch targets of at least 44px. The tone/context editor fits within 320px.
+Active values may expand the bar to stay readable.
+
+Screenshots below use synthetic data and mocked services:
+
+<img src="docs/screenshots/reply-directions-mobile.png" alt="Hebrew mobile composer with direct reply-direction controls" width="360" />
+
+![Desktop composer and reply preview](docs/screenshots/reply-directions-desktop.png)
+
 ## Requirements
 
 - Node.js 20+
@@ -28,6 +60,9 @@ Privacy guardrails in this project:
 - Analytics payloads avoid raw user message text.
 - UTM parameters (`utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `utm_id`) are attached to client events when available.
 - If analytics IDs are missing, tracking calls safely no-op (no runtime breakage).
+- The compact composer uses `flow_version: direction_v3` with the existing
+  page/input-to-generation timing fields. This identifies the UI version without
+  adding message content or grammatical preferences to analytics.
 
 ## AI Modes
 
@@ -121,6 +156,7 @@ Firestore collections used by coupon flow:
 (default `http://127.0.0.1:3100`; override with `SAYBACK_SMOKE_BASE_URL`).
 Use an installed Playwright module, or set `SAYBACK_PLAYWRIGHT_MODULE` to the
 absolute path of an existing Playwright `index.mjs` with Chromium installed.
+`SAYBACK_CHROMIUM_EXECUTABLE_PATH` can select an already installed Chromium binary.
 
 Start the verification server with dummy Firebase configuration:
 
@@ -139,3 +175,20 @@ blocks other external traffic, and uses synthetic data. It never validates live
 Firebase writes, AI responses, Stripe charges, or webhook delivery. Screenshots
 and a JSON report are saved in the ignored `output/playwright/` directory.
 Restart the server without these dummy environment overrides for normal use.
+
+Run the browser suite against that server:
+
+```sh
+SAYBACK_SMOKE_BASE_URL=http://127.0.0.1:3100 node scripts/verify-conversation-experience.mjs
+```
+
+The suite checks compact-control dimensions, all choices and resets, keyboard
+focus/Escape, access restrictions, saved-person/deep-link defaults, follow-up mode,
+request payloads, stale results, and the existing conversation/account flows.
+`tests/generation-draft.test.mjs` also verifies semantic draft comparison,
+including equivalent grammatical preferences and temporary context.
+
+To refresh the README images after an intentional UI change, run the browser suite,
+inspect the screenshots, then copy `output/playwright/direction-composer-mobile.png`
+and `output/playwright/direction-workspace-desktop.png` to their corresponding
+`docs/screenshots/reply-directions-*.png` files.
