@@ -1,37 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { CommitmentMode, LanguagePreferences } from '@/lib/reply-context';
+import type { CommitmentMode } from '@/lib/reply-context';
 import { MAX_COMMITMENT_DETAILS_LENGTH } from '@/lib/reply-context';
 import { MAX_INCOMING_MESSAGE_LENGTH, MAX_LAST_OUTGOING_MESSAGE_LENGTH } from '@/lib/message-limits';
 
 const focus = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#247663] focus-visible:ring-offset-2';
-
-export function LanguagePreferenceControls({ value, onChange }: {
-  value: LanguagePreferences;
-  onChange: (value: LanguagePreferences) => void;
-}) {
-  return (
-    <div className="space-y-3 px-3 pb-3">
-      <p className="text-xs leading-5 text-[#6d6259]">בלי בחירה נעדיף ניסוח שאינו תלוי במגדר. הבחירה נשארת רק כל עוד הדף פתוח.</p>
-      {(['speaker', 'recipient'] as const).map((side) => (
-        <fieldset key={side} className="min-w-0">
-          <legend className="mb-2 text-sm font-semibold text-[#463b33]">
-            {side === 'speaker' ? 'איך לנסח בשמך?' : 'איך לפנות לצד השני?'}
-          </legend>
-          <div className="sb-precision-choices" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-            {([['neutral', 'ללא העדפה'], ['masculine', 'לשון זכר'], ['feminine', 'לשון נקבה']] as const).map(([option, label]) => (
-              <button key={option} type="button" aria-pressed={value[side] === option} onClick={() => onChange({ ...value, [side]: option })} className={`sb-option-card ${focus}`}>
-                <span>{label}</span>
-                <span className="sb-precision-check" aria-hidden="true">✓</span>
-              </button>
-            ))}
-          </div>
-        </fieldset>
-      ))}
-    </div>
-  );
-}
 
 export function CommitmentControls({ kind, mode, details, onChange }: {
   kind: 'time' | 'price';

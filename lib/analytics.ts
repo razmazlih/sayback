@@ -1,6 +1,6 @@
 type AnalyticsPrimitive = string | number | boolean | null | undefined;
 type AnalyticsPayload = Record<string, AnalyticsPrimitive>;
-type GeneratorFlowVersion = "simplified_v1" | "conversation_v2";
+type GeneratorFlowVersion = "simplified_v1" | "conversation_v2" | "direction_v3";
 type GeneratorComposeMode = "incoming" | "no_reply";
 type GeneratorActivationTiming = {
   flow_version?: GeneratorFlowVersion;

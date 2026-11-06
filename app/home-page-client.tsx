@@ -13,7 +13,7 @@ import {
   type FormEvent,
 } from 'react';
 import dynamic from 'next/dynamic';
-import Image, { type StaticImageData } from 'next/image';
+import Image from 'next/image';
 import { AccountDialog, ConversationDemo, ConversationGuide, ConversationHeader } from '@/components/conversation-experience';
 import './conversation-experience.css';
 import {
@@ -27,7 +27,10 @@ import { DisclosurePanel } from '@/components/disclosure-panel';
 import { createLatestRequest } from '@/lib/latest-request';
 import { createReplyHistory, recordReplyRefinement, getPreviousReply, clearReplyRevision } from '@/lib/reply-history';
 import { getMissingCommitmentKind, type CommitmentMode, type LanguagePreferences, type ReplyContext } from '@/lib/reply-context';
-import { CommitmentControls, LanguagePreferenceControls, ContinueConversationDialog } from '@/components/reply-context-controls';
+import { CommitmentControls, ContinueConversationDialog } from '@/components/reply-context-controls';
+import { ReplyDirectionControls } from '@/components/reply-direction-controls';
+import { areGenerationDraftsEqual, type GenerationDraft } from '@/lib/generation-draft';
+import { CONTINUE_PREFERENCE_OPTIONS, type DirectionField, type ContinuePreference, type IncomingGoal, type Goal } from '@/lib/reply-direction';
 import { captureAndStoreAttribution } from '@/lib/attribution';
 import type { ConversationProfile } from '@/lib/conversation-profile-types';
 import { buildHomeDeepLink, parseHomeDeeplinkParams } from '@/lib/home-deeplink';
@@ -49,29 +52,6 @@ import {
 import {
   CREDIT_PACK_PRICE_LABEL,
 } from '@/lib/pricing';
-import bossBriefcaseIllustration from '@/public/option-illustrations/boss-briefcase.webp';
-import clientHandshakeIllustration from '@/public/option-illustrations/client-handshake.webp';
-import crushHeartIllustration from '@/public/option-illustrations/crush-heart.webp';
-import dateCoffeeIllustration from '@/public/option-illustrations/date-coffee.webp';
-import directTargetIllustration from '@/public/option-illustrations/direct-target.webp';
-import exBrokenHeartIllustration from '@/public/option-illustrations/ex-broken-heart.webp';
-import flirtySparkleHeartIllustration from '@/public/option-illustrations/flirty-sparkle-heart.webp';
-import flowWaveIllustration from '@/public/option-illustrations/flow-wave.webp';
-import friendHighFiveIllustration from '@/public/option-illustrations/friend-high-five.webp';
-import funnySmileIllustration from '@/public/option-illustrations/funny-smile.webp';
-import gentleFeatherIllustration from '@/public/option-illustrations/gentle-feather.webp';
-import yad2PriceTagIllustration from '@/public/option-illustrations/yad2-price-tag.webp';
-
-type ContinuePreference = 'כן' | 'לא';
-type IncomingGoal =
-  | 'להמשיך שיחה'
-  | 'לקבוע זמן'
-  | 'לבקש הבהרה'
-  | 'להציב גבול'
-  | 'לסגור בנימוס'
-  | 'להתמקח / לקדם סגירה';
-type NoReplyGoal = 'תזכורת עדינה' | 'בדיקת סטטוס' | 'שחרור מכבד';
-type Goal = IncomingGoal | NoReplyGoal;
 type ComposeMode = 'incoming' | 'no_reply';
 type NoReplyDurationUnit = 'minutes' | 'hours' | 'days';
 type NoReplyDurationUnitSelection = NoReplyDurationUnit | '';
@@ -120,22 +100,10 @@ type GenerateResponse = {
   savedConversationUnavailable?: boolean;
 };
 
-type GenerateRequest = ReplyContext & {
-  message: string;
-  imageBase64: string | null;
-  context?: ContextOption;
-  tone: ToneOption;
-  goal?: Goal;
-  continuePreference?: ContinuePreference | null;
-  conversationBackground?: string;
-  noReplyMode?: boolean;
-  noReplyDurationValue?: number;
-  noReplyDurationUnit?: NoReplyDurationUnit;
-  lastOutgoingMessage?: string;
+type GenerateRequest = GenerationDraft & {
   refineInstruction?: string;
   action?: ReplyAction;
   sourceReply?: string;
-  conversationId?: string;
 };
 
 type SuccessfulConversationDefaults = {
@@ -198,7 +166,7 @@ type CouponRedeemResponse = {
 };
 
 const FREE_LIMIT = 3;
-const GENERATOR_FLOW_VERSION = 'conversation_v2' as const;
+const GENERATOR_FLOW_VERSION = 'direction_v3' as const;
 const MAX_IMAGE_UPLOAD_BYTES = 4 * 1024 * 1024;
 const MIN_LOADING_DISPLAY_MS = 200;
 const AUTH_EMAIL_STORAGE_KEY = 'sayback.auth.email';
@@ -235,57 +203,9 @@ const UNLIMITED_PLAN_COPY = {
   body: 'כמה תשובות שרוצים לאורך כל החודש',
   cta: 'לפתוח ללא הגבלה',
 } as const;
-const MONTHLY_LOCK_COPY = {
-  context: {
-    title: 'הסיטואציות המורחבות שמורות למסלול החודשי',
-    body: 'אפשר לעבור עליהן כאן, ולפתוח בחירה בפועל עם מנוי ללא הגבלה חודשי.',
-  },
-  tone: {
-    title: 'הווייבים המורחבים נפתחים במסלול החודשי',
-    body: 'כל הווייבים מוצגים כדי להתרשם. כדי להשתמש בוייבים המתקדמים צריך מנוי חודשי.',
-  },
-  conversationBackground: {
-    badge: 'גישה בלעדית לחודשי',
-    title: 'רקע שיחה נוסף נפתח רק במסלול ללא הגבלה חודשי',
-    body: 'הפיצ׳ר הזה מוסיף שכבת הקשר עמוקה יותר ומחזיר תשובות מדויקות ואישיות יותר.',
-    cta: 'לפתוח חודשי ללא הגבלה',
-  },
-} as const;
 const DEEP_LINK_PREFILL_BANNER_TEXT = 'מילאנו לך התחלה. אפשר לערוך לפני שמייצרים.';
-const contextOptions: ContextOption[] = [...CONTEXT_OPTIONS];
-const toneOptions: ToneOption[] = [...TONE_OPTIONS];
-const incomingGoalOptions: IncomingGoal[] = [
-  'להמשיך שיחה',
-  'לקבוע זמן',
-  'לבקש הבהרה',
-  'להציב גבול',
-  'לסגור בנימוס',
-  'להתמקח / לקדם סגירה',
-];
-const noReplyGoalOptions: NoReplyGoal[] = ['תזכורת עדינה', 'בדיקת סטטוס', 'שחרור מכבד'];
-const continuePreferenceOptions: ContinuePreference[] = ['כן', 'לא'];
-const CONTEXT_PRIMARY_VISIBLE_COUNT = FREE_CONTEXT_OPTION_COUNT;
-const TONE_PRIMARY_VISIBLE_COUNT = FREE_TONE_OPTION_COUNT;
-const freeContextOptions = contextOptions.slice(0, CONTEXT_PRIMARY_VISIBLE_COUNT);
-const freeToneOptions = toneOptions.slice(0, TONE_PRIMARY_VISIBLE_COUNT);
-const monthlyOnlyContextOptions = contextOptions.slice(CONTEXT_PRIMARY_VISIBLE_COUNT);
-const monthlyOnlyToneOptions = toneOptions.slice(TONE_PRIMARY_VISIBLE_COUNT);
-const contextOptionIllustrations: Partial<Record<ContextOption, StaticImageData>> = {
-  קראש: crushHeartIllustration,
-  אקס: exBrokenHeartIllustration,
-  ידיד: friendHighFiveIllustration,
-  לקוח: clientHandshakeIllustration,
-  בוס: bossBriefcaseIllustration,
-  יד2: yad2PriceTagIllustration,
-  דייט: dateCoffeeIllustration,
-};
-const toneOptionIllustrations: Partial<Record<ToneOption, StaticImageData>> = {
-  עדין: gentleFeatherIllustration,
-  ישיר: directTargetIllustration,
-  זורם: flowWaveIllustration,
-  מצחיק: funnySmileIllustration,
-  פלרטטני: flirtySparkleHeartIllustration,
-};
+const monthlyOnlyContextOptions = CONTEXT_OPTIONS.slice(FREE_CONTEXT_OPTION_COUNT);
+const monthlyOnlyToneOptions = TONE_OPTIONS.slice(FREE_TONE_OPTION_COUNT);
 const composeModeOptions: Array<{ value: ComposeMode; label: string; description: string }> = [
   {
     value: 'incoming',
@@ -701,7 +621,7 @@ function parseHomeDeepLinkPrefill(searchParams: URLSearchParams): HomeDeepLinkPr
     examples: exampleIds,
     situations: CONTEXT_OPTIONS,
     tones: TONE_OPTIONS,
-    agrees: continuePreferenceOptions,
+    agrees: CONTINUE_PREFERENCE_OPTIONS,
   });
 
   return {
@@ -713,519 +633,6 @@ function parseHomeDeepLinkPrefill(searchParams: URLSearchParams): HomeDeepLinkPr
     tone: parsed.prefill.tone ?? undefined,
     continuePreference: parsed.prefill.agrees ?? undefined,
   };
-}
-
-function PrecisionChoice({ label, value, open, onToggle, children }: {
-  label: string;
-  value: string | null;
-  open: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
-  const id = useId();
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open && contentRef.current?.contains(document.activeElement)) {
-      triggerRef.current?.focus({ preventScroll: true });
-    }
-  }, [open]);
-  return (
-    <div className="sb-precision-choice" data-open={open} data-selected={Boolean(value)}>
-      <button ref={triggerRef} type="button" aria-expanded={open} aria-controls={id} onClick={onToggle} className="sb-precision-choice-trigger">
-        <span>{label}</span>
-        <span className="sb-precision-choice-value">{value || 'לבחירה'}{value ? <span aria-hidden="true"> ✓</span> : null}</span>
-        <span className="sb-precision-chevron" aria-hidden="true">⌄</span>
-      </button>
-      <div ref={contentRef} id={id} className="sb-precision-choice-panel" inert={!open} aria-hidden={!open}>
-        <div className="sb-precision-panel-inner">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function ChipGroup<T extends string>({
-  title,
-  description,
-  options,
-  value,
-  onChange,
-  helperText,
-  optional = false,
-  allowEmpty = false,
-  primaryVisibleCount,
-  primaryColumns = 2,
-  moreOptionsLabel = 'עוד אפשרויות',
-  lockedOptions = [],
-  lockedOptionsPreviewLabel = 'פרימיום',
-  lockedOptionsHint,
-  lockedOptionsNoticeTitle,
-  lockedOptionsNoticeBody,
-  lockedOptionsNoticeCta = 'לפתוח ללא הגבלה חודשי',
-  showMoreOptionsSearch = true,
-  onLockedOptionsNoticeCtaClick,
-  headerAlign = 'center',
-  illustrations,
-  warmOptionCards = false,
-  compact = false,
-  optionLabels,
-}: {
-  title: string;
-  description?: string;
-  options: readonly T[];
-  value: T | null;
-  onChange: (nextValue: T | null) => void;
-  helperText?: string;
-  optional?: boolean;
-  allowEmpty?: boolean;
-  primaryVisibleCount?: number;
-  primaryColumns?: 2 | 3;
-  moreOptionsLabel?: string;
-  lockedOptions?: readonly T[];
-  lockedOptionsPreviewLabel?: string;
-  lockedOptionsHint?: string;
-  lockedOptionsNoticeTitle?: string;
-  lockedOptionsNoticeBody?: string;
-  lockedOptionsNoticeCta?: string;
-  showMoreOptionsSearch?: boolean;
-  onLockedOptionsNoticeCtaClick?: () => void;
-  headerAlign?: 'center' | 'right';
-  illustrations?: Partial<Record<T, StaticImageData>>;
-  warmOptionCards?: boolean;
-  compact?: boolean;
-  optionLabels?: Partial<Record<T, string>>;
-}) {
-  const hasSelection = value !== null;
-  const normalizedPrimaryVisibleCount = Math.min(
-    Math.max(primaryVisibleCount ?? options.length, 1),
-    options.length,
-  );
-  const primaryOptions = options.slice(0, normalizedPrimaryVisibleCount);
-  const extraOptions = options.slice(normalizedPrimaryVisibleCount);
-  const hasMoreOptions = extraOptions.length > 0;
-  const selectedFromMoreOptions = Boolean(value && extraOptions.includes(value));
-  const hasLockedOptions = lockedOptions.length > 0;
-  const lockedOptionsSet = useMemo(() => new Set(lockedOptions), [lockedOptions]);
-  const lockedExtraOptionsCount = useMemo(
-    () => extraOptions.filter((option) => lockedOptionsSet.has(option)).length,
-    [extraOptions, lockedOptionsSet],
-  );
-  const moreOptionsDialogTitleId = useId();
-  const moreOptionsDialogDescriptionId = useId();
-  const groupTitleId = useId();
-  const [isMoreOptionsDialogOpen, setIsMoreOptionsDialogOpen] = useState(false);
-  const [isMoreOptionsDialogClosing, setIsMoreOptionsDialogClosing] = useState(false);
-  const [moreOptionsSearchTerm, setMoreOptionsSearchTerm] = useState('');
-  const [showLockedOptionsNotice, setShowLockedOptionsNotice] = useState(false);
-  const closeMoreOptionsDialogTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const openMoreOptionsDialog = () => {
-    if (closeMoreOptionsDialogTimerRef.current !== null) {
-      clearTimeout(closeMoreOptionsDialogTimerRef.current);
-      closeMoreOptionsDialogTimerRef.current = null;
-    }
-
-    setShowLockedOptionsNotice(false);
-    setMoreOptionsSearchTerm('');
-    setIsMoreOptionsDialogClosing(false);
-    setIsMoreOptionsDialogOpen(true);
-  };
-
-  const closeMoreOptionsDialog = useCallback(() => {
-    if (!isMoreOptionsDialogOpen || isMoreOptionsDialogClosing) {
-      return;
-    }
-
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setIsMoreOptionsDialogOpen(false);
-      setIsMoreOptionsDialogClosing(false);
-      return;
-    }
-
-    setIsMoreOptionsDialogClosing(true);
-
-    if (closeMoreOptionsDialogTimerRef.current !== null) {
-      clearTimeout(closeMoreOptionsDialogTimerRef.current);
-    }
-
-    closeMoreOptionsDialogTimerRef.current = setTimeout(() => {
-      setIsMoreOptionsDialogOpen(false);
-      setIsMoreOptionsDialogClosing(false);
-      closeMoreOptionsDialogTimerRef.current = null;
-    }, 190);
-  }, [isMoreOptionsDialogClosing, isMoreOptionsDialogOpen]);
-
-  const closeMoreOptionsDialogImmediately = useCallback(() => {
-    if (closeMoreOptionsDialogTimerRef.current !== null) {
-      clearTimeout(closeMoreOptionsDialogTimerRef.current);
-      closeMoreOptionsDialogTimerRef.current = null;
-    }
-
-    setIsMoreOptionsDialogClosing(false);
-    setIsMoreOptionsDialogOpen(false);
-  }, []);
-
-  const filteredMoreOptions = useMemo(() => {
-    if (!showMoreOptionsSearch) {
-      return options;
-    }
-
-    const normalizedSearchTerm = moreOptionsSearchTerm.trim().toLowerCase();
-
-    if (!normalizedSearchTerm) {
-      return options;
-    }
-
-    return options.filter((option) => option.toLowerCase().includes(normalizedSearchTerm));
-  }, [options, moreOptionsSearchTerm, showMoreOptionsSearch]);
-
-  useDocumentScrollLock(isMoreOptionsDialogOpen);
-
-  useEffect(() => {
-    if (!isMoreOptionsDialogOpen) {
-      return;
-    }
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        closeMoreOptionsDialog();
-      }
-    };
-
-    window.addEventListener('keydown', handleEscape);
-    return () => {
-      window.removeEventListener('keydown', handleEscape);
-    };
-  }, [closeMoreOptionsDialog, isMoreOptionsDialogOpen]);
-
-  useEffect(() => {
-    return () => {
-      if (closeMoreOptionsDialogTimerRef.current !== null) {
-        clearTimeout(closeMoreOptionsDialogTimerRef.current);
-      }
-    };
-  }, []);
-
-  const canClearSelection = allowEmpty && hasSelection;
-  const isHeaderRightAligned = headerAlign === 'right';
-
-  const renderOption = (option: T, mode: 'inline' | 'dialog' = 'inline') => {
-    const isSelected = option === value;
-    const isLockedOption = lockedOptionsSet.has(option);
-    const shouldCloseDialogOnSelect = mode === 'dialog';
-    const illustration = illustrations?.[option];
-    const usesWarmOptionCards = compact || warmOptionCards || illustrations !== undefined;
-
-    return (
-      <button
-        key={option}
-        type="button"
-        aria-pressed={isSelected}
-        aria-disabled={isLockedOption}
-        onClick={() => {
-          if (isLockedOption) {
-            setShowLockedOptionsNotice(true);
-            return;
-          }
-
-          onChange(allowEmpty && isSelected ? null : option);
-
-          if (shouldCloseDialogOnSelect) {
-            closeMoreOptionsDialog();
-          }
-        }}
-        className={[
-          usesWarmOptionCards
-            ? `sb-option-card group relative w-full rounded-[18px] border-2 px-2.5 py-1.5 text-center font-bold touch-manipulation ${whiteSurfaceFocusClass}`
-            : `w-full rounded-full border px-3.5 py-2 text-center font-bold transition duration-150 touch-manipulation ${whiteSurfaceFocusClass}`,
-          usesWarmOptionCards
-            ? mode === 'dialog'
-              ? 'min-h-[48px] text-sm sm:w-auto sm:min-w-36'
-              : primaryColumns === 3
-                ? 'min-h-[44px] text-[0.76rem] sm:text-sm'
-                : 'min-h-[48px] text-[0.82rem] sm:text-sm'
-            : mode === 'dialog'
-              ? 'min-h-[44px] text-sm sm:w-auto'
-              : 'min-h-[40px] text-sm sm:min-h-[42px]',
-          usesWarmOptionCards
-            ? isLockedOption
-              ? 'sb-option-card--locked'
-              : isSelected
-                ? 'sb-option-card--selected'
-                : 'sb-option-card--default'
-            : isLockedOption
-              ? 'border-[#4a3320] bg-[#2b211a] text-[#f7e2ab] hover:-translate-y-0.5 hover:brightness-110'
-              : isSelected
-                ? 'border-[#181411] bg-[#181411] text-white shadow-[0_10px_20px_rgba(24,20,17,0.14)]'
-                : 'border-[#ded2c3] bg-[#fffdfa] text-[#241d18] hover:-translate-y-0.5 hover:bg-[#f8f3eb]',
-        ].join(' ')}
-      >
-        <span
-          className={[
-            'flex w-full items-center gap-2',
-            isLockedOption ? 'justify-between' : 'justify-center',
-          ].join(' ')}
-        >
-          <span className="inline-flex min-w-0 items-center justify-center gap-1.5 sm:gap-2">
-            {illustration && !compact ? (
-              <Image
-                src={illustration}
-                width={primaryColumns === 3 ? 24 : 32}
-                height={primaryColumns === 3 ? 24 : 32}
-                alt=""
-                aria-hidden="true"
-                draggable={false}
-                className={[
-                  primaryColumns === 3
-                    ? 'sb-option-card__illustration size-6 shrink-0 object-contain'
-                    : 'sb-option-card__illustration size-8 shrink-0 object-contain',
-                  isSelected ? 'sb-option-card__illustration--selected' : '',
-                ].join(' ')}
-              />
-            ) : null}
-            <span>{optionLabels?.[option] ?? option}</span>
-          </span>
-          {compact && mode === 'inline' ? <span className="sb-precision-check" aria-hidden="true">✓</span> : null}
-          {isLockedOption ? (
-            <span
-              className={[
-                'rounded-full border px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.08em]',
-                usesWarmOptionCards
-                  ? 'border-[#d8ad52] bg-white/75 text-[#6b4610]'
-                  : 'border-[#f7cf76] bg-[#1d1608] text-[#ffe7b2]',
-              ].join(' ')}
-            >
-              {lockedOptionsPreviewLabel}
-            </span>
-          ) : null}
-        </span>
-      </button>
-    );
-  };
-
-  return (
-    <section
-      role="group"
-      aria-labelledby={groupTitleId}
-      data-columns={compact ? primaryColumns : undefined}
-      className={[
-        'w-full min-w-0 rounded-[22px] border border-[#e2d7c8] bg-white shadow-[0_10px_26px_rgba(49,23,13,0.06)] sm:p-3.5',
-        primaryColumns === 3 ? 'p-2.5' : 'p-3',
-        compact ? 'sb-precision-group' : '',
-      ].join(' ')}
-    >
-      <div
-        className={[
-          'flex items-center gap-2',
-          canClearSelection ? 'justify-between' : isHeaderRightAligned ? 'justify-start' : 'justify-center',
-        ].join(' ')}
-      >
-        <div
-          className={[
-            'flex flex-wrap items-center gap-1.5',
-            isHeaderRightAligned ? 'justify-start text-right' : 'justify-center text-center',
-          ].join(' ')}
-        >
-          <p id={groupTitleId} className="text-[0.92rem] font-semibold text-[#241d18] sm:text-[0.95rem]">
-            {title}
-          </p>
-          {!compact ? <span
-            className={[
-              'rounded-full border px-2 py-0.5 text-[0.62rem] font-semibold uppercase tracking-[0.12em]',
-              optional ? 'border-[#e4d8c8] bg-[#f8f3eb] text-[#5b4d42]' : 'border-[#b8e7df] bg-[#e3fbf7] text-[#123a36]',
-            ].join(' ')}
-          >
-            {optional ? 'אופציונלי' : 'לבחירה'}
-          </span> : null}
-        </div>
-
-        {canClearSelection && !compact ? (
-          <button
-            type="button"
-            onClick={() => onChange(null)}
-            className={`min-h-[32px] rounded-full border border-[#ded2c3] bg-[#f8f3eb] px-2.5 py-1 text-[0.68rem] font-semibold text-[#5b4d42] transition hover:bg-[#efe5d8] ${whiteSurfaceFocusClass}`}
-          >
-            נקה
-          </button>
-        ) : null}
-      </div>
-
-      {description && !compact ? (
-        <p className="mt-1 hidden text-xs font-bold leading-5 text-[#6d6259] md:block">{description}</p>
-      ) : null}
-
-      <div className="mt-2 space-y-2">
-        <div className={compact ? 'sb-precision-choices' : primaryColumns === 3 ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-2 gap-2'}>
-          {primaryOptions.map((option) => renderOption(option, 'inline'))}
-        </div>
-
-        {hasMoreOptions ? (
-          <div
-            className={[
-              'overflow-hidden rounded-[18px] border border-[#e2d7c8] bg-[#f8f3eb]',
-              primaryColumns === 3 ? 'p-1.5' : 'p-2',
-            ].join(' ')}
-          >
-            <div
-              className={[
-                'flex items-center justify-between',
-                primaryColumns === 3 ? 'gap-1.5' : 'flex-wrap gap-2.5',
-              ].join(' ')}
-            >
-              <button
-                type="button"
-                onClick={openMoreOptionsDialog}
-                className={`inline-flex min-h-[36px] items-center justify-center gap-2 rounded-full bg-[#181411] px-3.5 py-1.5 text-xs font-semibold text-white transition hover:-translate-y-0.5 ${primaryColumns === 3 ? 'w-full' : ''} ${whiteSurfaceFocusClass}`}
-              >
-                <span>{primaryColumns === 3 ? `${moreOptionsLabel} חודשיים` : moreOptionsLabel}</span>
-                <span className="rounded-full bg-white px-1.5 py-0.5 text-[0.62rem] text-[#181411]">
-                  +{extraOptions.length}
-                </span>
-              </button>
-
-              {primaryColumns === 3 ? null : selectedFromMoreOptions && value ? (
-                <span className="rounded-full border border-[#ded2c3] bg-white px-2.5 py-1 text-xs font-semibold text-[#241d18]">
-                  נבחר מתוך עוד: {value}
-                </span>
-              ) : hasLockedOptions && lockedExtraOptionsCount > 0 ? (
-                <span className="rounded-full border border-[#d8ad52] bg-[#1c1507] px-2.5 py-1 text-xs font-semibold text-[#f7db96]">
-                  עוד {lockedExtraOptionsCount} אפשרויות פרימיום למנוי חודשי
-                </span>
-              ) : (
-                <span className="text-xs font-semibold text-[#5b4d42]">
-                  עוד {extraOptions.length} אפשרויות זמינות בלחיצה
-                </span>
-              )}
-            </div>
-          </div>
-        ) : null}
-      </div>
-
-      {helperText ? (
-        <p className="mt-1 hidden text-xs font-bold leading-5 text-[#6d6259] md:block">{helperText}</p>
-      ) : null}
-
-      {hasLockedOptions && lockedOptionsHint ? (
-        <p className="mt-1 hidden text-xs font-bold leading-5 text-[#6d6259] md:block">{lockedOptionsHint}</p>
-      ) : null}
-
-      {hasMoreOptions && isMoreOptionsDialogOpen ? (
-        <div
-          className={[
-            'fixed inset-0 z-[120] flex items-end justify-center sm:items-center',
-            isMoreOptionsDialogClosing
-              ? 'pointer-events-none motion-safe:animate-[sb-fade-out_190ms_ease-in_forwards]'
-              : 'motion-safe:animate-[sb-fade-in_200ms_ease-out]',
-          ].join(' ')}
-        >
-          <button
-            type="button"
-            aria-label="סגירה"
-            onClick={closeMoreOptionsDialog}
-            className="absolute inset-0 bg-black/60 backdrop-blur-[1px]"
-          />
-
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={moreOptionsDialogTitleId}
-            aria-describedby={moreOptionsDialogDescriptionId}
-            className={[
-              'relative z-[121] flex max-h-[88vh] w-full flex-col overflow-hidden rounded-t-[28px] border-2 border-black bg-white shadow-[0_-8px_0_0_#111111] sm:max-h-[84vh] sm:max-w-2xl sm:rounded-[28px] sm:shadow-[0_10px_0_0_#111111]',
-              isMoreOptionsDialogClosing
-                ? 'motion-safe:animate-[sb-paywall-out_190ms_ease-in_forwards]'
-                : 'motion-safe:animate-[sb-paywall-in_240ms_ease-out]',
-            ].join(' ')}
-          >
-            <div className="flex items-start justify-between gap-3 border-b-2 border-black bg-[#fff6d8] px-4 py-3">
-              <div className="space-y-1">
-                <p id={moreOptionsDialogTitleId} className="text-base font-semibold text-black sm:text-lg">
-                  {title}: בחירה מורחבת
-                </p>
-                <p id={moreOptionsDialogDescriptionId} className="text-xs font-bold text-neutral-700 sm:text-sm">
-                  {hasLockedOptions
-                    ? 'אפשר לעבור על כל האפשרויות. בחירה באפשרויות פרימיום נפתחת במסלול ללא הגבלה.'
-                    : 'בחרו בנוחות את האופציה שמתאימה בדיוק. לחיצה על אופציה סוגרת ושומרת בחירה.'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeMoreOptionsDialog}
-                className={`inline-flex min-h-[38px] items-center justify-center rounded-full border-2 border-black bg-white px-3 text-xs font-semibold text-black transition hover:bg-[#fff8da] ${whiteSurfaceFocusClass}`}
-              >
-                סגור
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-4 py-4">
-              <div className="space-y-3">
-                {showMoreOptionsSearch ? (
-                  <label className="block">
-                    <span className="mb-1.5 block text-xs font-semibold text-neutral-800">חיפוש מהיר</span>
-                    <input
-                      type="text"
-                      value={moreOptionsSearchTerm}
-                      onChange={(event) => setMoreOptionsSearchTerm(event.target.value)}
-                      placeholder="הקלידו כדי לסנן אפשרויות..."
-                      className={`min-h-[44px] w-full rounded-full border-2 border-black bg-[#fffdf8] px-4 py-2 text-sm font-bold text-black outline-none transition placeholder:text-neutral-500 focus:bg-white ${whiteSurfaceFocusClass}`}
-                    />
-                  </label>
-                ) : null}
-
-                {allowEmpty && hasSelection ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onChange(null);
-                      closeMoreOptionsDialog();
-                    }}
-                    className={`inline-flex min-h-[40px] items-center justify-center rounded-full border-2 border-black bg-[#f8f4ed] px-3.5 py-2 text-xs font-semibold text-neutral-800 transition hover:bg-[#efe8dd] ${whiteSurfaceFocusClass}`}
-                  >
-                    לנקות בחירה
-                  </button>
-                ) : null}
-
-                {filteredMoreOptions.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap">
-                    {filteredMoreOptions.map((option) => renderOption(option, 'dialog'))}
-                  </div>
-                ) : (
-                  <p className="rounded-2xl border-2 border-black bg-[#fff6d8] px-4 py-3 text-sm font-bold text-neutral-800">
-                    לא נמצאו תוצאות לחיפוש הזה.
-                  </p>
-                )}
-
-                {hasLockedOptions && showLockedOptionsNotice ? (
-                  <div className="rounded-[22px] border-2 border-[#d8ad52] bg-[radial-gradient(circle_at_top,_#5a4617_0%,_#1f1709_56%,_#0b0905_100%)] p-3.5 text-[#fdf3d4] shadow-[0_14px_28px_-14px_rgba(0,0,0,0.9)] motion-safe:animate-[sb-paywall-in_220ms_ease-out]">
-                    <p className="text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-[#f8d67f]">
-                      פרימיום חודשי
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-[#fff1cc]">
-                      {lockedOptionsNoticeTitle ?? 'האופציות המורחבות פתוחות במסלול החודשי'}
-                    </p>
-                    <p className="mt-1 text-xs font-bold leading-5 text-[#fceaca]/85">
-                      {lockedOptionsNoticeBody ??
-                        'פותחים מנוי חודשי ונהנים מגישה מלאה לכל האפשרויות המתקדמות.'}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        closeMoreOptionsDialogImmediately();
-                        onLockedOptionsNoticeCtaClick?.();
-                      }}
-                      className={`mt-3 inline-flex min-h-[40px] items-center justify-center rounded-full border-2 border-[#2a1e09] bg-gradient-to-b from-[#f9e4a8] to-[#e9bf5f] px-3.5 py-2 text-xs font-semibold text-[#2b1d04] shadow-[0_4px_0_0_#2a1d07] transition hover:-translate-y-0.5 hover:brightness-105 ${whiteSurfaceFocusClass}`}
-                    >
-                      {lockedOptionsNoticeCta}
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </section>
-        </div>
-      ) : null}
-    </section>
-  );
 }
 
 function HomeHero({
@@ -2650,29 +2057,7 @@ export default function Home({
   const lastOutgoingInputRef = useRef<HTMLTextAreaElement | null>(null);
   const noReplyDurationInputRef = useRef<HTMLInputElement | null>(null);
   const noReplyDurationUnitRef = useRef<HTMLSelectElement | null>(null);
-  const advancedOptionsRef = useRef<HTMLButtonElement | null>(null);
-  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
-  const [precisionField, setPrecisionField] = useState<string | null>(null);
-  const precisionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => {
-    if (precisionTimer.current) clearTimeout(precisionTimer.current);
-  }, []);
-  function togglePrecision(field: string) {
-    if (precisionTimer.current) clearTimeout(precisionTimer.current);
-    setPrecisionField((current) => current === field ? null : field);
-  }
-  function finishPrecisionChoice() {
-    if (precisionTimer.current) clearTimeout(precisionTimer.current);
-    precisionTimer.current = setTimeout(() => setPrecisionField(null),
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 320);
-  }
-  const toneOptionsRef = useRef<HTMLButtonElement | null>(null);
-  const [isToneOpen, setIsToneOpen] = useState(false);
-  const [isToneConfirmed, setIsToneConfirmed] = useState(false);
-  const toneCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => {
-    if (toneCloseTimer.current) clearTimeout(toneCloseTimer.current);
-  }, []);
+  const [directionField, setDirectionField] = useState<DirectionField | null>(null);
   const composeSectionRef = useRef<HTMLDivElement | null>(null);
   const resultsSectionRef = useRef<HTMLDivElement | null>(null);
   const mobileScrollSequenceRef = useRef(0);
@@ -2785,8 +2170,6 @@ export default function Home({
   const hasUnlimitedAccess = billingBypassEnabled || paidPlan === 'unlimited_monthly';
   const hasMonthlyFeatureAccess = paidPlan === 'unlimited_monthly' && !billingBypassEnabled;
   const shouldShowMonthlyFeatureOptions = !hasUnlimitedAccess || hasMonthlyFeatureAccess;
-  const shouldShowConversationBackground = !hasUnlimitedAccess || hasMonthlyFeatureAccess;
-  const isConversationBackgroundLocked = !isBillingLoading && !hasMonthlyFeatureAccess;
   const hasCreditBalance = paidCredits > 0;
   const isSessionReady = isAuthReady && Boolean(authToken) && !isBillingLoading;
   const totalFreeRemaining = useMemo(
@@ -2797,7 +2180,6 @@ export default function Home({
   const isNoReplyMode = composeMode === 'no_reply';
   const messageLength = message.length;
   const lastOutgoingMessageLength = lastOutgoingMessage.length;
-  const conversationBackgroundLength = conversationBackground.length;
   const trimmedMessage = message.trim();
   const trimmedLastOutgoingMessage = lastOutgoingMessage.trim();
   const parsedNoReplyDuration = Number.parseInt(noReplyDurationValue, 10);
@@ -3064,6 +2446,7 @@ export default function Home({
       setCommitmentChoice(null);
       setContinueDialogReply(null);
       setComposeMode(nextMode);
+      setDirectionField(null);
       setGoal(null);
       setRequestError(null);
       setHasTriedNoReplyContinue(false);
@@ -3071,21 +2454,15 @@ export default function Home({
     [composeMode, generationRequests],
   );
 
-  const handleAdvancedOptionsToggle = useCallback(
-    () => {
-      setIsAdvancedOpen(!isAdvancedOpen);
-      if (isAdvancedOpen || hasTrackedAdvancedOpenRef.current) {
-        return;
-      }
-
-      hasTrackedAdvancedOpenRef.current = true;
-      trackEvent('generator_advanced_open', {
-        compose_mode: composeMode,
-        flow_version: GENERATOR_FLOW_VERSION,
-      });
-    },
-    [composeMode, isAdvancedOpen],
-  );
+  const handleDirectionFieldChange = useCallback((field: DirectionField | null) => {
+    setDirectionField(field);
+    if (field === null || hasTrackedAdvancedOpenRef.current) return;
+    hasTrackedAdvancedOpenRef.current = true;
+    trackEvent('generator_advanced_open', {
+      compose_mode: composeMode,
+      flow_version: GENERATOR_FLOW_VERSION,
+    });
+  }, [composeMode]);
 
   function getActivationTimingPayload() {
     const now = window.performance.now();
@@ -4803,19 +4180,36 @@ export default function Home({
     };
   }
 
-  async function handleMainSubmit() {
-    const replyContext = getReplyContextForRequest();
+  function getDraftRequest(): GenerationDraft {
+    return {
+      ...getReplyContextForRequest(),
+      message: isNoReplyMode ? '' : message.trim().slice(0, MAX_INCOMING_MESSAGE_LENGTH),
+      imageBase64: isNoReplyMode ? null : imageBase64,
+      context: context ?? undefined,
+      tone,
+      goal: goal ?? undefined,
+      continuePreference: isNoReplyMode ? null : continuePreference,
+      conversationBackground: hasMonthlyFeatureAccess
+        ? conversationBackground.trim().slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH) || undefined
+        : undefined,
+      noReplyMode: isNoReplyMode,
+      noReplyDurationValue: isNoReplyMode ? Number.parseInt(noReplyDurationValue, 10) : undefined,
+      noReplyDurationUnit: isNoReplyMode && noReplyDurationUnit ? noReplyDurationUnit : undefined,
+      lastOutgoingMessage: isNoReplyMode
+        ? lastOutgoingMessage.trim().slice(0, MAX_LAST_OUTGOING_MESSAGE_LENGTH)
+        : undefined,
+      conversationId: activeConversationId ?? undefined,
+    };
+  }
 
+  async function handleMainSubmit() {
     if (isGenerating || !isSessionReady) return;
-    const trimmedMessage = message.trim().slice(0, MAX_INCOMING_MESSAGE_LENGTH);
-    const trimmedLastOutgoingMessage = lastOutgoingMessage
-      .trim()
-      .slice(0, MAX_LAST_OUTGOING_MESSAGE_LENGTH);
-    const allowedConversationBackground = hasMonthlyFeatureAccess
-      ? conversationBackground.trim().slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH)
-      : '';
-    const parsedNoReplyDuration = Number.parseInt(noReplyDurationValue, 10);
-    const effectiveContinuePreference = isNoReplyMode ? null : continuePreference;
+    const draft = getDraftRequest();
+    const trimmedMessage = draft.message;
+    const trimmedLastOutgoingMessage = draft.lastOutgoingMessage ?? '';
+    const allowedConversationBackground = draft.conversationBackground;
+    const parsedNoReplyDuration = draft.noReplyDurationValue;
+    const effectiveContinuePreference = draft.continuePreference;
 
     if (isNoReplyMode) {
       setHasTriedNoReplyContinue(true);
@@ -4875,25 +4269,11 @@ export default function Home({
       no_reply_duration_unit: isNoReplyMode ? noReplyDurationUnit : null,
     });
 
-    await runGeneration({
-      ...replyContext,
-      message: isNoReplyMode ? '' : trimmedMessage,
-      imageBase64: isNoReplyMode ? null : imageBase64,
-      context: context ?? undefined,
-      tone,
-      goal: goal ?? undefined,
-      continuePreference: effectiveContinuePreference,
-      conversationBackground: allowedConversationBackground || undefined,
-      noReplyMode: isNoReplyMode,
-      noReplyDurationValue: isNoReplyMode ? parsedNoReplyDuration : undefined,
-      noReplyDurationUnit: isNoReplyMode && noReplyDurationUnit ? noReplyDurationUnit : undefined,
-      lastOutgoingMessage: isNoReplyMode ? trimmedLastOutgoingMessage : undefined,
-      conversationId: activeConversationId ?? undefined,
-    }, {
-        conversationIdForReuse: activeConversationId,
-        normalDefaults: { context, tone },
-    },
-    );
+    setDirectionField(null);
+    await runGeneration(draft, {
+      conversationIdForReuse: activeConversationId,
+      normalDefaults: { context, tone },
+    });
   }
 
   function getResultRequestForCurrentAccess(): GenerateRequest | null {
@@ -5165,7 +4545,7 @@ export default function Home({
     setHasCopiedAllReplies(false);
     setLastSuccessfulConversationDefaults(null);
     setMobilePrimaryView('compose');
-    setIsAdvancedOpen(false);
+    setDirectionField(null);
     scrollToComposeSection();
   }
 
@@ -5183,6 +4563,7 @@ export default function Home({
     });
 
     setComposeMode('incoming');
+    setDirectionField(null);
     setMessage(scenario.message.slice(0, MAX_INCOMING_MESSAGE_LENGTH));
     setLastOutgoingMessage('');
     setNoReplyDurationValue('');
@@ -5243,6 +4624,7 @@ export default function Home({
   function handleContinueConversation(sentMessage: string, incomingMessage: string) {
     cancelPendingInput();
     setComposeMode('incoming');
+    setDirectionField(null);
     setPreviousOutgoingMessage(sentMessage);
     setMessage(incomingMessage);
     setCommitmentChoice(null);
@@ -5295,24 +4677,9 @@ export default function Home({
     }
   }
 
-  const draftRequest: GenerateRequest = {
-    message: isNoReplyMode ? '' : trimmedMessage,
-    imageBase64: isNoReplyMode ? null : imageBase64,
-    context: context ?? undefined,
-    tone,
-    goal: goal ?? undefined,
-    continuePreference: isNoReplyMode ? null : continuePreference,
-    conversationBackground: hasMonthlyFeatureAccess ? conversationBackground.trim() || undefined : undefined,
-    noReplyMode: isNoReplyMode,
-    noReplyDurationValue: isNoReplyMode ? parsedNoReplyDuration : undefined,
-    noReplyDurationUnit: isNoReplyMode && noReplyDurationUnit ? noReplyDurationUnit : undefined,
-    lastOutgoingMessage: isNoReplyMode ? trimmedLastOutgoingMessage : undefined,
-    conversationId: activeConversationId ?? undefined,
-  };
-  const resultIsStale = resultRequest !== null &&
-    (Object.keys(draftRequest) as Array<keyof GenerateRequest>).some((key) => draftRequest[key] !== resultRequest[key]);
+  const draftRequest = getDraftRequest();
+  const resultIsStale = resultRequest !== null && !areGenerationDraftsEqual(draftRequest, resultRequest);
   const usageActionHint = hasUnlimitedAccess ? 'כלול בגישה שלך' : 'שימוש אחד';
-  const advancedSummary = [context, goal, continuePreference === 'כן' ? 'להמשיך את השיחה' : continuePreference === 'לא' ? 'לסיים בנימוס' : null, conversationBackground.trim() ? 'נוסף רקע' : null].filter(Boolean).join(' · ');
 
   return (
     <main
@@ -5686,67 +5053,39 @@ export default function Home({
                   onChange={(mode, details) => setCommitmentChoice({ message, mode, details })}
                 />
               ) : null}
-              <div
-                className="sb-tone-control rounded-[20px] border border-[#e2d7c8] bg-[#f8f3eb]"
-                data-open={isToneOpen}
-                data-confirmed={isToneConfirmed}
-              >
-                <button
-                  ref={toneOptionsRef}
-                  type="button"
-                  aria-expanded={isToneOpen}
-                  aria-controls="tone-options-panel"
-                  onClick={() => {
-                    if (toneCloseTimer.current) clearTimeout(toneCloseTimer.current);
-                    setIsToneConfirmed(false);
-                    setIsToneOpen((current) => !current);
-                  }}
-                  className={`flex w-full min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm text-[#241d18] marker:content-none ${lightSurfaceFocusClass}`}
-                >
-                  <span className="font-semibold" aria-live="polite">סגנון: {tone}{isToneConfirmed ? <span className="sb-tone-confirmation"> ✓ נבחר</span> : null}</span>
-                  <span className="flex items-center gap-2 font-semibold text-[#8f371e]">
-                    <span>שינוי</span>
-                    <span className="sb-tone-chevron text-xs" aria-hidden="true">⌄</span>
-                  </span>
-                </button>
-                <div id="tone-options-panel" className="sb-tone-panel" inert={!isToneOpen} aria-hidden={!isToneOpen}>
-                  <div className="sb-tone-panel-inner">
-                    <div className="border-t border-[#e2d7c8] px-3 pb-3 pt-2">
-                      <ChipGroup
-                        title="איזה וייב מתאים לך?"
-                        description="זורם נבחר כברירת מחדל. אפשר לבחור וייב אחר."
-                        headerAlign="right"
-                        illustrations={toneOptionIllustrations}
-                        options={shouldShowMonthlyFeatureOptions ? toneOptions : freeToneOptions}
-                        primaryVisibleCount={TONE_PRIMARY_VISIBLE_COUNT}
-                        primaryColumns={3}
-                        moreOptionsLabel="עוד וייבים"
-                        lockedOptions={hasUnlimitedAccess ? [] : monthlyOnlyToneOptions}
-                        lockedOptionsPreviewLabel="חודשי"
-                        lockedOptionsHint="הווייבים המורחבים פתוחים במסלול ללא הגבלה חודשי."
-                        lockedOptionsNoticeTitle={MONTHLY_LOCK_COPY.tone.title}
-                        lockedOptionsNoticeBody={MONTHLY_LOCK_COPY.tone.body}
-                        lockedOptionsNoticeCta="לפתוח ללא הגבלה חודשי"
-                        showMoreOptionsSearch={false}
-                        onLockedOptionsNoticeCtaClick={openPaywall}
-                        value={tone}
-                        onChange={(nextValue) => {
-                          if (nextValue) {
-                            trackEvent('tone_select', { value: nextValue });
-                            setTone(nextValue);
-                            if (toneCloseTimer.current) clearTimeout(toneCloseTimer.current);
-                            setIsToneConfirmed(true);
-                            toneCloseTimer.current = setTimeout(() => {
-                              toneOptionsRef.current?.focus({ preventScroll: true });
-                              setIsToneOpen(false);
-                            }, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 420);
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <ReplyDirectionControls
+                openField={directionField}
+                onOpenFieldChange={handleDirectionFieldChange}
+                tone={tone}
+                onToneChange={(value) => {
+                  trackEvent('tone_select', { value });
+                  setTone(value);
+                }}
+                context={context}
+                onContextChange={(value) => {
+                  if (value) trackEvent('situation_select', { value });
+                  setContext(value);
+                }}
+                goal={goal}
+                onGoalChange={(value) => {
+                  if (value) trackEvent('goal_select', { value, compose_mode: composeMode });
+                  setGoal(value);
+                }}
+                continuePreference={continuePreference}
+                onContinuePreferenceChange={(value) => {
+                  if (value) trackEvent('agrees_select', { value });
+                  setContinuePreference(value);
+                }}
+                languagePreferences={languagePreferences}
+                onLanguagePreferencesChange={setLanguagePreferences}
+                conversationBackground={conversationBackground}
+                onBackgroundChange={setConversationBackground}
+                isNoReplyMode={isNoReplyMode}
+                showMonthlyOptions={shouldShowMonthlyFeatureOptions}
+                hasMonthlyFeatureAccess={hasMonthlyFeatureAccess}
+                isBillingLoading={isBillingLoading}
+                onUpgrade={openPaywall}
+              />
 
               <div className="space-y-2.5">
                 <button
@@ -5773,185 +5112,6 @@ export default function Home({
                 ) : null}
               </div>
 
-            </div>
-
-            <div className="grid gap-2.5 sm:gap-3">
-              <div
-                data-open={isAdvancedOpen}
-                className="sb-advanced-control group rounded-[22px] border border-dashed border-[#d8cab9] bg-[#f8f3eb] transition-colors duration-200 open:bg-[#fff8ef]"
-              >
-                <button
-                  ref={advancedOptionsRef}
-                  type="button"
-                  aria-expanded={isAdvancedOpen}
-                  aria-controls="advanced-options-panel"
-                  onClick={handleAdvancedOptionsToggle}
-                  className={`flex w-full min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-semibold text-[#241d18] marker:content-none ${lightSurfaceFocusClass}`}
-                >
-                  <span className="min-w-0 text-right">
-                    <span>עוד דיוק <span className="sb-precision-optional">· רק אם מתאים</span></span>
-                    {!isAdvancedOpen && advancedSummary ? <span className="sb-precision-summary">{advancedSummary}</span> : null}
-                  </span>
-                  <span className="sb-precision-chevron" aria-hidden="true">⌄</span>
-                </button>
-                <div id="advanced-options-panel" className="sb-precision-panel" inert={!isAdvancedOpen} aria-hidden={!isAdvancedOpen}>
-                  <div className="sb-precision-panel-inner">
-                    <div className="sb-precision-body">
-                    <p className="sb-precision-hint">בוחרים רק מה שחשוב. אפשר גם לדלג על הכול.</p>
-                    <PrecisionChoice label="עם מי מדברים?" value={context} open={precisionField === 'context'} onToggle={() => togglePrecision('context')}>
-                    <ChipGroup
-                      compact
-                      title="עם מי?"
-                      primaryColumns={3}
-                      description="אם זה חשוב, אפשר לציין את הסיטואציה."
-                      headerAlign="right"
-                      illustrations={contextOptionIllustrations}
-                      options={shouldShowMonthlyFeatureOptions ? contextOptions : freeContextOptions}
-                      primaryVisibleCount={CONTEXT_PRIMARY_VISIBLE_COUNT}
-                      moreOptionsLabel="עוד סיטואציות"
-                      lockedOptions={hasUnlimitedAccess ? [] : monthlyOnlyContextOptions}
-                      lockedOptionsPreviewLabel="חודשי"
-                      lockedOptionsHint="הסיטואציות המורחבות פתוחות במסלול ללא הגבלה חודשי."
-                      lockedOptionsNoticeTitle={MONTHLY_LOCK_COPY.context.title}
-                      lockedOptionsNoticeBody={MONTHLY_LOCK_COPY.context.body}
-                      lockedOptionsNoticeCta="לפתוח ללא הגבלה חודשי"
-                      showMoreOptionsSearch={false}
-                      onLockedOptionsNoticeCtaClick={openPaywall}
-                      optional
-                      allowEmpty
-                      value={context}
-                      onChange={(nextValue) => {
-                        if (nextValue) {
-                          trackEvent('situation_select', { value: nextValue });
-                        }
-                        setContext(nextValue);
-                        finishPrecisionChoice();
-                      }}
-                    />
-                    </PrecisionChoice>
-
-                    <PrecisionChoice label="מה רוצים להשיג?" value={goal} open={precisionField === 'goal'} onToggle={() => togglePrecision('goal')}>
-                    <ChipGroup
-                      compact
-                      title="מה המטרה?"
-                      optionLabels={{ 'להתמקח / לקדם סגירה': 'מיקוח / סגירה' }}
-                      description="בחירה כאן יכולה לדייק, אבל לא נדרשת ליצירה."
-                      headerAlign="right"
-                      options={isNoReplyMode ? noReplyGoalOptions : incomingGoalOptions}
-                      primaryVisibleCount={isNoReplyMode ? 3 : 6}
-                      warmOptionCards
-                      optional
-                      allowEmpty
-                      value={goal}
-                      onChange={(nextValue) => {
-                        if (nextValue) {
-                          trackEvent('goal_select', { value: nextValue, compose_mode: composeMode });
-                        }
-                        setGoal(nextValue);
-                        finishPrecisionChoice();
-                      }}
-                    />
-                    </PrecisionChoice>
-
-                    <PrecisionChoice label="לשון הפנייה" value={languagePreferences.speaker === 'neutral' && languagePreferences.recipient === 'neutral' ? null : 'נבחרה העדפה'} open={precisionField === 'language'} onToggle={() => togglePrecision('language')}>
-                      <LanguagePreferenceControls value={languagePreferences} onChange={setLanguagePreferences} />
-                    </PrecisionChoice>
-
-                    {!isNoReplyMode ? (
-                      <PrecisionChoice label="להמשיך את השיחה?" value={continuePreference === 'כן' ? 'כן' : continuePreference === 'לא' ? 'לסיים בנעימות' : null} open={precisionField === 'continue'} onToggle={() => togglePrecision('continue')}>
-                      <ChipGroup
-                        title="רוצים להמשיך את השיחה?"
-                        description="זה קובע אם להשאיר את השיחה פתוחה — לא אם להסכים למה שנכתב."
-                        headerAlign="right"
-                        options={continuePreferenceOptions}
-                        optionLabels={{ כן: 'כן', לא: 'לסיים בנעימות' }}
-                        primaryVisibleCount={2}
-                        optional
-                        allowEmpty
-                        value={continuePreference}
-                        onChange={(nextValue) => {
-                          if (nextValue) {
-                            trackEvent('agrees_select', { value: nextValue });
-                          }
-                          setContinuePreference(nextValue);
-                          finishPrecisionChoice();
-                        }}
-                      />
-                    </PrecisionChoice>
-                    ) : null}
-
-                    {shouldShowConversationBackground ? (
-                      <details className="group/background rounded-[20px] border border-dashed border-[#d8cab9] bg-white transition-colors duration-200 open:bg-[#fff8ef]">
-                        <summary
-                          className={`flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-semibold text-[#241d18] marker:content-none ${lightSurfaceFocusClass}`}
-                        >
-                          <span className="flex items-center gap-2">
-                            <span>רקע שיחה נוסף</span>
-                            {isConversationBackgroundLocked ? (
-                              <span className="rounded-full border border-[#d8cab9] bg-[#fff0ea] px-2 py-0.5 text-[10px] font-semibold text-[#8f371e]">
-                                חודשי
-                              </span>
-                            ) : null}
-                          </span>
-                          <span className="text-xs transition-transform duration-200 group-open/background:rotate-180">⌄</span>
-                        </summary>
-                        <div className="space-y-2 px-3 pb-3">
-                          {isBillingLoading ? (
-                            <p className="text-xs font-bold text-[#6d6259]">
-                              בודקים את מצב המנוי כדי לפתוח את ההרחבה הזאת...
-                            </p>
-                          ) : hasMonthlyFeatureAccess ? (
-                            <>
-                              <p className="text-xs font-bold text-[#6d6259]">
-                                פרטים קצרים שיעזרו לדייק את הניסוח.
-                              </p>
-                              <textarea
-                                id="conversation-background"
-                                aria-label="רקע נוסף לשיחה"
-                                value={conversationBackground}
-                                onChange={(event) =>
-                                  setConversationBackground(
-                                    event.target.value.slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH),
-                                  )
-                                }
-                                placeholder='למשל: "דיברנו כמה ימים ואז השיחה נעצרה"'
-                                maxLength={MAX_CONVERSATION_BACKGROUND_LENGTH}
-                                className={`min-h-24 w-full rounded-[18px] border border-[#ded2c3] bg-white px-3 py-3 text-sm font-medium leading-6 text-[#241d18] outline-none transition placeholder:text-[#9b8f83] focus:bg-[#fffdfa] ${lightSurfaceFocusClass}`}
-                              />
-                              <p className="text-xs font-bold text-[#6d6259]">
-                                עד {MAX_CONVERSATION_BACKGROUND_LENGTH} תווים ({conversationBackgroundLength}/
-                                {MAX_CONVERSATION_BACKGROUND_LENGTH}).
-                              </p>
-                            </>
-                          ) : (
-                            <div className="space-y-2 rounded-[18px] bg-[#181411] p-3 text-[#fff5de]">
-                              <p className="text-sm font-semibold">{MONTHLY_LOCK_COPY.conversationBackground.title}</p>
-                              <p className="text-xs font-semibold leading-5 text-[#f6deaf]">
-                                {MONTHLY_LOCK_COPY.conversationBackground.body}
-                              </p>
-                              <button
-                                type="button"
-                                onClick={openPaywall}
-                                className={`min-h-[42px] w-full rounded-full bg-[#ff623d] px-4 py-2 text-sm font-semibold text-white ${darkSurfaceFocusClass}`}
-                              >
-                                {MONTHLY_LOCK_COPY.conversationBackground.cta}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </details>
-                    ) : null}
-                    <div className="sb-precision-footer">
-                      <span>כל הבחירות כאן אופציונליות</span>
-                      <button type="button" onClick={() => {
-                        advancedOptionsRef.current?.focus({ preventScroll: true });
-                        setIsAdvancedOpen(false);
-                      }}>סיימתי <span aria-hidden="true">✓</span></button>
-                    </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
 
           </div>
