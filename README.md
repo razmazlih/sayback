@@ -8,28 +8,32 @@ SayBack is a Hebrew-first, right-to-left web app for finding the right words in 
 
 ## See the workflow
 
+![A populated Hebrew composer, expanded tone editor, and three sample replies](docs/screenshots/reply-directions-desktop.png)
+
+**One message → choose directions → compare three replies → copy or refine.**
+The compact controls keep tone, recipient context, goal, language preferences,
+conversation continuation, and extra background together above the generate button.
+Open one inline editor, choose an option, and keep the selected value in view.
+
 <table>
+  <tr><th width="50%">1. Write and choose a direction</th><th width="50%">2. Compare and refine</th></tr>
   <tr>
-    <th width="52%">1. Add the message and choose a tone</th>
-    <th width="48%">2. Compare three replies and choose one</th>
+    <td valign="top"><img src="docs/screenshots/reply-directions-mobile.png" alt="Mobile composer populated with a sample invitation to talk tonight; the tone editor is expanded." width="360"></td>
+    <td valign="top"><img src="docs/screenshots/reply-results-mobile.png" alt="Three synthetic Hebrew reply suggestions with copy, soften, sharpen, and retry controls." width="360"></td>
   </tr>
-  <tr>
-    <td valign="top"><img src="docs/screenshots/02-style.jpg" alt="SayBack input: a built-in customer negotiation example, gentle tone, optional context, and the generate button." width="100%"></td>
-    <td valign="top"><img src="docs/screenshots/03-replies.jpg" alt="Actual SayBack result: a short interpretation and three Hebrew reply cards, each with copy and refinement controls." width="100%"></td>
-  </tr>
-  <tr>
-    <td>Example: “I saw the offer. If you take another 20% off, I'll close now.”</td>
-    <td>Review the suggested wording before using it. SayBack does not send the reply for you.</td>
-  </tr>
+  <tr><td>No direction is required. Start with the default <strong>זורם</strong> tone and add context only when useful.</td><td>Review the wording and choose what fits. SayBack leaves sending the message to you.</td></tr>
 </table>
 
-*Real screenshots from the live site, captured on November 6, 2026 using a built-in sample. No private conversations or account details are shown. The output is an actual completed generation, not a mockup.*
+*Real browser captures of the updated UI, November 6, 2026, using non-sensitive
+sample text and mocked authentication, billing, and generation responses. The
+three replies are synthetic fixtures; these captures do not verify live AI,
+Firebase, or payments. [Capture details and walkthrough](docs/walkthrough.md).*
 
 ## What it does
 
 - **Three suggestions per request:** a short interpretation of the incoming message plus exactly three Hebrew replies.
-- **Tone and context controls:** gentle, direct, casual, funny, or flirty wording, with optional relationship, goal, and grammatical-gender preferences.
-- **Refinement:** soften, sharpen, regenerate, or give a custom rewriting instruction.
+- **Compact reply directions:** six direct controls with one inline editor; all 10 tones and 12 contexts remain available under their existing access rules. Selected values and explicit resets stay visible, including grammatical preferences. Monthly features require a monthly subscription.
+- **Refinement:** soften, sharpen, regenerate, or give a custom rewriting instruction. Editing the request marks previous results as outdated; refining a result keeps its original request context.
 - **Follow-ups:** draft a message when someone has not replied, using the last outgoing message and elapsed time.
 - **Text or screenshot input:** image understanding is available through the configured OpenAI mode; local free mode is rule-based and does not read image contents.
 - **Account and billing infrastructure:** Firebase authentication, Firestore-backed usage limits, Stripe checkout, subscriptions, and coupon redemption. Availability depends on deployment configuration and access level.

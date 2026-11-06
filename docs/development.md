@@ -141,3 +141,25 @@ blocks other external traffic, and uses synthetic data. It never validates live
 Firebase writes, AI responses, Stripe charges, or webhook delivery. Screenshots
 and a JSON report are saved in the ignored `output/playwright/` directory.
 Restart the server without these dummy environment overrides for normal use.
+
+
+### Compact controls and documentation captures
+
+The browser suite checks control dimensions, all choices and resets, keyboard
+focus/Escape, access restrictions, saved-person/deep-link defaults, follow-up mode,
+request payloads, stale results, and conversation/account flows.
+`tests/generation-draft.test.mjs` checks semantic comparison of grammatical
+preferences and temporary context. The composer uses analytics `flow_version:
+direction_v3` without adding message content or grammatical choices to analytics.
+
+Set `SAYBACK_CHROMIUM_EXECUTABLE_PATH` to use an installed Chromium binary.
+After running the browser suite, inspect and copy these populated fixture captures:
+
+| Runner output in `output/playwright/` | Documentation destination in `docs/screenshots/` |
+| --- | --- |
+| `direction-composer-mobile.png` | `reply-directions-mobile.png` |
+| `direction-results-mobile.png` | `reply-results-mobile.png` |
+| `direction-workspace-desktop.png` | `reply-directions-desktop.png` |
+
+Keep the [walkthrough provenance](walkthrough.md) accurate when replacing images.
+These captures mock services and must not be described as live generated output.
