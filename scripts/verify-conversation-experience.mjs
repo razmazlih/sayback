@@ -123,7 +123,7 @@ async function fixture(kind = "initial_free", width = 390, query = "", profiles 
   await page.goto(`${baseUrl}${query}`, { waitUntil: "networkidle" });
   await page.waitForFunction(() => document.documentElement.dir === "rtl");
   await page.locator("#incoming-message").waitFor();
-  await page.waitForFunction(() => !document.body.innerText.includes("רגע, מחברים את החשבון"));
+  await page.waitForFunction(() => !document.body.innerText.includes("מכינים את החיבור המאובטח"));
   assert.ok(state.identityCalls > 0, "Anonymous Firebase sign-in was mocked");
   assert.ok(state.calls.some((call) => call.path === "/api/billing/status" && call.authorization?.startsWith("Bearer ")), "Billing uses bearer auth");
   return { context, page, state };
@@ -194,12 +194,6 @@ try {
     await app.page.getByRole("heading", { name: /יש הודעה.*יש מה לענות/ }).waitFor();
     await noOverflow(app.page);
     await screenshot(app.page, `conversation-${width}-empty`);
-    if (width === 360 || width === 1440) {
-      await app.page.locator(width === 360 ? "#compose-section" : ".sb-workspace").screenshot({
-        path: fileURLToPath(new URL(width === 360 ? "direction-composer-mobile.png" : "direction-workspace-desktop.png", outputDir)),
-        style: "nextjs-portal { display: none !important; }",
-      });
-    }
     if (width === 390 || width === 1440) {
       await app.page.screenshot({
         path: fileURLToPath(new URL(width === 390 ? "conversation-mobile-preview.png" : "conversation-desktop-preview.png", outputDir)),
@@ -213,6 +207,24 @@ try {
     assert.equal(generations(app.state)[0].payload.message, incoming);
     await noOverflow(app.page);
     await screenshot(app.page, `conversation-${width}-results`);
+    // Documentation captures use the same synthetic fixture after generation.
+    if (width === 360 || width === 1440) {
+      if (width === 360) await showComposer(app.page);
+      await openDirection(app.page, "tone");
+      await noOverflow(app.page);
+      await app.page.locator(width === 360 ? "#compose-section" : ".sb-workspace").screenshot({
+        path: fileURLToPath(new URL(width === 360 ? "direction-composer-mobile.png" : "direction-workspace-desktop.png", outputDir)),
+        style: "nextjs-portal { display: none !important; }",
+      });
+      if (width === 360) {
+        await showResults(app.page);
+        await app.page.getByRole("button", { name: "העתק תשובה 3", exact: true }).scrollIntoViewIfNeeded();
+        await app.page.locator("#results-section").screenshot({
+          path: fileURLToPath(new URL("direction-results-mobile.png", outputDir)),
+          style: "nextjs-portal { display: none !important; }",
+        });
+      }
+    }
     await finish(app);
     checks.push(`RTL, no overflow, generation and 3 replies at ${width}px`);
   }
