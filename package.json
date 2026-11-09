@@ -15,9 +15,10 @@
     "test:deeplinks": "node scripts/run-home-deeplink-tests.mjs",
     "test:generator-flow": "node --test tests/generator-first-flow.test.mjs",
     "test:product-contract": "node --test tests/product-contract.test.mjs",
-    "check": "npm run lint && npm run typecheck && npm run test:identity && npm run test:conversations && npm run test:my-voice && npm run test:deeplinks && npm run test:product-contract && npm run test:generation && npm run test:insights && npm run build",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build",
     "test:generation": "node --test tests/generation-lifecycle.test.mjs tests/generation-draft.test.mjs tests/generation-access.test.mjs tests/generator-first-flow.test.mjs tests/generation-context.test.mjs tests/reply-history.test.mjs tests/ai-reply-context.test.mjs tests/motion-navigation.test.mjs",
-    "test:insights": "node --test tests/analytics-privacy.test.mjs tests/product-events.test.mjs tests/visitor-insights.test.mjs tests/insights-client-contract.test.mjs"
+    "test:insights": "node --test tests/analytics-privacy.test.mjs tests/product-events.test.mjs tests/visitor-insights.test.mjs tests/insights-client-contract.test.mjs",
+    "test": "node scripts/run-tests.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.1.0",

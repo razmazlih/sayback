@@ -60,10 +60,10 @@ Firebase, or payments. [Capture details and walkthrough](docs/walkthrough.md).*
 
 ## Run locally
 
-Requires Node.js 20+, npm 10+, and Firebase client/admin configuration. See [`.env.example`](.env.example) for the complete environment template.
+Requires Node.js 22 LTS (CI version; Next.js requires at least 20.9), npm 10+, and Firebase client/admin configuration. See [`.env.example`](.env.example) for the complete environment template.
 
 ```bash
-npm install
+npm ci
 cp .env.example .env.local
 # Fill in the required Firebase credentials and environment settings.
 npm run dev
