@@ -1,6 +1,6 @@
 # SayBack: 40-second walkthrough
 
-[Watch or download the MP4](recruiter-walkthrough.mp4) · [Project overview](../../README.md)
+[Watch in your browser](https://sayback.vercel.app/demo.html) · [Open or download MP4](https://sayback.vercel.app/recruiter-walkthrough.mp4) · [Project overview](../../README.md)
 
 An edited screenshot walkthrough for recruiters: product workflow, implementation choices, and clearly labeled demo scope. Full HD, 40 seconds, English on-screen text, no audio. Prepared November 9, 2026, using authentic screenshots captured November 6, 2026.
 

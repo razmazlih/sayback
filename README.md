@@ -8,7 +8,7 @@ SayBack is a Hebrew-first, right-to-left web app for finding the right words in 
 
 ## 40-second project demo
 
-**[Watch the walkthrough](docs/demos/recruiter-walkthrough.mp4)** · [Demo scope and evidence](docs/demos/README.md)
+**[Watch the walkthrough](https://sayback.vercel.app/demo.html)** · [Demo scope and evidence](docs/demos/README.md)
 
 Actual local UI captures with synthetic authentication, billing and generation. Fixture replies illustrate the interface; live AI and payments are not demonstrated.
 
