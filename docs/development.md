@@ -6,7 +6,7 @@ Next.js 16 (App Router) app for generating Hebrew reply suggestions, with Fireba
 
 ## Requirements
 
-- Node.js 20+
+- Node.js 22 LTS (CI version; Next.js requires at least 20.9)
 - npm 10+
 - Firebase project (client + admin credentials)
 - Stripe account (secret key, publishable key, webhook secret)
@@ -48,7 +48,7 @@ Use both flags together.
 ## Local Development
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -68,7 +68,30 @@ Open `http://localhost:3000`.
 npm run check
 ```
 
-This runs lint, TypeScript checks, identity/conversation/personalization/deep-link/product-contract/generator-flow regression tests, and the production build.
+This runs lint, TypeScript checks, every `tests/*.test.ts` and `tests/*.test.mjs`
+suite, and the production build. To run only the regression suites:
+
+```bash
+npm ci
+npm test
+```
+
+The aggregate runner discovers suites automatically, including entitlement priority
+and attribution tests. The existing `test:identity`, `test:conversations`,
+`test:my-voice`, `test:deeplinks`, `test:generation`, and `test:insights` commands
+remain available for focused debugging.
+
+[GitHub Actions](../.github/workflows/ci.yml) runs `npm run check` on pull requests,
+pushes to `main`, and manual dispatch, using Node.js 22 and the committed lockfile.
+It uses no application secrets and does not deploy anything. The production build
+fetches Rubik from Google Fonts, so it needs network access to Google's font servers.
+
+These are unit and source-contract regressions, not end-to-end verification of live
+Firebase authentication, OpenAI, or Stripe. A green run does not validate real payment
+processing or production configuration. For interactive local use, configure Firebase
+as described above; Stripe is only required for checkout/webhooks, and OpenAI is only
+required with `LOCAL_FREE_AI=false`. Never put service-account keys or `.env.local`
+in GitHub, and use test-mode Stripe credentials for manual payment checks.
 
 ## Deploy (Vercel)
 
