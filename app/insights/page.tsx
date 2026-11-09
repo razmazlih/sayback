@@ -4,8 +4,7 @@ import InsightsClient from "./insights-client";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "נתוני שימוש | SayBack",
-  description: "מסך פרטי לנתוני שימוש מצטברים ב־SayBack.",
+  title: "SayBack",
   robots: { index: false, follow: false },
 };
 
