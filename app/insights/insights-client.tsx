@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import type { User } from "firebase/auth";
 import type { VisitorInsights } from "@/lib/visitor-insights";
 
@@ -145,11 +146,11 @@ export default function InsightsClient() {
     let unsubscribe: (() => void) | undefined;
     async function observeAuth() {
       try {
-        const [{ getFirebaseClientAuth }, { onAuthStateChanged }] = await Promise.all([
+        const [{ getFirebaseClientAuth }, { onIdTokenChanged }] = await Promise.all([
           import("@/lib/firebase-client"), import("firebase/auth"),
         ]);
         if (disposed) return;
-        unsubscribe = onAuthStateChanged(getFirebaseClientAuth(), (user) => {
+        unsubscribe = onIdTokenChanged(getFirebaseClientAuth(), (user) => {
           if (disposed) return;
           requestVersion.current += 1;
           setReportState({ status: "loading" });
@@ -195,16 +196,45 @@ export default function InsightsClient() {
     return () => controller.abort();
   }, [authState, days, refresh]);
 
+  useEffect(() => {
+    const conceal = () => {
+      requestVersion.current += 1;
+      // Clear before a browser history snapshot can retain the private report.
+      flushSync(() => setReportState({ status: "loading" }));
+    };
+    const revalidate = () => setRefresh((current) => current + 1);
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) revalidate();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") conceal();
+      else revalidate();
+    };
+    window.addEventListener("pagehide", conceal);
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("pagehide", conceal);
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
+
   const state = authState.status === "ready" ? reportState : authState;
-  const canRefresh = authState.status === "ready" && reportState.status !== "loading";
-  const signedOut = state.status === "signed_out";
-  const stateMessage = state.status === "permission_pending"
-    ? { title: "הגישה לנתונים עדיין לא הופעלה", body: "נדרשת הגדרת הרשאה בצד השרת לפני שאפשר לצפות בנתונים. אין כרגע נתונים להצגה לחשבון הזה." }
-    : state.status === "forbidden"
-      ? { title: "אין לחשבון הזה הרשאה לצפות בנתונים", body: "הנתונים פרטיים וזמינים רק לחשבונות שקיבלו הרשאה. אפשר לחזור לדף הבית ולהתחבר לחשבון המתאים." }
-      : signedOut
-        ? { title: "צריך להתחבר לחשבון מורשה", body: "התחברו דרך דף הבית, ואז חזרו לכאן ורעננו את העמוד. כניסה אנונימית אינה מעניקה גישה לנתונים." }
-        : { title: "הנתונים אינם זמינים כרגע", body: "לא הצלחנו לטעון את הנתונים. זו אינה ספירה של אפס פעילות. אפשר לנסות שוב בעוד רגע." };
+
+  useEffect(() => {
+    if (state.status !== "ready" && state.status !== "loading") {
+      // Replace instead of push: Back must not reopen a denied private page.
+      // A full navigation also preserves the analytics document boundary.
+      window.location.replace("/");
+    }
+  }, [state.status]);
+
+  // Fail closed during SSR, hydration, auth restoration, revalidation and errors.
+  // A signed-in Firebase account alone does not authorize the report. Only a
+  // successful, validated response from the server's viewer guard unlocks it.
+  if (authState.status !== "ready" || reportState.status !== "ready") return null;
+
 
   return (
     <main dir="rtl" className="min-h-screen bg-[#fbf7f1] px-4 py-6 text-[#241d18] sm:px-6 sm:py-10">
@@ -222,24 +252,10 @@ export default function InsightsClient() {
                 <option value="7">7 ימים אחרונים</option><option value="30">30 ימים אחרונים</option>
               </select>
             </label>
-            <button type="button" disabled={!canRefresh} onClick={() => { requestVersion.current += 1; setReportState({ status: "loading" }); setRefresh((current) => current + 1); }} className={`min-h-11 rounded-xl bg-[#241d18] px-4 text-sm font-bold text-white disabled:cursor-wait disabled:opacity-50 ${focusClass}`}>רענון נתונים</button>
+            <button type="button" onClick={() => { requestVersion.current += 1; setReportState({ status: "loading" }); setRefresh((current) => current + 1); }} className={`min-h-11 rounded-xl bg-[#241d18] px-4 text-sm font-bold text-white disabled:cursor-wait disabled:opacity-50 ${focusClass}`}>רענון נתונים</button>
           </div>
         ) : null}
-        {state.status === "loading" ? (
-          <div role="status" className="rounded-[22px] border border-[#e2d7c8] bg-white p-6 text-[#6d6259]">טוענים את נתוני השימוש…</div>
-        ) : state.status === "ready" && "data" in state ? <Report data={state.data} /> : (
-          <section role="status" className="rounded-[22px] border border-[#e2d7c8] bg-white p-6">
-            <h2 className="text-lg font-bold">{stateMessage.title}</h2><p className="mt-2 max-w-xl text-sm leading-6 text-[#6d6259]">{stateMessage.body}</p>
-            {signedOut || state.status === "forbidden" ? (
-              <>
-                {/* Full document navigation prevents homepage tracking scripts surviving SPA back into this private report. */}
-                {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- This private-page boundary requires a new document. */}
-                <a href="/" className={`mt-4 inline-flex min-h-11 items-center rounded-xl bg-[#241d18] px-4 text-sm font-bold text-white ${focusClass}`}>לכניסה דרך דף הבית</a>
-              </>
-            ) : null}
-            {authState.status === "error" ? <button type="button" onClick={() => window.location.reload()} className={`mt-4 min-h-11 rounded-xl border border-[#ded2c3] px-4 text-sm font-bold ${focusClass}`}>טעינה מחדש</button> : null}
-          </section>
-        )}
+        <Report data={reportState.data} />
       </div>
     </main>
   );

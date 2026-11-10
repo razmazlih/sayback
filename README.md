@@ -6,6 +6,12 @@ SayBack is a Hebrew-first, right-to-left web app for finding the right words in 
 
 **[Try the live app](https://sayback.vercel.app)** · [Visual walkthrough](docs/walkthrough.md) · [Setup & operations](docs/development.md)
 
+## 40-second project demo
+
+**[Watch the walkthrough](https://sayback.vercel.app/demo.html)** · [Demo scope and evidence](docs/demos/README.md)
+
+Actual local UI captures with synthetic authentication, billing and generation. Fixture replies illustrate the interface; live AI and payments are not demonstrated.
+
 ## See the workflow
 
 ![A populated Hebrew composer, expanded tone editor, and three sample replies](docs/screenshots/reply-directions-desktop.png)
@@ -71,10 +77,10 @@ No time is selected by default.
 
 ## Run locally
 
-Requires Node.js 20+, npm 10+, and Firebase client/admin configuration. See [`.env.example`](.env.example) for the complete environment template.
+Requires Node.js 22 LTS (CI version; Next.js requires at least 20.9), npm 10+, and Firebase client/admin configuration. See [`.env.example`](.env.example) for the complete environment template.
 
 ```bash
-npm install
+npm ci
 cp .env.example .env.local
 # Fill in the required Firebase credentials and environment settings.
 npm run dev
