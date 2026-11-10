@@ -39,7 +39,7 @@ function harness(overrides = {}) {
     getMissingCommitmentKind: (message) => message.includes("מחיר") ? "price" : null,
     setDirectionField: (value) => calls.editor.push(value),
     setRequestError: (value) => calls.errors.push(value),
-    setHasTriedNoReplyContinue() {}, scrollToComposeSection() {}, scrollToMobileSection() {},
+    setHasTriedNoReplyContinue() {}, setShowCustomNoReplyDuration() {}, scrollToComposeSection() {}, scrollToMobileSection() {},
     isCompactViewport: () => false,
     messageInputRef: focusRef("message"), lastOutgoingInputRef: focusRef("outgoing"),
     noReplyDurationInputRef: focusRef("duration"), noReplyDurationUnitRef: focusRef("unit"),

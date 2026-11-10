@@ -14,7 +14,9 @@ All 10 tones and 12 contexts remain available under their existing access rules.
   Language and background editors stay open until **סיימתי** or a different field is selected.
 - Active values remain visible, including both grammatical preferences. Each field
   has an explicit clear action; tone resets to **זורם**.
-- Follow-up mode shows its own goals and omits the conversation-continuation control.
+- **לשלוח הודעת המשך** opens follow-up mode, with its own goals and no conversation-continuation control.
+  Elapsed time takes one tap: half an hour, 3 hours, a day, or 3 days.
+  **זמן אחר** reveals the exact number and minutes/hours/days controls. No time is selected by default.
 - Monthly features still require a monthly subscription; credits do not unlock them.
   Billing bypass keeps its existing free-options-only behavior.
 - Editing directions never consumes a use. Only explicit generation/refinement does.
@@ -33,6 +35,8 @@ Screenshots below use synthetic data and mocked services:
 <img src="docs/screenshots/reply-directions-mobile.png" alt="Hebrew mobile composer with direct reply-direction controls" width="360" />
 
 ![Desktop composer and reply preview](docs/screenshots/reply-directions-desktop.png)
+
+<img src="docs/screenshots/followup-mobile.png" alt="Hebrew follow-up composer with one-tap elapsed-time choices" width="360" />
 
 ## Requirements
 

@@ -215,8 +215,14 @@ const composeModeOptions: Array<{ value: ComposeMode; label: string; description
   {
     value: 'no_reply',
     label: 'מחכה לתשובה',
-    description: 'שלחת הודעה, ועכשיו צריך פולו-אפ נעים שמקדם תשובה.',
+    description: 'רוצה לשלוח הודעה נוספת לשיחה שעוד לא נענתה.',
   },
+];
+const noReplyDurationPresets: Array<{ label: string; value: string; unit: NoReplyDurationUnit }> = [
+  { label: 'חצי שעה', value: '30', unit: 'minutes' },
+  { label: '3 שעות', value: '3', unit: 'hours' },
+  { label: 'יום', value: '1', unit: 'days' },
+  { label: '3 ימים', value: '3', unit: 'days' },
 ];
 const noReplyDurationUnitOptions: Array<{ value: NoReplyDurationUnit; label: string }> = [
   { value: 'minutes', label: 'דקות' },
@@ -1094,7 +1100,7 @@ const LOADING_REPLY_PREVIEWS = [
 ] as const;
 
 function LoadingReplies({ isNoReplyMode }: { isNoReplyMode: boolean }) {
-  const title = isNoReplyMode ? 'מכינים פולו־אפ קצר' : 'מרכיבים לך תשובות טובות';
+  const title = isNoReplyMode ? 'מכינים הודעת המשך' : 'מרכיבים לך תשובות טובות';
   const description = isNoReplyMode
     ? 'בודקים מה שלחת, כמה זמן עבר, ואיך להחזיר את השיחה בלי לחץ.'
     : 'מנסחים עכשיו 3 תשובות קצרות וטבעיות שאפשר להעתיק מיד.';
@@ -2085,6 +2091,7 @@ export default function Home({
   const [commitmentChoice, setCommitmentChoice] = useState<{ message: string; mode: CommitmentMode; details: string } | null>(null);
   const [replyHistory, setReplyHistory] = useState(createReplyHistory);
   const [lastOutgoingMessage, setLastOutgoingMessage] = useState('');
+  const [showCustomNoReplyDuration, setShowCustomNoReplyDuration] = useState(false);
   const [noReplyDurationValue, setNoReplyDurationValue] = useState('');
   const [noReplyDurationUnit, setNoReplyDurationUnit] = useState<NoReplyDurationUnitSelection>('');
   const [hasTriedNoReplyContinue, setHasTriedNoReplyContinue] = useState(false);
@@ -2193,7 +2200,7 @@ export default function Home({
   const generateButtonLabel = isLoading
     ? 'מכינים 3 תשובות...'
     : isNoReplyMode
-      ? 'קבלו 3 פולו-אפים לשליחה'
+      ? 'ליצור לי 3 הודעות המשך'
       : 'ליצור לי 3 תשובות';
   const heroGenerateCtaLabel = 'יאללה, מתחילים לענות';
   const heroStartUsingCtaLabel = 'התחילו להשתמש עכשיו';
@@ -2202,7 +2209,7 @@ export default function Home({
       if (!trimmedLastOutgoingMessage) {
         return {
           title: 'שלב 1 מתוך 2: מה עוד צריך למלא?',
-          body: 'כתבו את ההודעה האחרונה ששלחתם כדי שנוכל לבנות פולו-אפ מדויק.',
+          body: 'כתבו את ההודעה האחרונה ששלחתם כדי שנוכל להציע איך להמשיך.',
           tone: 'warning',
         } as const;
       }
@@ -2220,7 +2227,7 @@ export default function Home({
 
       return {
         title: 'מעולה. שלב 1 הושלם',
-        body: 'אפשר ללחוץ על הכפתור ולקבל מיד 3 תשובות פולו-אפ קצרות.',
+        body: 'אפשר ללחוץ על הכפתור ולקבל 3 הצעות להודעת המשך.',
         tone: 'ready',
       } as const;
     }
@@ -2501,6 +2508,7 @@ export default function Home({
     setComposeMode(nextComposeMode);
     setMessage((scenarioFromExample?.message ?? '').slice(0, MAX_INCOMING_MESSAGE_LENGTH));
     setLastOutgoingMessage('');
+    setShowCustomNoReplyDuration(false);
     setNoReplyDurationValue('');
     setNoReplyDurationUnit('');
     setHasTriedNoReplyContinue(false);
@@ -4229,6 +4237,7 @@ export default function Home({
             .join('/')}).`,
         );
         scrollToComposeSection();
+        setShowCustomNoReplyDuration(true);
         window.requestAnimationFrame(() => noReplyDurationInputRef.current?.focus());
 
         return;
@@ -4237,6 +4246,7 @@ export default function Home({
       if (!hasNoReplyDurationUnit) {
         setRequestError('בחרו יחידת זמן כדי להמשיך.');
         scrollToComposeSection();
+        setShowCustomNoReplyDuration(true);
         window.requestAnimationFrame(() => noReplyDurationUnitRef.current?.focus());
 
         return;
@@ -4528,6 +4538,7 @@ export default function Home({
     setImageName(null);
     setMessage('');
     setLastOutgoingMessage('');
+    setShowCustomNoReplyDuration(false);
     setNoReplyDurationValue('');
     setNoReplyDurationUnit('');
     setHasTriedNoReplyContinue(false);
@@ -4566,6 +4577,7 @@ export default function Home({
     setDirectionField(null);
     setMessage(scenario.message.slice(0, MAX_INCOMING_MESSAGE_LENGTH));
     setLastOutgoingMessage('');
+    setShowCustomNoReplyDuration(false);
     setNoReplyDurationValue('');
     setNoReplyDurationUnit('');
     setHasTriedNoReplyContinue(false);
@@ -4632,6 +4644,7 @@ export default function Home({
     setReplyHistory(createReplyHistory());
     setContinueDialogReply(null);
     setLastOutgoingMessage('');
+    setShowCustomNoReplyDuration(false);
     setNoReplyDurationValue('');
     setNoReplyDurationUnit('');
     setConversationBackground('');
@@ -4819,14 +4832,14 @@ export default function Home({
               {isGeneratorPrimaryMode ? (
                 <div className="sb-compose-mode">
                   <p className="min-w-0 text-sm font-semibold text-[#241d18]">
-                    {isNoReplyMode ? 'כותבים פולו־אפ' : 'עונים להודעה שקיבלת'}
+                    {isNoReplyMode ? 'כותבים הודעת המשך' : 'עונים להודעה שקיבלת'}
                   </p>
                   <button
                     type="button"
                     onClick={() => handleComposeModeChange(isNoReplyMode ? 'incoming' : 'no_reply')}
                     className={`min-h-[44px] shrink-0 rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1.5 text-xs font-semibold text-[#7a2d19] transition hover:bg-[#ffe3da] ${lightSurfaceFocusClass}`}
                   >
-                    {isNoReplyMode ? 'חזרה לתשובה' : 'לא ענו? פולו־אפ'}
+                    {isNoReplyMode ? 'לענות להודעה שקיבלתי' : 'לשלוח הודעת המשך'}
                   </button>
                 </div>
               ) : (
@@ -4872,10 +4885,10 @@ export default function Home({
                 <div className="sb-input-zone sb-motion-panel space-y-3">
                   <div>
                     <label htmlFor="last-outgoing-message" className="text-sm font-semibold text-[#241d18]">
-                      מה כתבתי בהודעה האחרונה? <span aria-hidden="true" className="text-[#c23318]">*</span>
+                      מה שלחת לאחרונה? <span aria-hidden="true" className="text-[#c23318]">*</span>
                     </label>
                     <p className="text-xs font-bold text-[#6d6259]">
-                      שדה חובה: זה הטקסט האחרון ששלחת לפני שהצד השני הפסיק לענות.
+                      מדביקים את ההודעה ששלחת ושעדיין לא קיבלה תשובה.
                     </p>
                   </div>
 
@@ -4902,17 +4915,48 @@ export default function Home({
                     {MAX_LAST_OUTGOING_MESSAGE_LENGTH}).
                   </p>
 
-                  <div className="rounded-2xl border border-[#e2d7c8] bg-white p-3">
-                    <label
-                      htmlFor="no-reply-duration-value"
+                  <fieldset className="rounded-2xl border border-[#e2d7c8] bg-[#faf7f2] p-3 sm:p-4">
+                    <legend
                       className="text-sm font-semibold text-[#241d18]"
                     >
-                      כמה זמן לא ענו? <span aria-hidden="true" className="text-[#c23318]">*</span>
-                    </label>
-                    <p className="mt-1 text-xs font-bold text-[#6d6259]">
-                      בוחרים מספר ויחידת זמן: דקות, שעות או ימים.
-                    </p>
-                    <div className="mt-2 grid grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] gap-2">
+                      כמה זמן עבר מאז ששלחת? <span aria-hidden="true" className="text-[#c23318]">*</span>
+                    </legend>
+                    <p className="text-xs leading-5 text-[#6d6259]">גם בערך זה בסדר.</p>
+                    <div className="sb-duration-presets">
+                      {noReplyDurationPresets.map((preset) => {
+                        const selected = !showCustomNoReplyDuration && noReplyDurationValue === preset.value && noReplyDurationUnit === preset.unit;
+                        return (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            aria-pressed={selected}
+                            onClick={() => {
+                              setNoReplyDurationValue(preset.value);
+                              setNoReplyDurationUnit(preset.unit);
+                              setShowCustomNoReplyDuration(false);
+                              setHasTriedNoReplyContinue(false);
+                            }}
+                            className={`min-h-[44px] rounded-xl border px-3 py-2 text-sm font-semibold transition ${selected ? 'border-[#ff5a2a] bg-[#fff0ea] text-[#7a2d19] ring-1 ring-[#ff5a2a]' : 'border-[#ded2c3] bg-white text-[#241d18] hover:border-[#b89c83]'} ${lightSurfaceFocusClass}`}
+                          >
+                            {preset.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <button
+                      type="button"
+                      aria-expanded={showCustomNoReplyDuration}
+                      aria-controls="no-reply-custom-duration"
+                      onClick={() => {
+                        setShowCustomNoReplyDuration(true);
+                        setHasTriedNoReplyContinue(false);
+                      }}
+                      className={`mt-1 min-h-[44px] rounded-lg px-1 text-xs font-semibold text-[#6d6259] underline underline-offset-4 ${lightSurfaceFocusClass}`}
+                    >
+                      זמן אחר
+                    </button>
+                    {showCustomNoReplyDuration ? (
+                    <div id="no-reply-custom-duration" className="mt-1 grid grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] gap-2">
                       <input
                         id="no-reply-duration-value"
                         ref={noReplyDurationInputRef}
@@ -4929,6 +4973,7 @@ export default function Home({
                               .slice(0, String(MAX_NO_REPLY_DURATION_VALUE).length),
                           );
                         }}
+                        aria-label="מספר יחידות זמן"
                         placeholder="למשל 3"
                         required
                         aria-invalid={(hasTriedNoReplyContinue || noReplyDurationValue.length > 0) && !hasValidNoReplyDuration}
@@ -4957,6 +5002,7 @@ export default function Home({
                         ))}
                       </select>
                     </div>
+                    ) : null}
                     {(hasTriedNoReplyContinue || noReplyDurationValue.length > 0) && !hasValidNoReplyDuration ? (
                       <p id="no-reply-duration-error" className="mt-2 text-xs font-bold text-[#b42318]" role="alert">
                         הזינו מספר שלם בין 1 ל־{MAX_NO_REPLY_DURATION_VALUE}.
@@ -4967,7 +5013,7 @@ export default function Home({
                         בחרו דקות, שעות או ימים.
                       </p>
                     ) : null}
-                  </div>
+                  </fieldset>
                 </div>
               ) : (
                 <div className="sb-input-zone sb-motion-panel space-y-3">
