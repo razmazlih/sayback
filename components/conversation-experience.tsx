@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { ResponseStory } from './response-story';
 
 export function ConversationHeader({ onOpenAccount }: { onOpenAccount: () => void }) {
   return (
@@ -70,12 +71,6 @@ export function ConversationDemo() {
   );
 }
 
-const GUIDE_STEPS = [
-  { title: 'מכניסים את ההודעה', text: 'מדביקים את מה שקיבלתם או מצרפים צילום מסך.' },
-  { title: 'מוצאים את הטון', text: 'אפשר להתחיל כמו שזה, או לבחור סגנון שמתאים לשיחה.' },
-  { title: 'בוחרים מה לענות', text: 'מקבלים 3 אפשרויות. מעתיקים, עורכים או מבקשים ניסוח אחר.' },
-] as const;
-
 export function ConversationGuide({ billingBypassEnabled = false }: { billingBypassEnabled?: boolean }) {
   const titleId = useId();
 
@@ -85,15 +80,7 @@ export function ConversationGuide({ billingBypassEnabled = false }: { billingByp
         <p className="sb-eyebrow">מההודעה לתשובה</p>
         <h2 id={titleId}>פחות להתלבט. יותר לדבר.</h2>
       </div>
-      <ol className="sb-guide-steps">
-        {GUIDE_STEPS.map((step, index) => (
-          <li key={step.title}>
-            <span className="sb-step-number" aria-hidden="true">0{index + 1}</span>
-            <h3>{step.title}</h3>
-            <p>{step.text}</p>
-          </li>
-        ))}
-      </ol>
+      <ResponseStory />
       <div className="sb-scenario-grid">
         <article className="sb-scenario sb-scenario-personal">
           <p className="sb-eyebrow">בשיחות אישיות</p>
