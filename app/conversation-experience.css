@@ -264,3 +264,45 @@
 @media (max-width: 639px) and (max-height: 700px) {
   .sb-experience #incoming-message { max-height: 120px; }
 }
+
+/* Use the visual viewport: mobile keyboards can cover the layout viewport. */
+@media (max-width: 639px) {
+  .sb-direction-dialog { bottom: calc(var(--sb-keyboard-inset, 0px) + 12px); max-height: calc(var(--sb-visible-height, 100dvh) - 24px); }
+  .sb-account-dialog { margin-bottom: var(--sb-keyboard-inset, 0px); max-height: calc(var(--sb-visible-height, 100dvh) - 16px); }
+  .sb-paywall, .sb-experience .sb-motion-backdrop { bottom: var(--sb-keyboard-inset, 0px); }
+  .sb-experience [role="dialog"], .sb-paywall [role="dialog"] { max-height: calc(var(--sb-visible-height, 100dvh) - 24px); overflow-y: auto; }
+  .sb-experience input, .sb-experience textarea, .sb-account-dialog input, .sb-account-dialog textarea { scroll-margin-block: 48px; font-size: 16px; }
+  html[data-sb-keyboard] .sb-conversation-header,
+  html[data-sb-keyboard] .sb-compose-mode,
+  html[data-sb-keyboard] .sb-input-footer,
+  html[data-sb-keyboard] .sb-inline-examples,
+  html[data-sb-keyboard] .sb-compose-panel .sb-status { display: none; }
+  html[data-sb-keyboard] .sb-experience { padding-top: 6px; }
+  html[data-sb-keyboard] .sb-compose-panel { padding: 10px; }
+  html[data-sb-keyboard] .sb-compose-panel > .space-y-4 > :not(:last-child) { margin-block-end: 8px; }
+  html[data-sb-keyboard] .sb-experience #incoming-message { min-height: 72px; max-height: 96px; }
+  html[data-sb-keyboard] .sb-direction-tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 3px; }
+  html[data-sb-keyboard] .sb-direction-tabs button { flex-shrink: 0; min-height: 40px; }
+  html[data-sb-keyboard] .sb-direction-title { margin-bottom: 3px; }
+  html[data-sb-keyboard] .sb-experience #last-outgoing-message { min-height: 72px; height: 72px; }
+  html[data-sb-keyboard] .sb-compose-panel .sb-primary-button { min-height: 44px; padding-block: 8px; }
+}
+
+@media (max-width: 639px) {
+  .sb-experience dialog:not(.sb-direction-dialog), .sb-account-dialog {
+    position: fixed; inset: calc(var(--sb-visible-top, 0px) + 8px) 0 auto; margin: 0 auto;
+    max-height: calc(var(--sb-visible-height, 100dvh) - 16px); overflow-y: auto;
+  }
+}
+
+@media (max-width: 639px) {
+  html[data-sb-keyboard] #compose-section[data-compose-mode="no_reply"] { padding-bottom: 150px; }
+  html[data-sb-keyboard] #compose-section[data-compose-mode="no_reply"] .sb-generation-actions {
+    position: fixed; z-index: 30; left: 23px; right: 23px; bottom: calc(var(--sb-keyboard-inset, 0px) + 8px);
+    padding: 4px 0; background: #fffdfa;
+  }
+  html[data-sb-keyboard] #compose-section[data-compose-mode="no_reply"] .sb-direction-inline {
+    position: fixed; z-index: 30; left: 23px; right: 23px; bottom: calc(var(--sb-keyboard-inset, 0px) + 62px);
+    padding: 8px 0 0; background: #fffdfa; box-shadow: 0 -8px 12px #fffdfa;
+  }
+}

@@ -105,3 +105,11 @@ Mobile layout verified at 320×568, 360×740, 375×667 and 390×844 CSS pixels: 
 The incoming message field grows and shrinks with its content, capped at 160px on phones (120px on short viewports) and 240px on desktop, with internal scrolling beyond the cap. Direction dialogs use a circular 44px close control.
 
 ![Reply direction dialog with circular close control](docs/screenshots/reply-direction-dialog.png)
+
+### Mobile keyboard layout
+
+The UI observes `visualViewport` resize/scroll and focus changes, keeping dialogs within the visible area. While typing on a small viewport, the incoming composer hides introductory content and uses a compact direction strip. Follow-up mode keeps the direction strip and generation action above the keyboard, reserving scroll space and revealing the focused field. Text inputs use 16px text on mobile.
+
+Verified with reduced viewports (390×400, 375×360, 320×320), plus an emulated visual-viewport shrink with the layout viewport unchanged: multiline incoming text, follow-up text, custom numeric time, account email, and restoration after dismissal. Actual iOS/Android keyboard behavior and hosted Stripe fields still require a physical-device pass; no payment or email was submitted.
+
+![Simulated mobile keyboard layout; keyboard itself is not rendered](docs/screenshots/mobile-keyboard-layout.png)
