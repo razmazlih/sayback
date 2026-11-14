@@ -66,10 +66,7 @@ export function ReplyDirectionControls(props: ReplyDirectionControlsProps) {
     continue: props.continuePreference === 'לא' ? 'לסיים בנעימות' : props.continuePreference,
     background: props.conversationBackground.trim() ? 'נוסף רקע' : null,
   };
-  function advance(field: DirectionField) {
-    const next = fields[fields.indexOf(field) + 1];
-    setSelectedField(next ?? null);
-  }
+
 
 
   return (
@@ -87,12 +84,7 @@ export function ReplyDirectionControls(props: ReplyDirectionControlsProps) {
       <dialog ref={dialog} id="reply-direction-panel" className="sb-direction-dialog" aria-label="בחירת כיוון התשובה" onCancel={() => setSelectedField(null)} onClose={() => setSelectedField(null)}>
         <div className="sb-direction-dialog-top"><span>כיוון התשובה · {fields.indexOf(activeField) + 1} מתוך {fields.length}</span><button type="button" onClick={() => setSelectedField(null)} aria-label="סגירת אפשרויות כיוון התשובה">סיימתי ×</button></div>
         <div className="sb-direction-section" data-field={activeField}>
-        <DirectionEditor key={activeField} {...props} field={activeField} close={() => {}}
-          onToneChange={(value) => { props.onToneChange(value); advance('tone'); }}
-          onContextChange={(value) => { props.onContextChange(value); if (value) advance('context'); }}
-          onGoalChange={(value) => { props.onGoalChange(value); if (value) advance('goal'); }}
-          onContinuePreferenceChange={(value) => { props.onContinuePreferenceChange(value); if (value) advance('continue'); }} />
-        {activeField === 'language' ? <button className="sb-direction-next" type="button" onClick={() => advance('language')}>הבא ←</button> : null}
+        <DirectionEditor key={activeField} {...props} field={activeField} close={() => {}} />
         </div>
       </dialog>
     </section>
