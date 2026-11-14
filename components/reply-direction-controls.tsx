@@ -81,7 +81,11 @@ export function ReplyDirectionControls(props: ReplyDirectionControlsProps) {
           </button>
         ))}
       </div>
-      <dialog ref={dialog} id="reply-direction-panel" className="sb-direction-dialog" aria-label="בחירת כיוון התשובה" onCancel={() => setSelectedField(null)} onClose={() => setSelectedField(null)}>
+      <dialog ref={dialog} id="reply-direction-panel" className="sb-direction-dialog" aria-label="בחירת כיוון התשובה" onClick={(event) => {
+        if (event.target !== event.currentTarget) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) setSelectedField(null);
+      }} onCancel={() => setSelectedField(null)} onClose={() => setSelectedField(null)}>
         <div className="sb-direction-dialog-top"><span>כיוון התשובה</span><button type="button" onClick={() => setSelectedField(null)} aria-label="סגירת אפשרויות כיוון התשובה">×</button></div>
         <div className="sb-direction-section" data-field={activeField}>
         <DirectionEditor key={activeField} {...props} field={activeField} close={() => setSelectedField(null)} />

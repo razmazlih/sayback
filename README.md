@@ -24,7 +24,7 @@ Open one inline editor, choose an option, and keep the selected value in view.
 <table>
   <tr><th width="50%">1. Write and choose a direction</th><th width="50%">2. Compare and refine</th></tr>
   <tr>
-    <td valign="top"><img src="docs/screenshots/reply-directions-mobile.png" alt="Mobile reply direction controls with warm colors and direct tone choices." width="360"></td>
+    <td valign="top"><img src="docs/screenshots/reply-directions-mobile.png" alt="Mobile composer with message input, compact reply directions and generation button visible together." width="360"></td>
     <td valign="top"><img src="docs/screenshots/reply-results-mobile.png" alt="Three synthetic Hebrew reply suggestions with copy, soften, sharpen, and retry controls." width="360"></td>
   </tr>
   <tr><td>No direction is required. Start with the default <strong>זורם</strong> tone and add context only when useful.</td><td>Review the wording and choose what fits. SayBack leaves sending the message to you.</td></tr>
@@ -99,3 +99,5 @@ This runs lint, type checking, regression suites, and a production build. For th
 - [Visual walkthrough and screenshot provenance](docs/walkthrough.md)
 - [Development, configuration, verification, and deployment](docs/development.md)
 - [Visitor insights](docs/visitor-insights.md)
+
+Mobile layout verified at 320×568, 360×740, 375×667 and 390×844 CSS pixels: the incoming message field, direction toolbar and generation action fit in the initial viewport. Direction dialogs close on selection, Escape or a click outside. These checks use browser emulation; an on-screen phone keyboard reduces available space.
