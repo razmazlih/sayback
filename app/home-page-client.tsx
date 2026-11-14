@@ -29,6 +29,7 @@ import { createReplyHistory, recordReplyRefinement, getPreviousReply, clearReply
 import { getMissingCommitmentKind, type CommitmentMode, type LanguagePreferences, type ReplyContext } from '@/lib/reply-context';
 import { CommitmentControls, ContinueConversationDialog } from '@/components/reply-context-controls';
 import { ReplyDirectionControls } from '@/components/reply-direction-controls';
+import { DirectionIcon } from '@/components/direction-choice-visuals';
 import { areGenerationDraftsEqual, type GenerationDraft } from '@/lib/generation-draft';
 import { CONTINUE_PREFERENCE_OPTIONS, type DirectionField, type ContinuePreference, type IncomingGoal, type Goal } from '@/lib/reply-direction';
 import { captureAndStoreAttribution } from '@/lib/attribution';
@@ -2272,6 +2273,8 @@ export default function Home({
     parsedNoReplyDuration >= 1 &&
     parsedNoReplyDuration <= MAX_NO_REPLY_DURATION_VALUE;
   const hasNoReplyDurationUnit = noReplyDurationUnit !== '';
+  const hasCustomNoReplyDuration = hasValidNoReplyDuration && hasNoReplyDurationUnit &&
+    !noReplyDurationPresets.some((preset) => preset.value === noReplyDurationValue && preset.unit === noReplyDurationUnit);
   const isNoReplyReady =
     Boolean(trimmedLastOutgoingMessage) && hasValidNoReplyDuration && hasNoReplyDurationUnit;
   const generateButtonLabel = isLoading
@@ -4993,13 +4996,11 @@ export default function Home({
                     {MAX_LAST_OUTGOING_MESSAGE_LENGTH}).
                   </p>
 
-                  <fieldset className="rounded-2xl border border-[#e2d7c8] bg-[#faf7f2] p-3 sm:p-4">
-                    <legend
-                      className="text-sm font-semibold text-[#241d18]"
-                    >
-                      כמה זמן עבר מאז ששלחת? <span aria-hidden="true" className="text-[#c23318]">*</span>
+                  <fieldset className="sb-duration" aria-label="כמה זמן עבר מאז ששלחת?">
+                    <legend className="sb-duration-heading">
+                      <DirectionIcon name="clock" />כמה זמן עבר? <span aria-hidden="true" className="text-[#c23318]">*</span>
                     </legend>
-                    <p className="text-xs leading-5 text-[#6d6259]">גם בערך זה בסדר.</p>
+                    <p className="sb-duration-help">גם בערך זה בסדר.</p>
                     <div className="sb-duration-presets">
                       {noReplyDurationPresets.map((preset) => {
                         const selected = !showCustomNoReplyDuration && noReplyDurationValue === preset.value && noReplyDurationUnit === preset.unit;
@@ -5014,9 +5015,11 @@ export default function Home({
                               setShowCustomNoReplyDuration(false);
                               setHasTriedNoReplyContinue(false);
                             }}
-                            className={`min-h-[44px] rounded-xl border px-3 py-2 text-sm font-semibold transition ${selected ? 'border-[#ff5a2a] bg-[#fff0ea] text-[#7a2d19] ring-1 ring-[#ff5a2a]' : 'border-[#ded2c3] bg-white text-[#241d18] hover:border-[#b89c83]'} ${lightSurfaceFocusClass}`}
+                            className="sb-duration-option"
                           >
+                            <span className="sb-duration-icon"><DirectionIcon name={preset.unit === 'days' ? 'calendar' : 'clock'} /></span>
                             {preset.label}
+                            {selected ? <svg className="sb-duration-check" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m3 8 3 3 7-7" /></svg> : null}
                           </button>
                         );
                       })}
@@ -5025,16 +5028,22 @@ export default function Home({
                       type="button"
                       aria-expanded={showCustomNoReplyDuration}
                       aria-controls="no-reply-custom-duration"
+                      data-selected={hasCustomNoReplyDuration || undefined}
                       onClick={() => {
-                        setShowCustomNoReplyDuration(true);
+                        setShowCustomNoReplyDuration((visible) => !visible);
                         setHasTriedNoReplyContinue(false);
                       }}
-                      className={`mt-1 min-h-[44px] rounded-lg px-1 text-xs font-semibold text-[#6d6259] underline underline-offset-4 ${lightSurfaceFocusClass}`}
+                      className="sb-duration-custom-trigger"
                     >
+                      <DirectionIcon name="note" />
                       זמן אחר
+                      {hasCustomNoReplyDuration ? <span className="sb-duration-custom-value">{noReplyDurationValue} {noReplyDurationUnitOptions.find((option) => option.value === noReplyDurationUnit)?.label}</span> : null}
+                      <svg className="sb-duration-chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
                     </button>
                     {showCustomNoReplyDuration ? (
-                    <div id="no-reply-custom-duration" className="mt-1 grid grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)] gap-2">
+                    <div id="no-reply-custom-duration" className="sb-duration-custom-fields">
+                      <label htmlFor="no-reply-duration-value">כמה?</label>
+                      <label htmlFor="no-reply-duration-unit">יחידת זמן</label>
                       <input
                         id="no-reply-duration-value"
                         ref={noReplyDurationInputRef}

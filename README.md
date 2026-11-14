@@ -36,7 +36,7 @@ Open one inline editor, choose an option, and keep the selected value in view.
 
 **לשלוח הודעת המשך** opens the follow-up composer. Paste the last outgoing message
 and choose the elapsed time in one tap: half an hour, 3 hours, a day, or 3 days.
-**זמן אחר** opens the exact number and minutes/hours/days controls.
+**זמן אחר** opens the exact number and minutes/hours/days controls. It can be collapsed without losing the selected duration, which stays visible in the trigger. Time presets use the same cream cards, original SVG icons and gold selection treatment as the reply directions; they fill two phone columns or one desktop row.
 No time is selected by default.
 
 <img src="docs/screenshots/followup-toolbar-mobile.jpg" alt="Hebrew follow-up composer with one-tap elapsed-time choices" width="360" />
@@ -44,6 +44,10 @@ No time is selected by default.
 *Local browser capture updated November 14, 2026. Follow-up toolbar verified in the actual app at 320×568, 378×902 and 849×902: it fills the composer width (270px, 328px and 751px respectively), with four equal-height tiles in a 2×2 phone grid or one desktop row. At 378×400 while editing, the compact strip and generation action share the same 23px side insets. These are emulated viewport checks, not a physical-device keyboard test.*
 
 ![Full-width follow-up toolbar on desktop](docs/screenshots/followup-toolbar-desktop.jpg)
+
+<img src="docs/screenshots/followup-duration-custom-mobile.jpg" alt="Custom elapsed time with labelled number and unit fields and the selected duration in its trigger" width="360">
+
+*Elapsed-time controls checked at 320px, 378px and 849px: all four presets, custom five-hour entry, collapse/reopen retention and return to a preset. No generation or payment was submitted.*
 
 ## What it does
 
