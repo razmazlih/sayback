@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   CONTEXT_OPTIONS, TONE_OPTIONS, isFreeContextOption, isFreeToneOption,
   type ContextOption, type ToneOption,
@@ -49,11 +49,16 @@ const illustrations: Partial<Record<ToneOption | ContextOption, string>> = {
 };
 
 export function ReplyDirectionControls(props: ReplyDirectionControlsProps) {
-  const [selectedField, setSelectedField] = useState<DirectionField>('tone');
+  const [selectedField, setSelectedField] = useState<DirectionField | null>(null);
   const fields: DirectionField[] = ['tone', 'context', 'goal', 'language'];
   if (!props.isNoReplyMode) fields.push('continue');
   if (props.showMonthlyOptions) fields.push('background');
-  const activeField = fields.includes(selectedField) ? selectedField : 'tone';
+  const activeField = selectedField && fields.includes(selectedField) ? selectedField : 'tone';
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (selectedField && !dialog.current?.open) dialog.current?.showModal();
+    if (!selectedField && dialog.current?.open) dialog.current?.close();
+  }, [selectedField]);
   const values: Record<DirectionField, string | null> = {
     tone: props.tone, context: props.context, goal: props.goal,
     language: props.languagePreferences.speaker === 'neutral' && props.languagePreferences.recipient === 'neutral'
@@ -63,30 +68,33 @@ export function ReplyDirectionControls(props: ReplyDirectionControlsProps) {
   };
   function advance(field: DirectionField) {
     const next = fields[fields.indexOf(field) + 1];
-    if (next) setSelectedField(next);
+    setSelectedField(next ?? null);
   }
 
 
   return (
     <section className="sb-direction sb-direction-inline" data-testid="reply-direction-controls" dir="rtl" aria-label="כיוון התשובה">
-      <div className="sb-direction-title"><p className="sb-direction-heading">כיוון התשובה</p><span>אפשר לדלג · כל בחירה נשמרת</span></div>
+      <div className="sb-direction-title"><p className="sb-direction-heading">כיוון התשובה</p><span>רק אם רוצים</span></div>
       <div className="sb-direction-tabs" role="group" aria-label="הגדרות כיוון התשובה">
         {fields.map((field) => (
-          <button key={field} type="button" aria-pressed={activeField === field}
+          <button key={field} type="button" aria-expanded={selectedField === field} aria-haspopup="dialog"
             title={values[field] ?? fieldLabels[field]} aria-controls="reply-direction-panel" onClick={() => setSelectedField(field)}>
             <span className="sb-direction-step-label">{fieldLabels[field]}</span>
-            <span className="sb-direction-step-value">{values[field] ?? 'לבחירה'}<span aria-hidden="true">{values[field] ? ' ✓' : ''}</span></span>
+            <span className="sb-direction-step-value">{values[field] ?? '＋'}</span>
           </button>
         ))}
       </div>
-      <div id="reply-direction-panel" className="sb-direction-section" data-field={activeField}>
+      <dialog ref={dialog} id="reply-direction-panel" className="sb-direction-dialog" aria-label="בחירת כיוון התשובה" onCancel={() => setSelectedField(null)} onClose={() => setSelectedField(null)}>
+        <div className="sb-direction-dialog-top"><span>כיוון התשובה · {fields.indexOf(activeField) + 1} מתוך {fields.length}</span><button type="button" onClick={() => setSelectedField(null)} aria-label="סגירת אפשרויות כיוון התשובה">סיימתי ×</button></div>
+        <div className="sb-direction-section" data-field={activeField}>
         <DirectionEditor key={activeField} {...props} field={activeField} close={() => {}}
           onToneChange={(value) => { props.onToneChange(value); advance('tone'); }}
           onContextChange={(value) => { props.onContextChange(value); if (value) advance('context'); }}
           onGoalChange={(value) => { props.onGoalChange(value); if (value) advance('goal'); }}
           onContinuePreferenceChange={(value) => { props.onContinuePreferenceChange(value); if (value) advance('continue'); }} />
         {activeField === 'language' ? <button className="sb-direction-next" type="button" onClick={() => advance('language')}>הבא ←</button> : null}
-      </div>
+        </div>
+      </dialog>
     </section>
   );
 }
