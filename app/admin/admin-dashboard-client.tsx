@@ -1,11 +1,14 @@
 'use client';
 
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   startTransition,
   useDeferredValue,
   useId,
   useMemo,
   useState,
+  useTransition,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react';
@@ -62,7 +65,7 @@ const dateFormatter = new Intl.DateTimeFormat('he-IL', {
 
 const SOURCE_OPTIONS: Array<{ value: SourceFilter; label: string }> = [
   { value: 'all', label: 'כל המקורות' },
-  { value: 'production', label: 'פרודקשן' },
+  { value: 'production', label: 'האתר החי' },
   { value: 'local', label: 'מקומי' },
 ];
 
@@ -90,12 +93,13 @@ const stableScrollbarStyle = { scrollbarGutter: 'stable' } as const;
 const filterGridStyle = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
 } as const;
-const filterSearchStyle = { gridColumn: 'span 2 / span 2' } as const;
-const workbenchGridStyle = {
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
-} as const;
+const filterSearchStyle = { gridColumn: '1 / -1' } as const;
+
 
 export default function AdminDashboardClient({ rows }: AdminDashboardClientProps) {
+  const router = useRouter();
+  const [isRefreshing, refreshTransition] = useTransition();
+  const [mobilePane, setMobilePane] = useState<'users' | 'events' | 'details'>('users');
   const searchId = useId();
   const sourceId = useId();
   const statusId = useId();
@@ -448,6 +452,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
     selectedEventIndex < (selectedGroup?.rows.length ?? 0) - 1;
 
   function resetFilters() {
+    setMobilePane('users');
     setSearch('');
     startTransition(() => {
       setSource('all');
@@ -462,6 +467,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
   }
 
   function applySummaryShortcut(shortcut: 'all' | 'blocked' | 'failed' | 'retry' | 'schema_issues') {
+    setMobilePane('users');
     setSearch('');
     startTransition(() => {
       setSource('all');
@@ -502,12 +508,14 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
   }
 
   function selectUser(uid: string) {
+    setMobilePane('events');
     setSelectedUserUid(uid);
     setSelectedEventId(null);
     setVisibleEventsLimit(TIMELINE_PAGE_SIZE);
   }
 
   function selectEvent(eventId: string) {
+    setMobilePane('details');
     setSelectedEventId(eventId);
   }
 
@@ -567,7 +575,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
   }
 
   function handleDesktopNavigationKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
-    if (event.altKey || event.ctrlKey || event.metaKey) {
+    if ((event.target instanceof HTMLElement && Boolean(event.target.closest('input, select, textarea, button, summary'))) || event.altKey || event.ctrlKey || event.metaKey) {
       return;
     }
 
@@ -614,8 +622,13 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
           <div>
             <p className="text-xs font-semibold tracking-[0.12em] text-brand">ניהול SayBack</p>
             <h1 className="mt-1 text-2xl font-semibold text-brand-ink sm:text-3xl">
-              סקירת שימוש לפי משתמשים ואירועים
+              לוח ניהול
             </h1>
+            <p className="mt-2 text-sm leading-6 text-black/60">כל הפעילות במקום אחד. בחרו משתמש, עברו על הפעילות ופתחו אירוע לבדיקה.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" onClick={() => refreshTransition(() => router.refresh())} disabled={isRefreshing} className={`min-h-11 rounded-xl bg-brand-ink px-4 text-sm font-medium text-white ${darkSurfaceFocusClass}`}>{isRefreshing ? 'מרענן נתונים…' : 'רענון נתונים'}</button>
+              <Link href="/" className={`inline-flex min-h-11 items-center rounded-xl border border-black/10 px-4 text-sm ${whiteSurfaceFocusClass}`}>חזרה ל־SayBack</Link>
+            </div>
           </div>
           <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[360px]">
             <CompactFact
@@ -632,19 +645,25 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
         <StatCard label="הצלחות" value={String(summary.statusCounts.success)} toneClass="bg-emerald-500" />
         <StatCard label="חסומים" value={String(summary.statusCounts.blocked)} toneClass="bg-amber-400" />
         <StatCard label="נכשלו" value={String(summary.statusCounts.failed)} toneClass="bg-rose-500" />
+      </section>
+      <details className="rounded-xl border border-black/10 bg-white p-4">
+        <summary className={`cursor-pointer text-sm font-medium ${whiteSurfaceFocusClass}`}>מדדים נוספים ובדיקת תקינות</summary>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="משתמשים" value={String(summary.uniqueUsersCount)} toneClass="bg-sky-500" />
         <StatCard label="משתמשים חסומים" value={String(summary.uniqueBlockedUsersCount)} toneClass="bg-zinc-700" />
         <StatCard
-          label="Retry מתיקונים"
+          label="ניסוח מחדש מתוך התיקונים"
           value={`${formatRatioPercent(summary.retryRatio)} (${summary.retryCount}/${summary.refineCount})`}
           toneClass="bg-violet-500"
         />
         <StatCard
-          label="חריגות סכימה"
+          label="פלט לא תקין"
           value={`${summary.invalidSchemaCount}/${summary.successRowsCount}`}
           toneClass={summary.invalidSchemaCount > 0 ? 'bg-rose-600' : 'bg-emerald-600'}
         />
-      </section>
+        </div>
+      </details>
+      <p className="text-xs text-black/55">המדדים משקפים את האירועים הטעונים ואת הסינון הנוכחי, ולא את כל היסטוריית השימוש.</p>
 
       <section
         className="overflow-hidden rounded-2xl border border-black/10 bg-white/95 shadow-[0_18px_55px_rgba(25,19,15,0.07)]"
@@ -654,9 +673,9 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
         <div className="sticky top-3 z-20 border-b border-black/10 bg-white/95 px-3 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/90 sm:px-4">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
             <div>
-              <h2 className="text-base font-semibold text-brand-ink">מסננים וטריאז׳</h2>
+              <h2 className="text-base font-semibold text-brand-ink">חיפוש וסינון פעילות</h2>
               <p className="mt-0.5 text-xs text-black/55">
-                {filteredRows.length} אירועים, {groupedUsers.length} משתמשים, {summary.invalidSchemaCount} חריגות סכימה
+                {filteredRows.length} אירועים, {groupedUsers.length} משתמשים, {summary.invalidSchemaCount} תוצאות לא תקינות
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -678,13 +697,13 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
                 disabled={presetSummary.failedCount === 0}
               />
               <SummaryShortcutButton
-                label={`Retry (${presetSummary.retryCount})`}
+                label={`ניסוח מחדש (${presetSummary.retryCount})`}
                 active={status === 'all' && action === 'retry' && integrityFilter === 'all'}
                 onClick={() => applySummaryShortcut('retry')}
                 disabled={presetSummary.retryCount === 0}
               />
               <SummaryShortcutButton
-                label={`סכימה (${presetSummary.invalidSchemaCount})`}
+                label={`פלט לא תקין (${presetSummary.invalidSchemaCount})`}
                 active={integrityFilter === 'invalid_schema'}
                 onClick={() => applySummaryShortcut('schema_issues')}
                 disabled={presetSummary.invalidSchemaCount === 0}
@@ -701,11 +720,14 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
               dir="auto"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="חפש לפי UID, הודעה/הודעה אחרונה, רקע, תשובה, שגיאה, intent או sourceReply"
+              placeholder="חיפוש לפי מזהה משתמש, הודעה, תשובה או שגיאה"
               className={`h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm text-black/85 outline-none transition focus:border-brand/40 ${whiteSurfaceFocusClass}`}
             />
           </Field>
           </div>
+          <details className="col-span-full rounded-xl border border-black/10 p-3">
+          <summary className={`cursor-pointer text-sm font-medium ${whiteSurfaceFocusClass}`}>מסננים נוספים ומיון</summary>
+          <div className="mt-3 grid gap-3" style={filterGridStyle}>
           <Field label="מקור" htmlFor={sourceId}>
             <select
               id={sourceId}
@@ -747,13 +769,13 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
             >
               <option value="all">כל הפעולות</option>
               {availableActions.map((availableAction) => (
-                <option key={availableAction} value={availableAction}>
-                  {availableAction}
+                <option key={describeAction(availableAction).actionLabel} value={describeAction(availableAction).actionLabel}>
+                  {describeAction(availableAction).actionLabel}
                 </option>
               ))}
             </select>
           </Field>
-          <Field label="מיון ציר זמן + סדר משתמשים" htmlFor={sortId}>
+          <Field label="סדר הצגת הפעילות" htmlFor={sortId}>
             <div className="flex gap-2">
               <select
                 id={sortId}
@@ -779,6 +801,8 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
             </div>
           </Field>
           </div>
+          </details>
+          </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {STATUS_OPTIONS.map((option) => {
@@ -790,7 +814,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
                   type="button"
                   onClick={() => startTransition(() => setStatus(option.value))}
                   aria-pressed={active}
-                  className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
+                  className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
                     active
                       ? `${getStatusFilterChipTone(option.value)} border-transparent`
                       : 'border-black/10 bg-white text-black/75 hover:bg-black/[0.03]'
@@ -815,7 +839,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
             ) : null}
             {source !== 'all' ? (
               <ActiveFilterChip
-                label={`מקור: ${source === 'production' ? 'פרודקשן' : 'מקומי'}`}
+                label={`מקור: ${source === 'production' ? 'האתר החי' : 'מקומי'}`}
                 onClear={() => startTransition(() => setSource('all'))}
               />
             ) : null}
@@ -833,7 +857,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
             ) : null}
             {integrityFilter !== 'all' ? (
               <ActiveFilterChip
-                label="תקינות: חריגות סכימה"
+                label="תקינות: תוצאות לא תקינות"
                 onClear={() => startTransition(() => setIntegrityFilter('all'))}
               />
             ) : null}
@@ -856,14 +880,15 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
             )}
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-black/55">
-            <InfoPill label={`פרודקשן: ${summary.productionCount}`} />
+          <details className="mt-3 text-xs text-black/55"><summary className="cursor-pointer py-2">נתוני מקור ותקינות</summary><div className="mt-2 flex flex-wrap gap-2">
+            <InfoPill label={`האתר החי: ${summary.productionCount}`} />
             <InfoPill label={`מקומי: ${summary.localCount}`} />
             <InfoPill label={`בתהליך: ${summary.statusCounts.pending}`} />
-            <InfoPill label={`intent חסר: ${summary.missingIntentCount}`} />
-            <InfoPill label={`replies שגוי: ${summary.invalidRepliesCount}`} />
-            <InfoPill label={`replies ריקים: ${summary.emptyReplyItemsCount}`} />
+            <InfoPill label={`כוונה חסרה: ${summary.missingIntentCount}`} />
+            <InfoPill label={`מספר תשובות שגוי: ${summary.invalidRepliesCount}`} />
+            <InfoPill label={`תשובות ריקות: ${summary.emptyReplyItemsCount}`} />
           </div>
+          </details>
           <p id={resultsStatusId} role="status" aria-live="polite" aria-atomic="true" className="sr-only">
             {liveStatusText}
           </p>
@@ -873,12 +898,18 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
           <div className="px-4 py-14 text-center sm:px-6">
             <div className="mx-auto max-w-md rounded-xl border border-dashed border-black/15 bg-white px-6 py-8">
               <p className="text-base font-medium text-brand-ink">לא נמצאו תוצאות</p>
-              <p className="mt-2 text-sm leading-7 text-black/60">נסה לשנות את החיפוש או הסינון.</p>
+              <p className="mt-2 text-sm leading-7 text-black/60">{rows.length === 0 ? 'עדיין אין פעילות להצגה. הנתונים יופיעו לאחר שימוש במערכת ורענון הדף.' : 'נסו לשנות את החיפוש או לנקות את המסננים.'}</p>
             </div>
           </div>
         ) : (
-          <div className="grid" style={workbenchGridStyle}>
-            <aside className="border-b border-black/10 bg-[#fbfaf7] xl:border-b-0 xl:border-l">
+          <div>
+            <nav aria-label="מעבר בין שלבי בדיקת הפעילות" className="grid grid-cols-3 gap-2 border-b border-black/10 p-3 xl:hidden">
+              {([['users', '1. משתמשים'], ['events', '2. פעילות'], ['details', '3. פרטי אירוע']] as const).map(([pane, label]) => (
+                <button key={pane} type="button" aria-current={mobilePane === pane ? 'step' : undefined} onClick={() => setMobilePane(pane)} className={`min-h-11 rounded-xl text-sm font-medium ${whiteSurfaceFocusClass} ${mobilePane === pane ? 'bg-brand-ink text-white' : 'bg-black/5 text-black/70'}`}>{label}</button>
+              ))}
+            </nav>
+          <div className="grid xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_minmax(0,1.35fr)]">
+            <aside className={`${mobilePane === 'users' ? 'block' : 'hidden'} min-w-0 border-b border-black/10 bg-[#fbfaf7] xl:block xl:border-b-0 xl:border-l`}>
               <PaneHeader
                 title="משתמשים"
                 meta={`מוצגים ${visibleUserGroups.length} מתוך ${groupedUsers.length}`}
@@ -958,7 +989,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
               ) : null}
             </aside>
 
-            <section className="border-b border-black/10 bg-white xl:border-b-0 xl:border-l">
+            <section className={`${mobilePane === 'events' ? 'block' : 'hidden'} min-w-0 border-b border-black/10 bg-white xl:block xl:border-b-0 xl:border-l`}>
               <PaneHeader
                 title="ציר אירועים"
                 meta={
@@ -1074,7 +1105,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
               )}
             </section>
 
-            <section className="bg-[#fbfaf7]">
+            <section className={`${mobilePane === 'details' ? 'block' : 'hidden'} min-w-0 bg-[#fbfaf7] xl:block`}>
               <PaneHeader title="פרטי אירוע" meta={selectedEvent ? formatDateTime(selectedEvent.createdAt) : 'לא נבחר'} />
               {selectedEvent ? (
                 <div
@@ -1087,7 +1118,9 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
                     {renderEventTypePill(describeAction(selectedEvent.action))}
                     {renderStatusPill(selectedEvent.status)}
                   </div>
-                  <InfoGrid
+                  <details className="rounded-xl border border-black/10 bg-white p-3">
+                  <summary className={`cursor-pointer text-sm font-medium ${whiteSurfaceFocusClass}`}>פרטים טכניים וחיוב</summary>
+                  <div className="mt-3"><InfoGrid
                     items={[
                       ['מזהה', selectedEvent.id],
                       ['חיוב', selectedEvent.consumption ? toConsumptionLabel(selectedEvent.consumption) : 'לא זמין'],
@@ -1095,13 +1128,14 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
                       ['הסתיים', selectedEvent.completedAt ? formatDateTime(selectedEvent.completedAt) : 'לא זמין'],
                     ]}
                   />
+                  </div></details>
                   <TextPanel
                     title="מה נשלח"
                     tone="input"
                     panelId={`selected-input-${toDomToken(selectedEvent.id)}`}
                   >
                     <p
-                      className="whitespace-pre-wrap break-words text-xs leading-5 text-black/80"
+                      className="whitespace-pre-wrap break-words text-sm leading-6 text-black/80"
                       dir="auto"
                       style={{ unicodeBidi: 'plaintext' }}
                     >
@@ -1111,7 +1145,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
                     </p>
                     {selectedEvent.conversationBackground ? (
                       <p
-                        className="mt-2 whitespace-pre-wrap break-words text-xs leading-5 text-black/70"
+                        className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-black/70"
                         dir="auto"
                         style={{ unicodeBidi: 'plaintext' }}
                       >
@@ -1125,11 +1159,11 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
                     panelId={`selected-output-${toDomToken(selectedEvent.id)}`}
                   >
                     <p
-                      className="whitespace-pre-wrap break-words text-xs leading-5 text-black/80"
+                      className="whitespace-pre-wrap break-words text-sm leading-6 text-black/80"
                       dir="auto"
                       style={{ unicodeBidi: 'plaintext' }}
                     >
-                      intent: {selectedEvent.intent || 'לא התקבל'}
+                      כוונת ההודעה: {selectedEvent.intent || 'לא התקבל'}
                     </p>
                     {selectedEvent.replies.length > 0 ? (
                       <ol className="mt-2 grid gap-1.5">
@@ -1139,7 +1173,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
                             className="rounded-lg border border-black/10 bg-white px-2 py-1.5"
                           >
                             <p
-                              className="whitespace-pre-wrap break-words text-xs leading-5 text-black/80"
+                              className="whitespace-pre-wrap break-words text-sm leading-6 text-black/80"
                               dir="auto"
                               style={{ unicodeBidi: 'plaintext' }}
                             >
@@ -1153,7 +1187,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
                   {selectedEvent.sourceReply ? (
                     <TextPanel title="תשובת מקור לתיקון" tone="neutral">
                       <p
-                        className="whitespace-pre-wrap break-words text-xs leading-5 text-black/75"
+                        className="whitespace-pre-wrap break-words text-sm leading-6 text-black/75"
                         dir="auto"
                         style={{ unicodeBidi: 'plaintext' }}
                       >
@@ -1168,7 +1202,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
                       panelId={`selected-error-${toDomToken(selectedEvent.id)}`}
                     >
                       <p
-                        className="whitespace-pre-wrap break-words text-xs leading-5 text-rose-800"
+                        className="whitespace-pre-wrap break-words text-sm leading-6 text-rose-800"
                         dir="auto"
                         style={{ unicodeBidi: 'plaintext' }}
                       >
@@ -1186,6 +1220,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
                 <EmptyPane text="בחר אירוע מהרשימה כדי לראות את כל הפרטים." />
               )}
             </section>
+          </div>
           </div>
         )}
 
@@ -1340,7 +1375,7 @@ function SummaryShortcutButton({
       onClick={onClick}
       aria-pressed={active}
       disabled={disabled}
-      className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition ${whiteSurfaceFocusClass} ${
+      className={`min-h-11 rounded-xl border px-3 py-1.5 text-xs font-medium transition ${whiteSurfaceFocusClass} ${
         active
           ? 'border-black bg-black text-white'
           : 'border-black/10 bg-white text-black/75 hover:bg-black/[0.03]'
@@ -1502,7 +1537,7 @@ function TextPanel({
         tabIndex={0}
         dir="auto"
         aria-label={`תוכן ${title}`}
-        className={`max-h-44 overflow-y-scroll overscroll-contain rounded-md pr-1 ${warmSurfaceFocusClass}`}
+        className={`max-h-80 overflow-y-auto overscroll-contain rounded-md pr-1 ${warmSurfaceFocusClass}`}
         style={{ unicodeBidi: 'plaintext', scrollbarGutter: 'stable' }}
       >
         {children}
@@ -1531,7 +1566,7 @@ function renderSourcePill(source: AdminUsageEntry['source']) {
 
   return (
     <span className={`inline-flex w-fit rounded-full px-3 py-1 text-[11px] font-medium ${className}`}>
-      {source === 'production' ? 'פרודקשן' : 'מקומי'}
+      {source === 'production' ? 'האתר החי' : 'מקומי'}
     </span>
   );
 }

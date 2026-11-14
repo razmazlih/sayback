@@ -133,3 +133,12 @@ The UI observes `visualViewport` resize/scroll and focus changes, keeping dialog
 Verified with reduced viewports (390×400, 375×360, 320×320), plus an emulated visual-viewport shrink with the layout viewport unchanged: multiline incoming text, follow-up text, custom numeric time, account email, and restoration after dismissal. Actual iOS/Android keyboard behavior and hosted Stripe fields still require a physical-device pass; no payment or email was submitted.
 
 ![Simulated mobile keyboard layout; keyboard itself is not rendered](docs/screenshots/mobile-keyboard-layout.png)
+
+## Local admin dashboard
+
+Enable `LOCAL_ADMIN_ENABLED=true` in your local environment and open `/admin` while running the development server. The dashboard remains unavailable in production.
+
+- Four primary activity metrics stay visible; additional metrics and output-integrity checks expand on demand. Counts describe loaded, filtered events rather than lifetime totals.
+- Search messages, replies, errors, or user IDs. Use quick filters for failures, blocked requests, retries, and invalid output; expand additional filters for source, action, status, and sorting.
+- Desktop shows users, activity, and event details side by side. On smaller screens, choose a user to advance to activity, then an event to see details; use the three step buttons to return.
+- Event details show input and output with expandable technical/billing information. Refresh reloads the current data without clearing the filters.
