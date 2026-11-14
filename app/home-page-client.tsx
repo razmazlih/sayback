@@ -2086,6 +2086,26 @@ export default function Home({
   const [mobilePrimaryView, setMobilePrimaryView] = useState<MobilePrimaryView>('compose');
   const [message, setMessage] = useState('');
   const [languagePreferences, setLanguagePreferences] = useState<LanguagePreferences>({ speaker: 'neutral', recipient: 'neutral' });
+  useEffect(() => {
+    let cancelled = false;
+    try {
+      const saved = window.localStorage.getItem('sayback-speaker-language');
+      if (saved === 'neutral' || saved === 'masculine' || saved === 'feminine') {
+        queueMicrotask(() => {
+          if (!cancelled) setLanguagePreferences((current) => ({ ...current, speaker: saved }));
+        });
+      }
+    } catch { /* Preferences remain available when browser storage is disabled. */ }
+    return () => { cancelled = true; };
+  }, []);
+
+  function updateLanguagePreferences(preferences: LanguagePreferences) {
+    setLanguagePreferences(preferences);
+    try {
+      window.localStorage.setItem('sayback-speaker-language', preferences.speaker);
+    } catch { /* The choice still applies to this visit. */ }
+  }
+
   const [previousOutgoingMessage, setPreviousOutgoingMessage] = useState('');
   const [continueDialogReply, setContinueDialogReply] = useState<string | null>(null);
   const [commitmentChoice, setCommitmentChoice] = useState<{ message: string; mode: CommitmentMode; details: string } | null>(null);
@@ -5123,7 +5143,7 @@ export default function Home({
                   setContinuePreference(value);
                 }}
                 languagePreferences={languagePreferences}
-                onLanguagePreferencesChange={setLanguagePreferences}
+                onLanguagePreferencesChange={updateLanguagePreferences}
                 conversationBackground={conversationBackground}
                 onBackgroundChange={setConversationBackground}
                 isNoReplyMode={isNoReplyMode}

@@ -162,7 +162,7 @@ function DirectionEditor(props: ReplyDirectionControlsProps & { field: Direction
             </div>
           </fieldset>
         ))}
-        <p className="sb-direction-help">הבחירה זמנית, כל עוד הדף פתוח.</p>
+        <p className="sb-direction-help">הניסוח בשמך נשמר בדפדפן לפעם הבאה. הפנייה לצד השני היא לשיחה הזאת.</p>
       </div> : null}
       {field === 'background' && !isBackgroundLocked && !props.isBillingLoading ? <div className="sb-direction-background">
         <label htmlFor="direction-conversation-background">פרטים קצרים שיעזרו לדייק את הניסוח</label>
