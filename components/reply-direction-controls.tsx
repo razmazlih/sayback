@@ -147,8 +147,12 @@ function DirectionEditor(props: ReplyDirectionControlsProps & { field: Direction
         data-direction-option={value} data-locked={locked || undefined}
         aria-describedby={`direction-description-${encodeURIComponent(value)}`}
         aria-label={`${label}${monthly ? props.isBillingLoading ? ' · בדיקת מנוי' : locked ? ' · נעול לחודשי, לחצו לפרטים' : ' · חודשי' : ''}`}
-        onClick={() => {
-          if (locked || monthly && props.isBillingLoading) { setLockedChoice(value); return; }
+        onClick={(event) => {
+          if (locked || monthly && props.isBillingLoading) {
+            setLockedChoice(value);
+            event.currentTarget.closest('dialog')?.scrollTo({ top: 0 });
+            return;
+          }
           change(value); close();
         }}>
         {selected ? <svg className="sb-choice-check" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m3 8 3 3 7-7" /></svg> : null}
@@ -183,7 +187,7 @@ function DirectionEditor(props: ReplyDirectionControlsProps & { field: Direction
       {field === 'language' ? <div className="sb-direction-language" ref={languagePanel}>
         <p className="sb-language-progress" role="status">{firstLanguageSide
           ? `הבחירה נשמרה. ${firstLanguageSide === 'speaker' ? 'עכשיו בוחרים איך לפנות למי שמולך.' : 'עכשיו בוחרים את הניסוח שלך.'}`
-          : 'בוחרים בשני החלקים, והחלון נסגר מעצמו. כל בחירה נשמרת מיד.'}</p>
+          : 'בוחרים בשני החלקים. כל בחירה נשמרת מיד.'}</p>
         {(['speaker', 'recipient'] as const).map((side) => (
           <fieldset key={side} data-next={firstLanguageSide && firstLanguageSide !== side || undefined}>
             <legend><span className="sb-language-question"><LanguageIcon kind={side} />{side === 'speaker' ? 'איך לנסח את התשובה שלך?' : 'ואיך לפנות למי שמולך?'}</span></legend>
@@ -200,10 +204,10 @@ function DirectionEditor(props: ReplyDirectionControlsProps & { field: Direction
             </div>
           </fieldset>
         ))}
-        <p className="sb-direction-help">הניסוח בשמך נשמר בדפדפן לפעם הבאה. הפנייה לצד השני היא לשיחה הזאת.</p>
+        <p className="sb-direction-help">הניסוח שלך נשמר בדפדפן; הפנייה לצד השני לשיחה הזו.</p>
       </div> : null}
       {field === 'background' && !isBackgroundLocked && !props.isBillingLoading ? <div className="sb-direction-background">
-        <label htmlFor="direction-conversation-background">מה כדאי לדעת על השיחה?</label>
+        <label htmlFor="direction-conversation-background">פרט שיעזור לדייק</label>
         <textarea id="direction-conversation-background" aria-label="רקע נוסף לשיחה" value={props.conversationBackground}
           onChange={(event) => props.onBackgroundChange(event.target.value.slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH))}
           maxLength={MAX_CONVERSATION_BACKGROUND_LENGTH} placeholder="למשל: דיברנו כמה ימים ואז השיחה נעצרה" aria-describedby="direction-background-help" />

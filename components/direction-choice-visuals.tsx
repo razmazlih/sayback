@@ -85,10 +85,10 @@ export const directionChoices: Record<ToneOption | ContextOption | Goal | Contin
 };
 
 export const directionFields: Record<DirectionField, { icon: DirectionIconName; question: string; description: string }> = {
-  tone: { icon: 'wave', question: 'איזה וייב מתאים לתשובה?', description: 'בוחרים את הטון שלך, והוא מתעדכן מיד.' },
-  context: { icon: 'people', question: 'עם מי מתכתבים?', description: 'בוחרים את הקשר לשיחה. הבחירה מתעדכנת מיד.' },
+  tone: { icon: 'wave', question: 'איזה וייב מתאים לתשובה?', description: '' },
+  context: { icon: 'people', question: 'עם מי מתכתבים?', description: '' },
   goal: { icon: 'target', question: 'מה התשובה צריכה לעשות?', description: '' },
-  language: { icon: 'language', question: 'איך הכי טבעי לנסח?', description: 'מתאימים את הניסוח שלך ואת הפנייה לצד השני.' },
-  continue: { icon: 'chat', question: 'להשאיר פתח להמשך?', description: 'זו בחירה אם להמשיך לדבר, גם בלי להסכים לתוכן ההודעה.' },
-  background: { icon: 'note', question: 'מה עוד כדאי לדעת?', description: 'כל שינוי מתעדכן מיד, רק לשיחה הזאת.' },
+  language: { icon: 'language', question: 'איך הכי טבעי לנסח?', description: '' },
+  continue: { icon: 'chat', question: 'להשאיר פתח להמשך?', description: 'להמשיך לדבר לא אומר להסכים להודעה.' },
+  background: { icon: 'note', question: 'מה עוד כדאי לדעת?', description: '' },
 };

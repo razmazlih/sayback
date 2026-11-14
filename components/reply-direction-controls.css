@@ -82,15 +82,15 @@
 /* Drawn SVGs keep language cues consistent across device fonts. */
 .sb-language-icon { flex: 0 0 24px; color: #a36a38; }
 .sb-language-question { display: flex; align-items: center; gap: 8px; }
-.sb-direction-dialog .sb-direction-language { grid-template-columns: 1fr; gap: 18px; margin-top: 8px; }
+.sb-direction-dialog .sb-direction-language { grid-template-columns: 1fr; gap: 12px; margin-top: 8px; }
 .sb-direction-language fieldset { margin: 0; }
 .sb-language-progress { margin: 0; min-height: 38px; padding: 8px 10px; border-radius: 10px; background: #f6eddf; color: #795637; font-size: 12px; line-height: 19px; }
 .sb-direction-language fieldset[data-next] .sb-language-question { color: #a15a20; }
 .sb-direction-language fieldset[data-next] .sb-language-icon { background: #ffedc5; border-radius: 6px; box-shadow: 0 0 0 4px #ffedc5; }
 .sb-direction-language legend { margin-bottom: 0; font-size: 14px; line-height: 22px; }
-.sb-direction-language fieldset .sb-direction-help { margin: 4px 32px 10px 0; font-size: 12px; }
+.sb-direction-language fieldset .sb-direction-help { margin: 4px 32px 8px 0; font-size: 12px; }
 .sb-direction-dialog .sb-direction-language .sb-direction-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.sb-direction-dialog .sb-direction-language .sb-direction-option { position: relative; flex-direction: row; min-height: 58px; padding: 10px 12px; gap: 6px; font-size: 13px; }
+.sb-direction-dialog .sb-direction-language .sb-direction-option { position: relative; flex-direction: row; min-height: 52px; padding: 10px 12px; gap: 6px; font-size: 13px; }
 .sb-language-check { position: absolute; inset-inline-end: 6px; top: 6px; color: #99531c; }
 .sb-direction-language > .sb-direction-help { margin: 0; padding-top: 12px; border-top: 1px solid #eadbc9; line-height: 19px; }
 .sb-direction-dialog:has([data-field="language"]) { max-height: min(560px, 85dvh); }
@@ -117,6 +117,7 @@
 .sb-direction-dialog .sb-direction-monthly { display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 6px; background: #f3e7d5; font-size: 10px; line-height: 14px; }
 .sb-direction-option[data-locked] { border-style: dashed; }
 .sb-direction-notice { margin: 0 0 12px; }
+.sb-direction-section[data-field="goal"] .sb-direction-option { min-height: 104px; }
 .sb-direction-background textarea { border-radius: 16px; min-height: 132px; padding: 12px; border-color: #eadbc9; background: #fffdf8; }
 .sb-direction-background label { margin-bottom: 10px; font-weight: 600; font-size: 14px; }
 .sb-direction-background .sb-direction-help { margin-top: 10px; line-height: 20px; }

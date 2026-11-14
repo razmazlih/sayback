@@ -115,7 +115,9 @@ The incoming message field grows and shrinks with its content, capped at 160px o
   </tr>
 </table>
 
-Local UI captures, November 14, 2026. Checked at 320×568, 378×902 and 849×902 CSS pixels, including selection, reset, scrolling and follow-up goals. Monthly-only choices/background were checked in code and type validation; their live entitlement and payment flows were not exercised in this UI change.
+Local UI captures, November 14, 2026. Checked at 320×568, 378×902 and 849×902 CSS pixels, including selection, reset, scrolling and follow-up goals. All six dialogs were also exercised with an isolated local component fixture at these three sizes, covering all 10 tones, 12 contexts, 6 reply goals, 3 follow-up goals, both continuation choices, language and background. No horizontally clipped text was found; card descriptions used at most two lines at 320px. Full monthly lists scroll inside the dialog on phones; selecting a locked option brings its notice into view. Language choices and background edits were checked for immediate updates. The fixture was removed afterward; live subscription and payment flows were not exercised.
+
+![All twelve recipient contexts in a local monthly-access UI fixture](docs/screenshots/direction-monthly-desktop.jpg)
 
 The grammatical preference dialog stacks two clear questions, each with a pair of generous masculine/feminine buttons and short Hebrew examples. Custom inline SVG illustrations keep the icons consistent across devices. Each choice applies immediately: the first moves focus to the other question and highlights it; choosing both sides during the current visit closes the dialog automatically, in either order. Changing the same side again keeps it open, and closing early keeps that choice. Use **ניקוי** to clear both preferences and restart this flow; there is no separate “no preference” option or save button.
 
