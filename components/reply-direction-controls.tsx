@@ -155,13 +155,15 @@ function DirectionEditor(props: ReplyDirectionControlsProps & { field: Direction
       {field === 'language' ? <div className="sb-direction-language">
         {(['speaker', 'recipient'] as const).map((side) => (
           <fieldset key={side}>
-            <legend>{side === 'speaker' ? 'איך לנסח בשמך?' : 'איך לפנות לצד השני?'}</legend>
+            <legend><span aria-hidden="true">{side === 'speaker' ? '💬' : '👋'}</span> {side === 'speaker' ? 'איך לנסח את התשובה שלך?' : 'ואיך לפנות למי שמולך?'}</legend>
+            <p className="sb-direction-help">{side === 'speaker' ? '״אני שמח״ או ״אני שמחה״?' : '״אתה״ או ״את״?'}</p>
             <div className="sb-direction-options">
-              {(['neutral', 'masculine', 'feminine'] as const).map((value) => (
+              {(['masculine', 'feminine'] as const).map((value) => (
                 <button key={value} type="button" className="sb-direction-option" aria-pressed={props.languagePreferences[side] === value}
                   data-direction-option={`${side}-${value}`} onClick={() => { props.onLanguagePreferencesChange({ ...props.languagePreferences, [side]: value }); close(); }}>
                   {props.languagePreferences[side] === value ? <span className="sb-direction-check" aria-hidden="true">✓</span> : null}
-                  {value === 'neutral' ? 'ללא העדפה' : `לשון ${genderLabels[value]}`}
+                  <span aria-hidden="true">{value === 'masculine' ? '👨' : '👩'}</span>
+                  {`לשון ${genderLabels[value]}`}
                 </button>
               ))}
             </div>

@@ -106,6 +106,10 @@ The incoming message field grows and shrinks with its content, capped at 160px o
 
 ![Reply direction dialog with circular close control](docs/screenshots/reply-direction-dialog.png)
 
+The grammatical preference dialog offers masculine/feminine choices with emoji cues and short Hebrew examples distinguishing your wording from how the recipient is addressed. Use **ניקוי** to clear both preferences; there is no separate “no preference” option.
+
+![Hebrew grammatical preferences with emoji cues and examples](docs/screenshots/reply-language-dialog.jpg)
+
 ### Mobile keyboard layout
 
 The UI observes `visualViewport` resize/scroll and focus changes, keeping dialogs within the visible area. While typing on a small viewport, the incoming composer hides introductory content and uses a compact direction strip. Follow-up mode keeps the direction strip and generation action above the keyboard, reserving scroll space and revealing the focused field. Text inputs use 16px text on mobile.
