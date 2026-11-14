@@ -82,9 +82,9 @@ export function ReplyDirectionControls(props: ReplyDirectionControlsProps) {
         ))}
       </div>
       <dialog ref={dialog} id="reply-direction-panel" className="sb-direction-dialog" aria-label="בחירת כיוון התשובה" onCancel={() => setSelectedField(null)} onClose={() => setSelectedField(null)}>
-        <div className="sb-direction-dialog-top"><span>כיוון התשובה · {fields.indexOf(activeField) + 1} מתוך {fields.length}</span><button type="button" onClick={() => setSelectedField(null)} aria-label="סגירת אפשרויות כיוון התשובה">סיימתי ×</button></div>
+        <div className="sb-direction-dialog-top"><span>כיוון התשובה</span><button type="button" onClick={() => setSelectedField(null)} aria-label="סגירת אפשרויות כיוון התשובה">×</button></div>
         <div className="sb-direction-section" data-field={activeField}>
-        <DirectionEditor key={activeField} {...props} field={activeField} close={() => {}} />
+        <DirectionEditor key={activeField} {...props} field={activeField} close={() => setSelectedField(null)} />
         </div>
       </dialog>
     </section>
@@ -154,7 +154,7 @@ function DirectionEditor(props: ReplyDirectionControlsProps & { field: Direction
             <div className="sb-direction-options">
               {(['neutral', 'masculine', 'feminine'] as const).map((value) => (
                 <button key={value} type="button" className="sb-direction-option" aria-pressed={props.languagePreferences[side] === value}
-                  data-direction-option={`${side}-${value}`} onClick={() => props.onLanguagePreferencesChange({ ...props.languagePreferences, [side]: value })}>
+                  data-direction-option={`${side}-${value}`} onClick={() => { props.onLanguagePreferencesChange({ ...props.languagePreferences, [side]: value }); close(); }}>
                   {props.languagePreferences[side] === value ? <span className="sb-direction-check" aria-hidden="true">✓</span> : null}
                   {value === 'neutral' ? 'ללא העדפה' : `לשון ${genderLabels[value]}`}
                 </button>
