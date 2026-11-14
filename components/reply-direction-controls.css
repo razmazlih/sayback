@@ -74,3 +74,7 @@
 .sb-direction-inline button:focus-visible, .sb-direction-dialog textarea:focus-visible { outline-color: #c17c2c; }
 .sb-direction-next { display: block; margin-inline-start: auto; margin-top: 8px; min-height: 40px; border: 1px solid #edc488; border-radius: 10px; padding: 6px 16px; color: #8c4b1b; background: #fff0cf; }
 @media (min-width: 768px) { .sb-direction-dialog { inset: 0; margin: auto; height: fit-content; } }
+
+.sb-direction-dialog-top button { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: 1px solid #eddcc5; border-radius: 50%; background: #fff4e3; color: #986335; }
+@media (hover: hover) { .sb-direction-dialog-top button:hover { background: #ffebca; border-color: #dfb983; color: #79451d; } }
+.sb-direction-dialog-top button:active { background: #ffe4b8; }

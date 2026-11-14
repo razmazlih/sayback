@@ -101,3 +101,7 @@ This runs lint, type checking, regression suites, and a production build. For th
 - [Visitor insights](docs/visitor-insights.md)
 
 Mobile layout verified at 320×568, 360×740, 375×667 and 390×844 CSS pixels: the incoming message field, direction toolbar and generation action fit in the initial viewport. Direction dialogs close on selection, Escape or a click outside. These checks use browser emulation; an on-screen phone keyboard reduces available space.
+
+The incoming message field grows and shrinks with its content, capped at 160px on phones (120px on short viewports) and 240px on desktop, with internal scrolling beyond the cap. Direction dialogs use a circular 44px close control.
+
+![Reply direction dialog with circular close control](docs/screenshots/reply-direction-dialog.png)

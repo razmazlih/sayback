@@ -2085,6 +2085,19 @@ export default function Home({
   const [composeMode, setComposeMode] = useState<ComposeMode>('incoming');
   const [mobilePrimaryView, setMobilePrimaryView] = useState<MobilePrimaryView>('compose');
   const [message, setMessage] = useState('');
+  useEffect(() => {
+    function resizeMessageInput() {
+      const input = messageInputRef.current;
+      if (!input) return;
+      input.style.height = '0px';
+      const border = input.offsetHeight - input.clientHeight;
+      input.style.height = `${input.scrollHeight + border}px`;
+    }
+    resizeMessageInput();
+    window.addEventListener('resize', resizeMessageInput);
+    return () => window.removeEventListener('resize', resizeMessageInput);
+  }, [message, composeMode, mobilePrimaryView]);
+
   const [languagePreferences, setLanguagePreferences] = useState<LanguagePreferences>({ speaker: 'neutral', recipient: 'neutral' });
   useEffect(() => {
     let cancelled = false;

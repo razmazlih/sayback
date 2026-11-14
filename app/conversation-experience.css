@@ -255,3 +255,12 @@
   .sb-experience .sb-heading-block { display: none; }
   .sb-experience .sb-compose-panel .sb-inline-examples { display: none; }
 }
+
+/* Grow with multiline input, while leaving the rest of the composer in reach. */
+.sb-experience #incoming-message { max-height: 240px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #dfc4a5 transparent; }
+@media (max-width: 639px) {
+  .sb-experience #incoming-message { max-height: 160px; }
+}
+@media (max-width: 639px) and (max-height: 700px) {
+  .sb-experience #incoming-message { max-height: 120px; }
+}
