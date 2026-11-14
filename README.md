@@ -49,7 +49,7 @@ No time is selected by default.
 ## What it does
 
 - **Three suggestions per request:** a short interpretation of the incoming message plus exactly three Hebrew replies.
-- **Compact reply directions:** a compact composer toolbar opening a focused dialog with directly selectable options for tone, context, goal, grammatical preferences and conversation continuation, using the warm cream/orange palette. Selected values stay visible in the category buttons; selecting an option closes the dialog without advancing to another category. Speaker grammatical preference is remembered in this browser; recipient preference stays temporary; all 10 tones and 12 contexts remain available under their existing access rules. Selected values and explicit resets stay visible, including grammatical preferences. Monthly features require a monthly subscription.
+- **Compact reply directions:** a compact composer toolbar opening a focused dialog with directly selectable options for tone, context, goal, grammatical preferences and conversation continuation, using the warm cream/orange palette. Selected values stay visible in the category buttons; selecting an option closes the dialog without advancing to another category, except grammatical preferences, which stay open until both questions have been chosen during that visit. Speaker grammatical preference is remembered in this browser; recipient preference stays temporary; all 10 tones and 12 contexts remain available under their existing access rules. Selected values and explicit resets stay visible, including grammatical preferences. Monthly features require a monthly subscription.
 - **Refinement:** soften, sharpen, regenerate, or give a custom rewriting instruction. Editing the request marks previous results as outdated; refining a result keeps its original request context.
 - **Follow-ups:** draft a message when someone has not replied, using the last outgoing message and elapsed time.
 - **Text or screenshot input:** image understanding is available through the configured OpenAI mode; local free mode is rule-based and does not read image contents.
@@ -100,13 +100,13 @@ This runs lint, type checking, regression suites, and a production build. For th
 - [Development, configuration, verification, and deployment](docs/development.md)
 - [Visitor insights](docs/visitor-insights.md)
 
-Mobile layout verified at 320×568, 360×740, 375×667 and 390×844 CSS pixels: the incoming message field, direction toolbar and generation action fit in the initial viewport. Direction dialogs close on selection, Escape or a click outside. These checks use browser emulation; an on-screen phone keyboard reduces available space.
+Mobile layout verified at 320×568, 360×740, 375×667 and 390×844 CSS pixels: the incoming message field, direction toolbar and generation action fit in the initial viewport. Direction dialogs close on selection (after both questions for grammatical preferences), Escape or a click outside. These checks use browser emulation; an on-screen phone keyboard reduces available space.
 
 The incoming message field grows and shrinks with its content, capped at 160px on phones (120px on short viewports) and 240px on desktop, with internal scrolling beyond the cap. Direction dialogs use a circular 44px close control.
 
 ![Reply direction dialog with circular close control](docs/screenshots/reply-direction-dialog.png)
 
-The grammatical preference dialog stacks two clear questions, each with a pair of generous masculine/feminine buttons and short Hebrew examples. Custom inline SVG illustrations keep the icons consistent across devices. Use **ניקוי** to clear both preferences; there is no separate “no preference” option.
+The grammatical preference dialog stacks two clear questions, each with a pair of generous masculine/feminine buttons and short Hebrew examples. Custom inline SVG illustrations keep the icons consistent across devices. Each choice applies immediately: the first moves focus to the other question and highlights it; choosing both sides during the current visit closes the dialog automatically, in either order. Changing the same side again keeps it open, and closing early keeps that choice. Use **ניקוי** to clear both preferences and restart this flow; there is no separate “no preference” option or save button.
 
 ![Mobile Hebrew grammatical preferences with custom SVG icons](docs/screenshots/reply-language-dialog.jpg)
 

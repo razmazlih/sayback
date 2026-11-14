@@ -113,6 +113,8 @@ export function ReplyDirectionControls(props: ReplyDirectionControlsProps) {
 function DirectionEditor(props: ReplyDirectionControlsProps & { field: DirectionField; close: () => void }) {
   const { field, close } = props;
   const [lockedChoice, setLockedChoice] = useState<string | null>(null);
+  const [firstLanguageSide, setFirstLanguageSide] = useState<'speaker' | 'recipient' | null>(null);
+  const languagePanel = useRef<HTMLDivElement>(null);
   const isBackgroundLocked = field === 'background' && !props.hasMonthlyFeatureAccess;
 
   function reset() {
@@ -120,10 +122,24 @@ function DirectionEditor(props: ReplyDirectionControlsProps & { field: Direction
     if (field === 'context') props.onContextChange(null);
     if (field === 'goal') props.onGoalChange(null);
     if (field === 'continue') props.onContinuePreferenceChange(null);
-    if (field === 'language') props.onLanguagePreferencesChange({ speaker: 'neutral', recipient: 'neutral' });
+    if (field === 'language') {
+      props.onLanguagePreferencesChange({ speaker: 'neutral', recipient: 'neutral' });
+      setFirstLanguageSide(null);
+    }
     if (field === 'background') props.onBackgroundChange('');
     if (field !== 'language' && field !== 'background') close();
     setLockedChoice(null);
+  }
+
+  function chooseLanguage(side: 'speaker' | 'recipient', value: 'masculine' | 'feminine') {
+    props.onLanguagePreferencesChange({ ...props.languagePreferences, [side]: value });
+    if (firstLanguageSide && firstLanguageSide !== side) {
+      close();
+      return;
+    }
+    setFirstLanguageSide(side);
+    const nextSide = side === 'speaker' ? 'recipient' : 'speaker';
+    languagePanel.current?.querySelector<HTMLButtonElement>(`[data-direction-option="${nextSide}-${props.languagePreferences[nextSide] === 'feminine' ? 'feminine' : 'masculine'}"]`)?.focus();
   }
 
   function choice<T extends string>(value: T, selected: boolean, change: (value: T) => void, monthly = false, illustration?: string, label: string = value) {
@@ -166,15 +182,18 @@ function DirectionEditor(props: ReplyDirectionControlsProps & { field: Direction
         <p className="sb-direction-help">להשאיר את השיחה פתוחה — לא להסכים לתוכן ההודעה.</p>
         <div className="sb-direction-options sb-direction-options-wide">{CONTINUE_PREFERENCE_OPTIONS.map((value) => choice<ContinuePreference>(value, props.continuePreference === value, props.onContinuePreferenceChange, false, undefined, value === 'כן' ? 'כן' : 'לסיים בנעימות'))}</div>
       </> : null}
-      {field === 'language' ? <div className="sb-direction-language">
+      {field === 'language' ? <div className="sb-direction-language" ref={languagePanel}>
+        <p className="sb-language-progress" role="status">{firstLanguageSide
+          ? `הבחירה נשמרה. ${firstLanguageSide === 'speaker' ? 'עכשיו בוחרים איך לפנות למי שמולך.' : 'עכשיו בוחרים את הניסוח שלך.'}`
+          : 'בוחרים בשני החלקים, והחלון נסגר מעצמו. כל בחירה נשמרת מיד.'}</p>
         {(['speaker', 'recipient'] as const).map((side) => (
-          <fieldset key={side}>
+          <fieldset key={side} data-next={firstLanguageSide && firstLanguageSide !== side || undefined}>
             <legend><span className="sb-language-question"><LanguageIcon kind={side} />{side === 'speaker' ? 'איך לנסח את התשובה שלך?' : 'ואיך לפנות למי שמולך?'}</span></legend>
             <p className="sb-direction-help">{side === 'speaker' ? '״אני שמח״ או ״אני שמחה״?' : '״אתה״ או ״את״?'}</p>
             <div className="sb-direction-options">
               {(['masculine', 'feminine'] as const).map((value) => (
                 <button key={value} type="button" className="sb-direction-option" aria-pressed={props.languagePreferences[side] === value}
-                  data-direction-option={`${side}-${value}`} onClick={() => { props.onLanguagePreferencesChange({ ...props.languagePreferences, [side]: value }); close(); }}>
+                  data-direction-option={`${side}-${value}`} onClick={() => chooseLanguage(side, value)}>
                   {props.languagePreferences[side] === value ? <svg className="sb-language-check" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m3 8 3 3 7-7" /></svg> : null}
                   <LanguageIcon kind={value} />
                   {`לשון ${genderLabels[value]}`}

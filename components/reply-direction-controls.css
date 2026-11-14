@@ -84,6 +84,9 @@
 .sb-language-question { display: flex; align-items: center; gap: 8px; }
 .sb-direction-dialog .sb-direction-language { grid-template-columns: 1fr; gap: 18px; margin-top: 8px; }
 .sb-direction-language fieldset { margin: 0; }
+.sb-language-progress { margin: 0; min-height: 38px; padding: 8px 10px; border-radius: 10px; background: #f6eddf; color: #795637; font-size: 12px; line-height: 19px; }
+.sb-direction-language fieldset[data-next] .sb-language-question { color: #a15a20; }
+.sb-direction-language fieldset[data-next] .sb-language-icon { background: #ffedc5; border-radius: 6px; box-shadow: 0 0 0 4px #ffedc5; }
 .sb-direction-language legend { margin-bottom: 0; font-size: 14px; line-height: 22px; }
 .sb-direction-language fieldset .sb-direction-help { margin: 4px 32px 10px 0; font-size: 12px; }
 .sb-direction-dialog .sb-direction-language .sb-direction-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
