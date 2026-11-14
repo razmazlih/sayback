@@ -106,9 +106,9 @@ The incoming message field grows and shrinks with its content, capped at 160px o
 
 ![Reply direction dialog with circular close control](docs/screenshots/reply-direction-dialog.png)
 
-The grammatical preference dialog offers masculine/feminine choices with emoji cues and short Hebrew examples distinguishing your wording from how the recipient is addressed. Use **ניקוי** to clear both preferences; there is no separate “no preference” option.
+The grammatical preference dialog stacks two clear questions, each with a pair of generous masculine/feminine buttons and short Hebrew examples. Custom inline SVG illustrations keep the icons consistent across devices. Use **ניקוי** to clear both preferences; there is no separate “no preference” option.
 
-![Hebrew grammatical preferences with emoji cues and examples](docs/screenshots/reply-language-dialog.jpg)
+![Mobile Hebrew grammatical preferences with custom SVG icons](docs/screenshots/reply-language-dialog.jpg)
 
 ### Mobile keyboard layout
 

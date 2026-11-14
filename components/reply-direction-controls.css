@@ -78,3 +78,19 @@
 .sb-direction-dialog-top button { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: 1px solid #eddcc5; border-radius: 50%; background: #fff4e3; color: #986335; }
 @media (hover: hover) { .sb-direction-dialog-top button:hover { background: #ffebca; border-color: #dfb983; color: #79451d; } }
 .sb-direction-dialog-top button:active { background: #ffe4b8; }
+
+/* Drawn SVGs keep language cues consistent across device fonts. */
+.sb-language-icon { flex: 0 0 24px; color: #a36a38; }
+.sb-language-question { display: flex; align-items: center; gap: 8px; }
+.sb-direction-dialog .sb-direction-language { grid-template-columns: 1fr; gap: 18px; margin-top: 8px; }
+.sb-direction-language fieldset { margin: 0; }
+.sb-direction-language legend { margin-bottom: 0; font-size: 14px; line-height: 22px; }
+.sb-direction-language fieldset .sb-direction-help { margin: 4px 32px 10px 0; font-size: 12px; }
+.sb-direction-dialog .sb-direction-language .sb-direction-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.sb-direction-dialog .sb-direction-language .sb-direction-option { position: relative; min-height: 58px; padding: 10px 12px; gap: 6px; font-size: 13px; }
+.sb-language-check { position: absolute; inset-inline-end: 6px; top: 6px; color: #99531c; }
+.sb-direction-language > .sb-direction-help { margin: 0; padding-top: 12px; border-top: 1px solid #eadbc9; line-height: 19px; }
+.sb-direction-dialog:has([data-field="language"]) { max-height: min(560px, 85dvh); }
+@media (max-width: 767px) {
+  .sb-direction-dialog:has([data-field="language"]) { bottom: max(12px, env(safe-area-inset-bottom)); padding: 14px 18px 20px; border-radius: 24px; }
+}

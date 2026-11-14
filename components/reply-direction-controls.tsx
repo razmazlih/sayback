@@ -41,6 +41,20 @@ const fieldLabels: Record<DirectionField, string> = {
   continue: 'המשך השיחה', background: 'רקע נוסף',
 };
 const genderLabels = { neutral: 'ללא העדפה', masculine: 'זכר', feminine: 'נקבה' } as const;
+
+function LanguageIcon({ kind }: { kind: 'speaker' | 'recipient' | 'masculine' | 'feminine' }) {
+  return (
+    <svg className="sb-language-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      {kind === 'speaker' ? <><path d="M6 4h12a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-7l-5 4v-4a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Z" /><path d="M7 9h10M7 13h6" /></> : null}
+      {kind === 'recipient' ? <><circle cx="10" cy="8" r="3.5" /><path d="M3 20v-2a7 7 0 0 1 14 0v2M17 5a3.5 3.5 0 0 1 0 7M19 15a5 5 0 0 1 2 5" /></> : null}
+      {kind === 'masculine' || kind === 'feminine' ? <>
+        <path d={kind === 'masculine' ? 'M6.5 11V8a5.5 5.5 0 0 1 11 0v3M7 7c3 1 5 0 6-1 1 2 3 2 4 2' : 'M6 16V8a6 6 0 0 1 12 0v8M7 8c3 0 5-1 6-3 1 2 2 3 4 3'} />
+        <path d="M7 9v2a5 5 0 0 0 10 0V9M4 22a8 8 0 0 1 16 0" />
+        <path d="M10 12.5c1 1 3 1 4 0" />
+      </> : null}
+    </svg>
+  );
+}
 const illustrations: Partial<Record<ToneOption | ContextOption, string>> = {
   'עדין': 'gentle-feather', 'ישיר': 'direct-target', 'זורם': 'flow-wave',
   'מצחיק': 'funny-smile', 'פלרטטני': 'flirty-sparkle-heart',
@@ -155,14 +169,14 @@ function DirectionEditor(props: ReplyDirectionControlsProps & { field: Direction
       {field === 'language' ? <div className="sb-direction-language">
         {(['speaker', 'recipient'] as const).map((side) => (
           <fieldset key={side}>
-            <legend><span aria-hidden="true">{side === 'speaker' ? '💬' : '👋'}</span> {side === 'speaker' ? 'איך לנסח את התשובה שלך?' : 'ואיך לפנות למי שמולך?'}</legend>
+            <legend><span className="sb-language-question"><LanguageIcon kind={side} />{side === 'speaker' ? 'איך לנסח את התשובה שלך?' : 'ואיך לפנות למי שמולך?'}</span></legend>
             <p className="sb-direction-help">{side === 'speaker' ? '״אני שמח״ או ״אני שמחה״?' : '״אתה״ או ״את״?'}</p>
             <div className="sb-direction-options">
               {(['masculine', 'feminine'] as const).map((value) => (
                 <button key={value} type="button" className="sb-direction-option" aria-pressed={props.languagePreferences[side] === value}
                   data-direction-option={`${side}-${value}`} onClick={() => { props.onLanguagePreferencesChange({ ...props.languagePreferences, [side]: value }); close(); }}>
-                  {props.languagePreferences[side] === value ? <span className="sb-direction-check" aria-hidden="true">✓</span> : null}
-                  <span aria-hidden="true">{value === 'masculine' ? '👨' : '👩'}</span>
+                  {props.languagePreferences[side] === value ? <svg className="sb-language-check" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m3 8 3 3 7-7" /></svg> : null}
+                  <LanguageIcon kind={value} />
                   {`לשון ${genderLabels[value]}`}
                 </button>
               ))}
