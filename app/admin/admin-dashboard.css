@@ -1,0 +1,27 @@
+.admin-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.admin-pane {
+  display: none;
+  min-width: 0;
+}
+
+.admin-pane[data-active='true'] {
+  display: block;
+}
+
+@media (min-width: 1280px) {
+  .admin-workbench {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr) minmax(0, 1.35fr);
+  }
+
+  .admin-workbench > .admin-pane {
+    display: block;
+  }
+
+  .admin-step-navigation {
+    display: none;
+  }
+}

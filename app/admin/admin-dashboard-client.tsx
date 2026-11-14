@@ -1,5 +1,6 @@
 'use client';
 
+import './admin-dashboard.css';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -903,13 +904,13 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
           </div>
         ) : (
           <div>
-            <nav aria-label="מעבר בין שלבי בדיקת הפעילות" className="grid grid-cols-3 gap-2 border-b border-black/10 p-3 xl:hidden">
+            <nav aria-label="מעבר בין שלבי בדיקת הפעילות" className="admin-step-navigation grid grid-cols-3 gap-2 border-b border-black/10 p-3">
               {([['users', '1. משתמשים'], ['events', '2. פעילות'], ['details', '3. פרטי אירוע']] as const).map(([pane, label]) => (
                 <button key={pane} type="button" aria-current={mobilePane === pane ? 'step' : undefined} onClick={() => setMobilePane(pane)} className={`min-h-11 rounded-xl text-sm font-medium ${whiteSurfaceFocusClass} ${mobilePane === pane ? 'bg-brand-ink text-white' : 'bg-black/5 text-black/70'}`}>{label}</button>
               ))}
             </nav>
-          <div className="grid xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_minmax(0,1.35fr)]">
-            <aside className={`${mobilePane === 'users' ? 'block' : 'hidden'} min-w-0 border-b border-black/10 bg-[#fbfaf7] xl:block xl:border-b-0 xl:border-l`}>
+          <div className="admin-workbench">
+            <aside data-active={mobilePane === 'users'} className={`admin-pane min-w-0 border-b border-black/10 bg-[#fbfaf7] xl:block xl:border-b-0 xl:border-l`}>
               <PaneHeader
                 title="משתמשים"
                 meta={`מוצגים ${visibleUserGroups.length} מתוך ${groupedUsers.length}`}
@@ -989,7 +990,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
               ) : null}
             </aside>
 
-            <section className={`${mobilePane === 'events' ? 'block' : 'hidden'} min-w-0 border-b border-black/10 bg-white xl:block xl:border-b-0 xl:border-l`}>
+            <section data-active={mobilePane === 'events'} className={`admin-pane min-w-0 border-b border-black/10 bg-white xl:block xl:border-b-0 xl:border-l`}>
               <PaneHeader
                 title="ציר אירועים"
                 meta={
@@ -1105,7 +1106,7 @@ export default function AdminDashboardClient({ rows }: AdminDashboardClientProps
               )}
             </section>
 
-            <section className={`${mobilePane === 'details' ? 'block' : 'hidden'} min-w-0 bg-[#fbfaf7] xl:block`}>
+            <section data-active={mobilePane === 'details'} className={`admin-pane min-w-0 bg-[#fbfaf7] xl:block`}>
               <PaneHeader title="פרטי אירוע" meta={selectedEvent ? formatDateTime(selectedEvent.createdAt) : 'לא נבחר'} />
               {selectedEvent ? (
                 <div
