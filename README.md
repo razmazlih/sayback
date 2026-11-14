@@ -14,7 +14,7 @@ Actual local UI captures with synthetic authentication, billing and generation. 
 
 ## See the workflow
 
-![Compact Hebrew reply direction controls with visible selections](docs/screenshots/reply-directions-desktop.png)
+![Full-width aligned reply direction toolbar](docs/screenshots/direction-toolbar-desktop.jpg)
 
 **One message → choose directions → compare three replies → copy or refine.**
 The compact controls keep tone, recipient context, goal, language preferences,
@@ -24,16 +24,13 @@ Open one inline editor, choose an option, and keep the selected value in view.
 <table>
   <tr><th width="50%">1. Write and choose a direction</th><th width="50%">2. Compare and refine</th></tr>
   <tr>
-    <td valign="top"><img src="docs/screenshots/reply-directions-mobile.png" alt="Mobile composer with message input, compact reply directions and generation button visible together." width="360"></td>
+    <td valign="top"><img src="docs/screenshots/direction-toolbar-mobile.jpg" alt="Mobile composer with message input, compact reply directions and generation button visible together." width="360"></td>
     <td valign="top"><img src="docs/screenshots/reply-results-mobile.png" alt="Three synthetic Hebrew reply suggestions with copy, soften, sharpen, and retry controls." width="360"></td>
   </tr>
   <tr><td>No direction is required. Start with the default <strong>זורם</strong> tone and add context only when useful.</td><td>Review the wording and choose what fits. SayBack leaves sending the message to you.</td></tr>
 </table>
 
-*Real browser captures of the updated UI, November 6, 2026, using non-sensitive
-sample text and mocked authentication, billing, and generation responses. The
-three replies are synthetic fixtures; these captures do not verify live AI,
-Firebase, or payments. [Capture details and walkthrough](docs/walkthrough.md).*
+*Composer captures updated November 14, 2026, from the local app. The results capture is from November 6 with mocked authentication, billing and generation; its replies are synthetic. These captures do not verify live AI or payments. [Capture details and walkthrough](docs/walkthrough.md).*
 
 ## Send a follow-up
 
@@ -49,7 +46,7 @@ No time is selected by default.
 ## What it does
 
 - **Three suggestions per request:** a short interpretation of the incoming message plus exactly three Hebrew replies.
-- **Compact reply directions:** a compact composer toolbar opening focused dialogs for tone, context, goal, grammatical preferences, conversation continuation and background. Every option has a custom SVG icon, a short Hebrew label and a practical subtitle in the warm cream/orange palette. Tone, context and goals use compact cards: two columns on phones and three from 600px wide; continuation uses two side-by-side cards. All six incoming goals fit without scrolling at 320×568 and at 849×902, while keeping their short descriptions visible. Language preferences retain their two-part guided flow. Long lists scroll inside the dialog with the close control remaining visible. Selected values stay visible in the category buttons; selecting an option closes the dialog without advancing to another category, except grammatical preferences, which stay open until both questions have been chosen during that visit. Speaker grammatical preference is remembered in this browser; recipient preference stays temporary; all 10 tones and 12 contexts remain available under their existing access rules. Selected values and explicit resets stay visible, including grammatical preferences. Monthly features require a monthly subscription.
+- **Compact reply directions:** a compact composer toolbar opening focused dialogs for tone, context, goal, grammatical preferences, conversation continuation and background. Every option has a custom SVG icon, a short Hebrew label and a practical subtitle in the warm cream/orange palette. Tone, context and goals use compact cards: two columns on phones and three from 600px wide; continuation uses two side-by-side cards. All six incoming goals fit without scrolling at 320×568 and at 849×902, while keeping their short descriptions visible. Language preferences retain their two-part guided flow. Long lists scroll inside the dialog with the close control remaining visible. The toolbar fills the composer width with equal-height tiles: 3+2 for five fields, 2+2 for four, and 3+3 for six. Containers at least 600px wide use one equal-width row. Long selections wrap without truncation; compact keyboard mode retains a horizontally scrollable strip. Checked at 320px and 378px with long selected values and at 849px on desktop. Selected values stay visible in the category buttons; selecting an option closes the dialog without advancing to another category, except grammatical preferences, which stay open until both questions have been chosen during that visit. Speaker grammatical preference is remembered in this browser; recipient preference stays temporary; all 10 tones and 12 contexts remain available under their existing access rules. Selected values and explicit resets stay visible, including grammatical preferences. Monthly features require a monthly subscription.
 - **Refinement:** soften, sharpen, regenerate, or give a custom rewriting instruction. Editing the request marks previous results as outdated; refining a result keeps its original request context.
 - **Follow-ups:** draft a message when someone has not replied, using the last outgoing message and elapsed time.
 - **Text or screenshot input:** image understanding is available through the configured OpenAI mode; local free mode is rule-based and does not read image contents.

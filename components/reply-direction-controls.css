@@ -50,15 +50,27 @@
 
 
 /* A lightweight toolbar in the composer; choices never expand the page. */
-.sb-direction-inline { color: #795637; border: 0; border-top: 1px solid #eadbc9; border-radius: 0; padding: 10px 0 0; background: transparent; box-shadow: none; }
+.sb-direction-inline { container: reply-directions / inline-size; color: #795637; border: 0; border-top: 1px solid #eadbc9; border-radius: 0; padding: 10px 0 0; background: transparent; box-shadow: none; }
 .sb-direction-title { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .sb-direction-title .sb-direction-heading { margin: 0; font-size: 11px; font-weight: 600; color: #88694d; }
 .sb-direction-title > span { color: #a18a72; font-size: 10px; }
-.sb-direction-tabs { display: flex; flex-wrap: wrap; gap: 5px; }
-.sb-direction-tabs button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; max-width: 100%; border: 1px solid #eadbc9; border-radius: 999px; padding: 5px 10px; background: #fffaf2; color: #88694d; font-size: 11px; }
-.sb-direction-step-label { font-weight: 400; }
-.sb-direction-step-value { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; color: #a15a20; }
+.sb-direction-tabs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 6px; width: 100%; }
+.sb-direction-tabs button { grid-column: span 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 0; min-height: 58px; width: 100%; border: 1px solid #eadbc9; border-radius: 12px; padding: 7px 5px; background: #fffaf2; color: #88694d; font-size: 11px; line-height: 16px; text-align: center; }
+.sb-direction-tabs[data-count="4"] button,
+.sb-direction-tabs[data-count="5"] button:nth-last-child(-n+2) { grid-column: span 3; }
+.sb-direction-tab-heading { display: flex; align-items: center; justify-content: center; gap: 4px; max-width: 100%; }
+.sb-direction-step-label { min-width: 0; font-weight: 500; }
+.sb-direction-step-value { max-width: 100%; font-weight: 650; color: #a15a20; overflow-wrap: anywhere; }
+.sb-direction-step-value[data-empty] { color: #a18a72; font-weight: 400; font-size: 10px; }
 .sb-direction-tabs button[aria-expanded="true"] { border-color: #dfa35b; background: #fff0d4; }
+@container reply-directions (min-width: 600px) {
+  .sb-direction-tabs[data-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sb-direction-tabs[data-count="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .sb-direction-tabs[data-count="6"] { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .sb-direction-tabs button,
+  .sb-direction-tabs[data-count="4"] button,
+  .sb-direction-tabs[data-count="5"] button:nth-last-child(-n+2) { grid-column: auto; }
+}
 .sb-direction-dialog { position: fixed; inset: auto 0 20px; margin: 0 auto; width: min(480px, calc(100vw - 24px)); max-height: min(420px, 70dvh); padding: 14px 16px 18px; border: 1px solid #ead1ad; border-radius: 22px; background: #fffaf2; color: #795637; box-shadow: 0 16px 70px #6a401c30; overflow-y: auto; }
 .sb-direction-dialog::backdrop { background: #46332335; backdrop-filter: blur(3px); }
 .sb-direction-dialog-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #9b7b59; font-size: 11px; }

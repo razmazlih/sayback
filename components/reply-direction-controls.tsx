@@ -82,13 +82,13 @@ export function ReplyDirectionControls(props: ReplyDirectionControlsProps) {
   return (
     <section className="sb-direction sb-direction-inline" data-testid="reply-direction-controls" dir="rtl" aria-label="כיוון התשובה">
       <div className="sb-direction-title"><p className="sb-direction-heading">כיוון התשובה</p><span>רק אם רוצים</span></div>
-      <div className="sb-direction-tabs" role="group" aria-label="הגדרות כיוון התשובה">
+      <div className="sb-direction-tabs" data-count={fields.length} role="group" aria-label="הגדרות כיוון התשובה">
         {fields.map((field) => (
           <button key={field} type="button" aria-expanded={selectedField === field} aria-haspopup="dialog"
             title={values[field] ?? fieldLabels[field]} aria-controls="reply-direction-panel" onClick={() => setSelectedField(field)}>
-            <DirectionIcon name={directionFields[field].icon} className="sb-direction-tab-icon" />
-            <span className="sb-direction-step-label">{fieldLabels[field]}</span>
-            <span className="sb-direction-step-value">{values[field] ?? '＋'}</span>
+            <span className="sb-direction-tab-heading"><DirectionIcon name={directionFields[field].icon} className="sb-direction-tab-icon" />
+              <span className="sb-direction-step-label">{field === 'goal' ? 'מטרה' : fieldLabels[field]}</span></span>
+            <span className="sb-direction-step-value" data-empty={!values[field] || undefined}>{values[field] ?? 'לבחירה'}</span>
           </button>
         ))}
       </div>
