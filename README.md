@@ -39,9 +39,11 @@ and choose the elapsed time in one tap: half an hour, 3 hours, a day, or 3 days.
 **זמן אחר** opens the exact number and minutes/hours/days controls.
 No time is selected by default.
 
-<img src="docs/screenshots/followup-mobile.png" alt="Hebrew follow-up composer with one-tap elapsed-time choices" width="360" />
+<img src="docs/screenshots/followup-toolbar-mobile.jpg" alt="Hebrew follow-up composer with one-tap elapsed-time choices" width="360" />
 
-*Local browser capture, November 10, 2026. Verifies the composer layout only.*
+*Local browser capture updated November 14, 2026. Follow-up toolbar verified in the actual app at 320×568, 378×902 and 849×902: it fills the composer width (270px, 328px and 751px respectively), with four equal-height tiles in a 2×2 phone grid or one desktop row. At 378×400 while editing, the compact strip and generation action share the same 23px side insets. These are emulated viewport checks, not a physical-device keyboard test.*
+
+![Full-width follow-up toolbar on desktop](docs/screenshots/followup-toolbar-desktop.jpg)
 
 ## What it does
 
