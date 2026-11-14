@@ -2085,7 +2085,84 @@ export default function Home({
   const [composeMode, setComposeMode] = useState<ComposeMode>('incoming');
   const [mobilePrimaryView, setMobilePrimaryView] = useState<MobilePrimaryView>('compose');
   const [message, setMessage] = useState('');
+  useEffect(() => {
+    const root = document.documentElement;
+    const viewport = window.visualViewport;
+    let frame = 0;
+    function updateViewport() {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const height = viewport?.height ?? window.innerHeight;
+        const offset = viewport?.offsetTop ?? 0;
+        const editing = document.activeElement?.matches('textarea, input:not([type="file"]):not([type="checkbox"]):not([type="radio"]), [contenteditable="true"]');
+        const compact = window.innerWidth < 640 && (viewport?.scale ?? 1) === 1 && Boolean(editing) && (height < 520 || window.innerHeight - height > 120);
+        root.toggleAttribute('data-sb-keyboard', compact);
+        root.style.setProperty('--sb-visible-height', `${height}px`);
+        root.style.setProperty('--sb-visible-top', `${offset}px`);
+        root.style.setProperty('--sb-keyboard-inset', `${Math.max(0, window.innerHeight - height - offset)}px`);
+        if (compact && document.activeElement instanceof HTMLElement) {
+          const field = document.activeElement;
+          const rect = field.getBoundingClientRect();
+          const followup = field.closest('#compose-section[data-compose-mode="no_reply"]') && !field.closest('dialog');
+          const safeBottom = offset + height - (followup ? 150 : 8);
+          if (followup && rect.bottom > safeBottom) window.scrollBy(0, rect.bottom - safeBottom);
+          else if (rect.top < offset + 8 || rect.bottom > safeBottom) field.scrollIntoView({ block: 'nearest' });
+        }
+
+      });
+    }
+    updateViewport();
+    viewport?.addEventListener('resize', updateViewport);
+    viewport?.addEventListener('scroll', updateViewport);
+    window.addEventListener('resize', updateViewport);
+    document.addEventListener('focusin', updateViewport);
+    document.addEventListener('focusout', updateViewport);
+    return () => {
+      cancelAnimationFrame(frame);
+      viewport?.removeEventListener('resize', updateViewport);
+      viewport?.removeEventListener('scroll', updateViewport);
+      window.removeEventListener('resize', updateViewport);
+      document.removeEventListener('focusin', updateViewport);
+      document.removeEventListener('focusout', updateViewport);
+      root.removeAttribute('data-sb-keyboard');
+      for (const name of ['--sb-visible-height', '--sb-visible-top', '--sb-keyboard-inset']) root.style.removeProperty(name);
+    };
+  }, []);
+
+  useEffect(() => {
+    function resizeMessageInput() {
+      const input = messageInputRef.current;
+      if (!input) return;
+      input.style.height = '0px';
+      const border = input.offsetHeight - input.clientHeight;
+      input.style.height = `${input.scrollHeight + border}px`;
+    }
+    resizeMessageInput();
+    window.addEventListener('resize', resizeMessageInput);
+    return () => window.removeEventListener('resize', resizeMessageInput);
+  }, [message, composeMode, mobilePrimaryView]);
+
   const [languagePreferences, setLanguagePreferences] = useState<LanguagePreferences>({ speaker: 'neutral', recipient: 'neutral' });
+  useEffect(() => {
+    let cancelled = false;
+    try {
+      const saved = window.localStorage.getItem('sayback-speaker-language');
+      if (saved === 'neutral' || saved === 'masculine' || saved === 'feminine') {
+        queueMicrotask(() => {
+          if (!cancelled) setLanguagePreferences((current) => ({ ...current, speaker: saved }));
+        });
+      }
+    } catch { /* Preferences remain available when browser storage is disabled. */ }
+    return () => { cancelled = true; };
+  }, []);
+
+  function updateLanguagePreferences(preferences: LanguagePreferences) {
+    setLanguagePreferences(preferences);
+    try {
+      window.localStorage.setItem('sayback-speaker-language', preferences.speaker);
+    } catch { /* The choice still applies to this visit. */ }
+  }
+
   const [previousOutgoingMessage, setPreviousOutgoingMessage] = useState('');
   const [continueDialogReply, setContinueDialogReply] = useState<string | null>(null);
   const [commitmentChoice, setCommitmentChoice] = useState<{ message: string; mode: CommitmentMode; details: string } | null>(null);
@@ -4750,6 +4827,7 @@ export default function Home({
           <div
             ref={composeSectionRef}
             id="compose-section"
+            data-compose-mode={composeMode}
             className={[
               'sb-compose-panel sb-motion-panel mobile-section-anchor w-full min-w-0 rounded-[28px] border border-[#e2d7c8] bg-[#fffdfa] shadow-[0_20px_55px_rgba(49,23,13,0.1)] sm:rounded-[32px]',
               isGeneratorPrimaryMode ? 'space-y-3 p-2.5 sm:p-4' : 'space-y-4 p-4 sm:p-5',
@@ -5123,7 +5201,7 @@ export default function Home({
                   setContinuePreference(value);
                 }}
                 languagePreferences={languagePreferences}
-                onLanguagePreferencesChange={setLanguagePreferences}
+                onLanguagePreferencesChange={updateLanguagePreferences}
                 conversationBackground={conversationBackground}
                 onBackgroundChange={setConversationBackground}
                 isNoReplyMode={isNoReplyMode}
@@ -5133,7 +5211,7 @@ export default function Home({
                 onUpgrade={openPaywall}
               />
 
-              <div className="space-y-2.5">
+              <div className="sb-generation-actions space-y-2.5">
                 <button
                   type="button"
                   onClick={handleMainSubmit}

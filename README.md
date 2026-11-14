@@ -14,7 +14,7 @@ Actual local UI captures with synthetic authentication, billing and generation. 
 
 ## See the workflow
 
-![A populated Hebrew composer, expanded tone editor, and three sample replies](docs/screenshots/reply-directions-desktop.png)
+![Compact Hebrew reply direction controls with visible selections](docs/screenshots/reply-directions-desktop.png)
 
 **One message → choose directions → compare three replies → copy or refine.**
 The compact controls keep tone, recipient context, goal, language preferences,
@@ -24,7 +24,7 @@ Open one inline editor, choose an option, and keep the selected value in view.
 <table>
   <tr><th width="50%">1. Write and choose a direction</th><th width="50%">2. Compare and refine</th></tr>
   <tr>
-    <td valign="top"><img src="docs/screenshots/reply-directions-mobile.png" alt="Mobile composer populated with a sample invitation to talk tonight; the tone editor is expanded." width="360"></td>
+    <td valign="top"><img src="docs/screenshots/reply-directions-mobile.png" alt="Mobile composer with message input, compact reply directions and generation button visible together." width="360"></td>
     <td valign="top"><img src="docs/screenshots/reply-results-mobile.png" alt="Three synthetic Hebrew reply suggestions with copy, soften, sharpen, and retry controls." width="360"></td>
   </tr>
   <tr><td>No direction is required. Start with the default <strong>זורם</strong> tone and add context only when useful.</td><td>Review the wording and choose what fits. SayBack leaves sending the message to you.</td></tr>
@@ -49,7 +49,7 @@ No time is selected by default.
 ## What it does
 
 - **Three suggestions per request:** a short interpretation of the incoming message plus exactly three Hebrew replies.
-- **Compact reply directions:** six direct controls with one inline editor; all 10 tones and 12 contexts remain available under their existing access rules. Selected values and explicit resets stay visible, including grammatical preferences. Monthly features require a monthly subscription.
+- **Compact reply directions:** a compact composer toolbar opening a focused dialog with directly selectable options for tone, context, goal, grammatical preferences and conversation continuation, using the warm cream/orange palette. Selected values stay visible in the category buttons; selecting an option closes the dialog without advancing to another category. Speaker grammatical preference is remembered in this browser; recipient preference stays temporary; all 10 tones and 12 contexts remain available under their existing access rules. Selected values and explicit resets stay visible, including grammatical preferences. Monthly features require a monthly subscription.
 - **Refinement:** soften, sharpen, regenerate, or give a custom rewriting instruction. Editing the request marks previous results as outdated; refining a result keeps its original request context.
 - **Follow-ups:** draft a message when someone has not replied, using the last outgoing message and elapsed time.
 - **Text or screenshot input:** image understanding is available through the configured OpenAI mode; local free mode is rule-based and does not read image contents.
@@ -99,3 +99,17 @@ This runs lint, type checking, regression suites, and a production build. For th
 - [Visual walkthrough and screenshot provenance](docs/walkthrough.md)
 - [Development, configuration, verification, and deployment](docs/development.md)
 - [Visitor insights](docs/visitor-insights.md)
+
+Mobile layout verified at 320×568, 360×740, 375×667 and 390×844 CSS pixels: the incoming message field, direction toolbar and generation action fit in the initial viewport. Direction dialogs close on selection, Escape or a click outside. These checks use browser emulation; an on-screen phone keyboard reduces available space.
+
+The incoming message field grows and shrinks with its content, capped at 160px on phones (120px on short viewports) and 240px on desktop, with internal scrolling beyond the cap. Direction dialogs use a circular 44px close control.
+
+![Reply direction dialog with circular close control](docs/screenshots/reply-direction-dialog.png)
+
+### Mobile keyboard layout
+
+The UI observes `visualViewport` resize/scroll and focus changes, keeping dialogs within the visible area. While typing on a small viewport, the incoming composer hides introductory content and uses a compact direction strip. Follow-up mode keeps the direction strip and generation action above the keyboard, reserving scroll space and revealing the focused field. Text inputs use 16px text on mobile.
+
+Verified with reduced viewports (390×400, 375×360, 320×320), plus an emulated visual-viewport shrink with the layout viewport unchanged: multiline incoming text, follow-up text, custom numeric time, account email, and restoration after dismissal. Actual iOS/Android keyboard behavior and hosted Stripe fields still require a physical-device pass; no payment or email was submitted.
+
+![Simulated mobile keyboard layout; keyboard itself is not rendered](docs/screenshots/mobile-keyboard-layout.png)
