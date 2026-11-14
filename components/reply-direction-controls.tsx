@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import {
   CONTEXT_OPTIONS, TONE_OPTIONS, isFreeContextOption, isFreeToneOption,
@@ -12,6 +11,7 @@ import {
   CONTINUE_PREFERENCE_OPTIONS, INCOMING_GOAL_OPTIONS, NO_REPLY_GOAL_OPTIONS,
   type ContinuePreference, type DirectionField, type Goal,
 } from '@/lib/reply-direction';
+import { DirectionIcon, directionChoices, directionFields } from './direction-choice-visuals';
 import './reply-direction-controls.css';
 
 export type ReplyDirectionControlsProps = {
@@ -55,12 +55,6 @@ function LanguageIcon({ kind }: { kind: 'speaker' | 'recipient' | 'masculine' | 
     </svg>
   );
 }
-const illustrations: Partial<Record<ToneOption | ContextOption, string>> = {
-  'עדין': 'gentle-feather', 'ישיר': 'direct-target', 'זורם': 'flow-wave',
-  'מצחיק': 'funny-smile', 'פלרטטני': 'flirty-sparkle-heart',
-  'קראש': 'crush-heart', 'אקס': 'ex-broken-heart', 'ידיד': 'friend-high-five',
-  'לקוח': 'client-handshake', 'בוס': 'boss-briefcase', 'יד2': 'yad2-price-tag', 'דייט': 'date-coffee',
-};
 
 export function ReplyDirectionControls(props: ReplyDirectionControlsProps) {
   const selectedField = props.openField;
@@ -75,10 +69,11 @@ export function ReplyDirectionControls(props: ReplyDirectionControlsProps) {
     if (!selectedField && dialog.current?.open) dialog.current?.close();
   }, [selectedField]);
   const values: Record<DirectionField, string | null> = {
-    tone: props.tone, context: props.context, goal: props.goal,
+    tone: props.tone, context: props.context,
+    goal: props.goal ? directionChoices[props.goal].label ?? props.goal : null,
     language: props.languagePreferences.speaker === 'neutral' && props.languagePreferences.recipient === 'neutral'
       ? null : `${genderLabels[props.languagePreferences.speaker]} ← ${genderLabels[props.languagePreferences.recipient]}`,
-    continue: props.continuePreference === 'לא' ? 'לסיים בנעימות' : props.continuePreference,
+    continue: props.continuePreference === 'לא' ? 'לסיים בנעימות' : props.continuePreference === 'כן' ? 'להמשיך לדבר' : null,
     background: props.conversationBackground.trim() ? 'נוסף רקע' : null,
   };
 
@@ -91,6 +86,7 @@ export function ReplyDirectionControls(props: ReplyDirectionControlsProps) {
         {fields.map((field) => (
           <button key={field} type="button" aria-expanded={selectedField === field} aria-haspopup="dialog"
             title={values[field] ?? fieldLabels[field]} aria-controls="reply-direction-panel" onClick={() => setSelectedField(field)}>
+            <DirectionIcon name={directionFields[field].icon} className="sb-direction-tab-icon" />
             <span className="sb-direction-step-label">{fieldLabels[field]}</span>
             <span className="sb-direction-step-value">{values[field] ?? '＋'}</span>
           </button>
@@ -142,22 +138,24 @@ function DirectionEditor(props: ReplyDirectionControlsProps & { field: Direction
     languagePanel.current?.querySelector<HTMLButtonElement>(`[data-direction-option="${nextSide}-${props.languagePreferences[nextSide] === 'feminine' ? 'feminine' : 'masculine'}"]`)?.focus();
   }
 
-  function choice<T extends string>(value: T, selected: boolean, change: (value: T) => void, monthly = false, illustration?: string, label: string = value) {
+  function choice<T extends keyof typeof directionChoices>(value: T, selected: boolean, change: (value: T) => void, monthly = false, customLabel?: string) {
     const locked = monthly && !props.hasMonthlyFeatureAccess;
+    const visual = directionChoices[value];
+    const label = customLabel ?? visual.label ?? value;
     return (
       <button key={value} type="button" className="sb-direction-option" aria-pressed={selected}
         data-direction-option={value} data-locked={locked || undefined}
+        aria-describedby={`direction-description-${encodeURIComponent(value)}`}
         aria-label={`${label}${monthly ? props.isBillingLoading ? ' · בדיקת מנוי' : locked ? ' · נעול לחודשי, לחצו לפרטים' : ' · חודשי' : ''}`}
         onClick={() => {
           if (locked || monthly && props.isBillingLoading) { setLockedChoice(value); return; }
           change(value); close();
         }}>
-        {selected ? <span className="sb-direction-check" aria-hidden="true">✓</span> : null}
-        <span className="sb-direction-option-label">
-          {illustration ? <Image src={`/option-illustrations/${illustration}.webp`} width={18} height={18} alt="" unoptimized /> : null}
-          {label}
-        </span>
-        {monthly ? <span className="sb-direction-monthly">חודשי</span> : null}
+        {selected ? <svg className="sb-choice-check" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m3 8 3 3 7-7" /></svg> : null}
+        <span className="sb-choice-icon"><DirectionIcon name={visual.icon} /></span>
+        <span className="sb-direction-option-label">{label}</span>
+        <span className="sb-choice-description" id={`direction-description-${encodeURIComponent(value)}`}>{visual.description}</span>
+        {monthly ? <span className="sb-direction-monthly">{locked ? <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2" /><path d="M5 7V5a3 3 0 0 1 6 0v2" /></svg> : null}חודשי</span> : null}
       </button>
     );
   }
@@ -165,22 +163,22 @@ function DirectionEditor(props: ReplyDirectionControlsProps & { field: Direction
   return (
     <>
       <div className="sb-direction-editor-heading">
-        <h3>{fieldLabels[field]}</h3>
+        <h3><DirectionIcon name={directionFields[field].icon} />{directionFields[field].question}</h3>
         <button type="button" className="sb-direction-reset" data-direction-clear onClick={reset} aria-label={field === 'tone' ? 'איפוס סגנון לזורם' : `ניקוי ${fieldLabels[field]}`}>{field === 'tone' ? 'איפוס' : 'ניקוי'}</button>
 
       </div>
+      {directionFields[field].description ? <p className="sb-direction-intro">{directionFields[field].description}</p> : null}
       {lockedChoice || isBackgroundLocked || field === 'background' && props.isBillingLoading ? (
         <div className="sb-direction-notice" role="status">
           <p>{props.isBillingLoading ? 'בודקים את מצב המנוי…' : `${lockedChoice ?? 'רקע נוסף'} פתוח במסלול החודשי. הבחירה הנוכחית נשארת.`}</p>
           {!props.isBillingLoading ? <button type="button" onClick={() => { close(); props.onUpgrade(); }}>לפתוח חודשי ללא הגבלה</button> : null}
         </div>
       ) : null}
-      {field === 'tone' ? <div className="sb-direction-options">{TONE_OPTIONS.filter((value) => props.showMonthlyOptions || isFreeToneOption(value)).map((value) => choice(value, props.tone === value, props.onToneChange, !isFreeToneOption(value), illustrations[value]))}</div> : null}
-      {field === 'context' ? <div className="sb-direction-options">{CONTEXT_OPTIONS.filter((value) => props.showMonthlyOptions || isFreeContextOption(value)).map((value) => choice(value, props.context === value, props.onContextChange, !isFreeContextOption(value), illustrations[value]))}</div> : null}
+      {field === 'tone' ? <div className="sb-direction-options">{TONE_OPTIONS.filter((value) => props.showMonthlyOptions || isFreeToneOption(value)).map((value) => choice(value, props.tone === value, props.onToneChange, !isFreeToneOption(value)))}</div> : null}
+      {field === 'context' ? <div className="sb-direction-options">{CONTEXT_OPTIONS.filter((value) => props.showMonthlyOptions || isFreeContextOption(value)).map((value) => choice(value, props.context === value, props.onContextChange, !isFreeContextOption(value)))}</div> : null}
       {field === 'goal' ? <div className="sb-direction-options sb-direction-options-wide">{(props.isNoReplyMode ? NO_REPLY_GOAL_OPTIONS : INCOMING_GOAL_OPTIONS).map((value) => choice(value, props.goal === value, props.onGoalChange))}</div> : null}
       {field === 'continue' ? <>
-        <p className="sb-direction-help">להשאיר את השיחה פתוחה — לא להסכים לתוכן ההודעה.</p>
-        <div className="sb-direction-options sb-direction-options-wide">{CONTINUE_PREFERENCE_OPTIONS.map((value) => choice<ContinuePreference>(value, props.continuePreference === value, props.onContinuePreferenceChange, false, undefined, value === 'כן' ? 'כן' : 'לסיים בנעימות'))}</div>
+        <div className="sb-direction-options sb-direction-options-wide">{CONTINUE_PREFERENCE_OPTIONS.map((value) => choice<ContinuePreference>(value, props.continuePreference === value, props.onContinuePreferenceChange, false, value === 'כן' ? 'להמשיך לדבר' : 'לסיים בנעימות'))}</div>
       </> : null}
       {field === 'language' ? <div className="sb-direction-language" ref={languagePanel}>
         <p className="sb-language-progress" role="status">{firstLanguageSide
@@ -205,11 +203,11 @@ function DirectionEditor(props: ReplyDirectionControlsProps & { field: Direction
         <p className="sb-direction-help">הניסוח בשמך נשמר בדפדפן לפעם הבאה. הפנייה לצד השני היא לשיחה הזאת.</p>
       </div> : null}
       {field === 'background' && !isBackgroundLocked && !props.isBillingLoading ? <div className="sb-direction-background">
-        <label htmlFor="direction-conversation-background">פרטים קצרים שיעזרו לדייק את הניסוח</label>
+        <label htmlFor="direction-conversation-background">מה כדאי לדעת על השיחה?</label>
         <textarea id="direction-conversation-background" aria-label="רקע נוסף לשיחה" value={props.conversationBackground}
           onChange={(event) => props.onBackgroundChange(event.target.value.slice(0, MAX_CONVERSATION_BACKGROUND_LENGTH))}
-          maxLength={MAX_CONVERSATION_BACKGROUND_LENGTH} placeholder="למשל: דיברנו כמה ימים ואז השיחה נעצרה" />
-        <p className="sb-direction-help">{props.conversationBackground.length}/{MAX_CONVERSATION_BACKGROUND_LENGTH} תווים · רק לשיחה הזאת</p>
+          maxLength={MAX_CONVERSATION_BACKGROUND_LENGTH} placeholder="למשל: דיברנו כמה ימים ואז השיחה נעצרה" aria-describedby="direction-background-help" />
+        <p className="sb-direction-help" id="direction-background-help">כל שינוי נשמר מיד · {props.conversationBackground.length}/{MAX_CONVERSATION_BACKGROUND_LENGTH} תווים · רק לשיחה הזאת</p>
       </div> : null}
 
     </>
