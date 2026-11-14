@@ -14,7 +14,7 @@ Actual local UI captures with synthetic authentication, billing and generation. 
 
 ## See the workflow
 
-![A populated Hebrew composer, expanded tone editor, and three sample replies](docs/screenshots/reply-directions-desktop.png)
+![Compact Hebrew reply direction controls with visible selections](docs/screenshots/reply-directions-desktop.png)
 
 **One message → choose directions → compare three replies → copy or refine.**
 The compact controls keep tone, recipient context, goal, language preferences,
@@ -24,7 +24,7 @@ Open one inline editor, choose an option, and keep the selected value in view.
 <table>
   <tr><th width="50%">1. Write and choose a direction</th><th width="50%">2. Compare and refine</th></tr>
   <tr>
-    <td valign="top"><img src="docs/screenshots/reply-directions-mobile.png" alt="Mobile composer populated with a sample invitation to talk tonight; the tone editor is expanded." width="360"></td>
+    <td valign="top"><img src="docs/screenshots/reply-directions-mobile.png" alt="Mobile reply direction controls with warm colors and direct tone choices." width="360"></td>
     <td valign="top"><img src="docs/screenshots/reply-results-mobile.png" alt="Three synthetic Hebrew reply suggestions with copy, soften, sharpen, and retry controls." width="360"></td>
   </tr>
   <tr><td>No direction is required. Start with the default <strong>זורם</strong> tone and add context only when useful.</td><td>Review the wording and choose what fits. SayBack leaves sending the message to you.</td></tr>
@@ -49,7 +49,7 @@ No time is selected by default.
 ## What it does
 
 - **Three suggestions per request:** a short interpretation of the incoming message plus exactly three Hebrew replies.
-- **Compact reply directions:** six direct controls with one inline editor; all 10 tones and 12 contexts remain available under their existing access rules. Selected values and explicit resets stay visible, including grammatical preferences. Monthly features require a monthly subscription.
+- **Compact reply directions:** compact category buttons with directly selectable options for tone, context, goal, grammatical preferences and conversation continuation, using the warm cream/orange palette. Selected values stay visible in the category buttons; single-choice selections advance to the next category; all 10 tones and 12 contexts remain available under their existing access rules. Selected values and explicit resets stay visible, including grammatical preferences. Monthly features require a monthly subscription.
 - **Refinement:** soften, sharpen, regenerate, or give a custom rewriting instruction. Editing the request marks previous results as outdated; refining a result keeps its original request context.
 - **Follow-ups:** draft a message when someone has not replied, using the last outgoing message and elapsed time.
 - **Text or screenshot input:** image understanding is available through the configured OpenAI mode; local free mode is rule-based and does not read image contents.

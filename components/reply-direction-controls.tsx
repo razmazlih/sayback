@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   CONTEXT_OPTIONS, TONE_OPTIONS, isFreeContextOption, isFreeToneOption,
   type ContextOption, type ToneOption,
@@ -49,66 +49,45 @@ const illustrations: Partial<Record<ToneOption | ContextOption, string>> = {
 };
 
 export function ReplyDirectionControls(props: ReplyDirectionControlsProps) {
-  const { openField, onOpenFieldChange } = props;
-  const id = useId();
-  const triggers = useRef<Partial<Record<DirectionField, HTMLButtonElement | null>>>({});
-  const editor = useRef<HTMLDivElement | null>(null);
-  const activeField = openField === 'continue' && props.isNoReplyMode
-    || openField === 'background' && !props.showMonthlyOptions ? null : openField;
-
-  useEffect(() => {
-    if (activeField) {
-      const target = editor.current?.querySelector<HTMLElement>('[aria-pressed="true"]')
-        ?? editor.current?.querySelector<HTMLElement>('textarea')
-        ?? editor.current?.querySelector<HTMLElement>('[data-direction-option]')
-        ?? editor.current?.querySelector<HTMLElement>('[data-editor-close]');
-      target?.focus({ preventScroll: true });
-    }
-  }, [activeField]);
-
-  function close() {
-    onOpenFieldChange(null);
-    if (activeField) triggers.current[activeField]?.focus({ preventScroll: true });
-  }
-
-  const summaries: Record<DirectionField, React.ReactNode> = {
-    tone: props.tone,
-    context: props.context,
-    goal: props.goal,
-    language: props.languagePreferences.speaker === 'neutral' && props.languagePreferences.recipient === 'neutral'
-      ? null : <><span>בשמי: {genderLabels[props.languagePreferences.speaker]}</span><span>לצד השני: {genderLabels[props.languagePreferences.recipient]}</span></>,
-    continue: props.continuePreference === 'כן' ? 'כן' : props.continuePreference === 'לא' ? 'לסיים בנעימות' : null,
-    background: props.conversationBackground.trim() ? 'נוסף רקע' : null,
-  };
+  const [selectedField, setSelectedField] = useState<DirectionField>('tone');
   const fields: DirectionField[] = ['tone', 'context', 'goal', 'language'];
   if (!props.isNoReplyMode) fields.push('continue');
   if (props.showMonthlyOptions) fields.push('background');
+  const activeField = fields.includes(selectedField) ? selectedField : 'tone';
+  const values: Record<DirectionField, string | null> = {
+    tone: props.tone, context: props.context, goal: props.goal,
+    language: props.languagePreferences.speaker === 'neutral' && props.languagePreferences.recipient === 'neutral'
+      ? null : `${genderLabels[props.languagePreferences.speaker]} ← ${genderLabels[props.languagePreferences.recipient]}`,
+    continue: props.continuePreference === 'לא' ? 'לסיים בנעימות' : props.continuePreference,
+    background: props.conversationBackground.trim() ? 'נוסף רקע' : null,
+  };
+  function advance(field: DirectionField) {
+    const next = fields[fields.indexOf(field) + 1];
+    if (next) setSelectedField(next);
+  }
+
 
   return (
-    <div className="sb-direction" data-testid="reply-direction-controls" dir="rtl" onKeyDown={(event) => {
-      if (event.key === 'Escape' && activeField) { event.preventDefault(); event.stopPropagation(); close(); }
-    }}>
-      <p className="sb-direction-heading">כיוון התשובה <span>· רק אם רוצים</span></p>
-      <div className="sb-direction-bar" aria-label="כיוון לתשובה">
+    <section className="sb-direction sb-direction-inline" data-testid="reply-direction-controls" dir="rtl" aria-label="כיוון התשובה">
+      <div className="sb-direction-title"><p className="sb-direction-heading">כיוון התשובה</p><span>אפשר לדלג · כל בחירה נשמרת</span></div>
+      <div className="sb-direction-tabs" role="group" aria-label="הגדרות כיוון התשובה">
         {fields.map((field) => (
-          <button key={field} ref={(node) => { triggers.current[field] = node; }} type="button"
-            className={`sb-direction-trigger${field === 'tone' || field === 'context' || field === 'goal' ? ' sb-direction-trigger-primary' : ''}`}
-            data-direction-field={field} aria-expanded={activeField === field}
-            aria-controls={activeField === field ? `${id}-editor` : undefined}
-            onClick={() => activeField === field ? close() : onOpenFieldChange(field)}>
-            <span className="sb-direction-label">{fieldLabels[field]}<span className="sb-direction-chevron" aria-hidden="true">⌄</span></span>
-            {field === 'background' && !props.hasMonthlyFeatureAccess ? <span className="sb-direction-monthly">חודשי</span> : null}
-            {summaries[field] ? <span className="sb-direction-value">{summaries[field]}</span> : null}
+          <button key={field} type="button" aria-pressed={activeField === field}
+            title={values[field] ?? fieldLabels[field]} aria-controls="reply-direction-panel" onClick={() => setSelectedField(field)}>
+            <span className="sb-direction-step-label">{fieldLabels[field]}</span>
+            <span className="sb-direction-step-value">{values[field] ?? 'לבחירה'}<span aria-hidden="true">{values[field] ? ' ✓' : ''}</span></span>
           </button>
         ))}
       </div>
-      {activeField ? (
-        <div ref={editor} id={`${id}-editor`} className="sb-direction-editor" data-testid="direction-editor" data-field={activeField}
-          role="region" aria-label={`עריכת ${fieldLabels[activeField]}`}>
-          <DirectionEditor key={activeField} {...props} field={activeField} close={close} />
-        </div>
-      ) : null}
-    </div>
+      <div id="reply-direction-panel" className="sb-direction-section" data-field={activeField}>
+        <DirectionEditor key={activeField} {...props} field={activeField} close={() => {}}
+          onToneChange={(value) => { props.onToneChange(value); advance('tone'); }}
+          onContextChange={(value) => { props.onContextChange(value); if (value) advance('context'); }}
+          onGoalChange={(value) => { props.onGoalChange(value); if (value) advance('goal'); }}
+          onContinuePreferenceChange={(value) => { props.onContinuePreferenceChange(value); if (value) advance('continue'); }} />
+        {activeField === 'language' ? <button className="sb-direction-next" type="button" onClick={() => advance('language')}>הבא ←</button> : null}
+      </div>
+    </section>
   );
 }
 
@@ -153,7 +132,7 @@ function DirectionEditor(props: ReplyDirectionControlsProps & { field: Direction
       <div className="sb-direction-editor-heading">
         <h3>{fieldLabels[field]}</h3>
         <button type="button" className="sb-direction-reset" data-direction-clear onClick={reset} aria-label={field === 'tone' ? 'איפוס סגנון לזורם' : `ניקוי ${fieldLabels[field]}`}>{field === 'tone' ? 'איפוס' : 'ניקוי'}</button>
-        <button type="button" className="sb-direction-close" data-editor-close aria-label={`סגירת ${fieldLabels[field]}`} onClick={close}>×</button>
+
       </div>
       {lockedChoice || isBackgroundLocked || field === 'background' && props.isBillingLoading ? (
         <div className="sb-direction-notice" role="status">
@@ -192,7 +171,7 @@ function DirectionEditor(props: ReplyDirectionControlsProps & { field: Direction
           maxLength={MAX_CONVERSATION_BACKGROUND_LENGTH} placeholder="למשל: דיברנו כמה ימים ואז השיחה נעצרה" />
         <p className="sb-direction-help">{props.conversationBackground.length}/{MAX_CONVERSATION_BACKGROUND_LENGTH} תווים · רק לשיחה הזאת</p>
       </div> : null}
-      {field === 'language' || field === 'background' ? <div className="sb-direction-editor-footer"><button type="button" onClick={close}>סיימתי ✓</button></div> : null}
+
     </>
   );
 }
