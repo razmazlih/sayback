@@ -49,7 +49,8 @@ const illustrations: Partial<Record<ToneOption | ContextOption, string>> = {
 };
 
 export function ReplyDirectionControls(props: ReplyDirectionControlsProps) {
-  const [selectedField, setSelectedField] = useState<DirectionField | null>(null);
+  const selectedField = props.openField;
+  const setSelectedField = props.onOpenFieldChange;
   const fields: DirectionField[] = ['tone', 'context', 'goal', 'language'];
   if (!props.isNoReplyMode) fields.push('continue');
   if (props.showMonthlyOptions) fields.push('background');
