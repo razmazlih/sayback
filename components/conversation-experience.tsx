@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { DirectionIcon } from './direction-choice-visuals';
 
 export function ConversationHeader({ onOpenAccount }: { onOpenAccount: () => void }) {
   return (
@@ -213,11 +214,14 @@ export function AccountDialog({
     >
       <div className="sb-account-dialog-content">
         <header className="sb-account-dialog-heading">
-          <div>
-            <p className="sb-eyebrow">הכול במקום אחד</p>
+          <div className="sb-account-heading-title">
+            <span className="sb-account-heading-icon"><DirectionIcon name="shield" /></span>
+            <div>
+            <p className="sb-eyebrow">גישה, שחזור והאנשים שלך</p>
             <h2 id={titleId}>החשבון שלי</h2>
+            </div>
           </div>
-          <button ref={closeRef} type="button" onClick={onClose} aria-label="סגירת החשבון" className="sb-dialog-close">×</button>
+          <button ref={closeRef} type="button" onClick={onClose} aria-label="סגירת החשבון" className="sb-dialog-close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button>
         </header>
         <div className="sb-account-dialog-body">{children}</div>
       </div>

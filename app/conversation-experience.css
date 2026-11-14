@@ -144,13 +144,42 @@
 .sb-experience .sb-faq details p { padding: 0 0 18px; color: var(--sb-muted); font-size: 13px; line-height: 1.9; }
 .sb-experience .sb-faq a { text-decoration: underline; text-underline-offset: 3px; color: var(--sb-coral); }
 
-.sb-account-dialog { margin: auto; width: min(700px, calc(100% - 32px)); max-width: calc(100% - 32px); max-height: calc(100svh - 40px); padding: 0; border: 1px solid #f0e8dc; border-radius: 22px; background: #fffdfa; text-align: right; box-shadow: 0 24px 90px rgb(24 20 17 / 18%); overflow-y: auto; overscroll-behavior: contain; }
-.sb-account-dialog::backdrop { background: rgb(24 20 17 / 40%); }
-.sb-account-dialog .sb-account-dialog-content { padding: 25px; }
-.sb-account-dialog .sb-account-dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
-.sb-account-dialog .sb-account-dialog-heading h2 { margin-top: 4px; font-size: 28px; font-weight: 650; letter-spacing: -.7px; line-height: 1.4; }
-.sb-account-dialog .sb-dialog-close { min-width: 44px; min-height: 44px; background: #fff; color: var(--sb-muted); border: 1px solid var(--sb-line); border-radius: 50%; font-size: 24px; cursor: pointer; }
-.sb-account-dialog .sb-account-dialog-body { display: grid; gap: 16px; min-width: 0; }
+.sb-account-dialog { margin: auto; width: min(640px, calc(100% - 24px)); max-width: calc(100% - 24px); max-height: calc(100svh - 40px); padding: 0; border: 1px solid #ead1ad; border-radius: 24px; background: #fffaf2; color: #795637; text-align: right; box-shadow: 0 20px 80px #6a401c30; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.sb-account-dialog::backdrop { background: #46332335; backdrop-filter: blur(3px); }
+.sb-account-dialog .sb-account-dialog-content { padding: 0; }
+.sb-account-dialog .sb-account-dialog-heading { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px; margin: 0; border-bottom: 1px solid #eadbc9; background: #fffaf2; }
+.sb-account-heading-title { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.sb-account-heading-icon { display: flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; border: 1px solid #eddcc5; border-radius: 14px; background: #ffedc5; color: #a36a38; }
+.sb-account-dialog .sb-account-dialog-heading .sb-eyebrow { color: #795637; font-size: 11px; }
+.sb-account-dialog .sb-account-dialog-heading h2 { margin-top: 2px; color: #7a4c24; font-size: 23px; font-weight: 700; letter-spacing: -.3px; line-height: 1.4; }
+.sb-account-dialog .sb-dialog-close { display: flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; background: #fff4e3; color: #986335; border: 1px solid #eddcc5; border-radius: 50%; cursor: pointer; }
+.sb-account-dialog .sb-account-dialog-body { display: grid; gap: 12px; min-width: 0; padding: 16px 20px 20px; }
+.sb-account-dialog .sb-account-content { gap: 12px; }
+.sb-account-dialog :is(button, a, input, textarea, select, summary):focus-visible { outline-color: #c17c2c; outline-offset: 3px; }
+.sb-account-manage, .sb-account-plans { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 50px; padding: 12px 14px; border: 1px solid #eadbc9; border-radius: 14px; background: #fffdf8; color: #795637; font-size: 13px; font-weight: 600; text-align: right; cursor: pointer; }
+.sb-account-manage > svg:first-child, .sb-account-plans > svg:first-child { flex: 0 0 22px; width: 22px; height: 22px; color: #a36a38; }
+.sb-account-manage > svg:last-child, .sb-account-plans > svg:last-child { margin-inline-start: auto; flex-shrink: 0; }
+.sb-account-plans { background: #ffedc5; border-color: #e6c28f; color: #874611; }
+.sb-account-coupon { border: 1px solid #eadbc9; border-radius: 14px; background: #fffdf8; }
+.sb-account-coupon > summary { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 10px 14px; color: #88694d; font-size: 13px; font-weight: 600; list-style: none; cursor: pointer; }
+.sb-account-coupon > summary::-webkit-details-marker { display: none; }
+.sb-account-coupon > summary > svg:first-child { width: 20px; height: 20px; }
+.sb-account-coupon > summary > svg:last-child { margin-inline-start: auto; }
+.sb-account-coupon[open] > summary > svg:last-child { transform: rotate(180deg); }
+.sb-account-dialog .sb-account-coupon-inner { padding: 0 14px 14px; border: 0; background: transparent; border-radius: 0; }
+.sb-account-dialog .sb-account-coupon-inner > p:first-child { display: none; }
+.sb-account-dialog .sb-account-coupon-inner > p { color: #88694d; font-size: 12px; font-weight: 400; }
+.sb-account-dialog .sb-account-coupon-inner input { min-width: 0; border-color: #eadbc9; background: #fffaf2; border-radius: 10px; font-size: 16px; }
+.sb-account-dialog .sb-account-coupon-inner button { border-radius: 10px; background: #d64012; color: white; }
+.sb-account-dialog .sb-account-subscription { padding: 14px; border: 1px solid #eadbc9; border-radius: 16px; background: #fffdf8; }
+.sb-account-dialog .sb-account-subscription > p:first-child { color: #a36a38; font-size: 12px; letter-spacing: 0; }
+.sb-account-dialog .sb-account-subscription > p { color: #795637; font-weight: 500; line-height: 1.7; }
+.sb-account-dialog .sb-account-subscription button { border-color: #e3c7a4; border-radius: 10px; background: #fff0d4; color: #874611; }
+.sb-account-dialog .sb-account-feedback { border-color: #e6c28f; background: #fff0d4; color: #795637; }
+@media (hover: hover) {
+  .sb-account-dialog .sb-dialog-close:hover, .sb-account-manage:hover, .sb-account-coupon > summary:hover { background: #fff0d4; }
+  .sb-account-plans:hover { background: #ffe4ae; }
+}
 
 @media (min-width: 1024px) {
   .sb-experience .sb-mobile-switch { display: none; }
@@ -188,8 +217,12 @@
   .sb-experience .sb-scenario-grid { grid-template-columns: 1fr; margin-top: 28px; gap: 12px; }
   .sb-experience .sb-scenario { padding: 21px; }
   .sb-experience .sb-scenario h3 { font-size: 19px; }
-  .sb-account-dialog { margin: auto auto 0; width: 100%; max-width: 100%; max-height: 92svh; border-radius: 22px 22px 0 0; }
-  .sb-account-dialog .sb-account-dialog-content { padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); }
+  .sb-account-dialog { margin: auto; width: calc(100% - 24px); max-width: calc(100% - 24px); max-height: 92svh; border-radius: 22px; }
+  .sb-account-dialog .sb-account-dialog-heading { padding: 14px; gap: 8px; }
+  .sb-account-heading-title { gap: 9px; }
+  .sb-account-heading-icon { flex-basis: 36px; width: 36px; height: 36px; border-radius: 12px; }
+  .sb-account-dialog .sb-account-dialog-heading h2 { font-size: 21px; }
+  .sb-account-dialog .sb-account-dialog-body { padding: 12px 14px calc(16px + env(safe-area-inset-bottom)); }
 }
 
 @media (prefers-reduced-motion: reduce) {

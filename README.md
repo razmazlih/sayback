@@ -142,3 +142,13 @@ Enable `LOCAL_ADMIN_ENABLED=true` in your local environment and open `/admin` wh
 - Search messages, replies, errors, or user IDs. Use quick filters for failures, blocked requests, retries, and invalid output; expand additional filters for source, action, status, and sorting.
 - Desktop shows users, activity, and event details side by side. On smaller screens, choose a user to advance to activity, then an event to see details; use the three step buttons to return.
 - Event details show input and output with expandable technical/billing information. Refresh reloads the current data without clearing the filters.
+
+## Account dialog
+
+The account dialog follows the same cream, gold and warm brown palette as reply directions: original SVG icons, a sticky header with a circular close control, compact access/recovery/plan facts, an inset email form and clearly separated saved-people, plan, coupon and subscription actions. The primary email action uses a darker coral for readable white text. Long email addresses wrap and stay LTR.
+
+<img src="docs/screenshots/account-mobile.jpg" alt="Account dialog on mobile in the unified cream and gold design" width="360">
+
+![Account dialog on desktop](docs/screenshots/account-desktop.jpg)
+
+Checked at 320px and 849px with ten local fixture states: free, credits, monthly, renewal canceled, blocked, loading, error, open access, sending and pending email completion. No horizontal clipping was found. Email-link/recovery, refresh, coupon and subscription callbacks were verified with local stubs; no email or payment action was sent. Keyboard focus stays inside the dialog, Escape closes it and focus returns to its trigger. The actual email field and sticky close control remain visible at 320×320 while editing. The temporary fixture was removed afterward; live billing and email delivery were not exercised.

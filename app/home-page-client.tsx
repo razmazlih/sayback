@@ -10,7 +10,6 @@ import {
   useSyncExternalStore,
   type ChangeEvent,
   type ClipboardEvent,
-  type FormEvent,
 } from 'react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
@@ -29,6 +28,7 @@ import { createReplyHistory, recordReplyRefinement, getPreviousReply, clearReply
 import { getMissingCommitmentKind, type CommitmentMode, type LanguagePreferences, type ReplyContext } from '@/lib/reply-context';
 import { CommitmentControls, ContinueConversationDialog } from '@/components/reply-context-controls';
 import { ReplyDirectionControls } from '@/components/reply-direction-controls';
+import { AccountCenterPanel } from '@/components/account-center-panel';
 import { DirectionIcon } from '@/components/direction-choice-visuals';
 import { areGenerationDraftsEqual, type GenerationDraft } from '@/lib/generation-draft';
 import { CONTINUE_PREFERENCE_OPTIONS, type DirectionField, type ContinuePreference, type IncomingGoal, type Goal } from '@/lib/reply-direction';
@@ -546,22 +546,6 @@ function formatSubscriptionPeriodEnd(value: string | null) {
   }).format(new Date(timestamp));
 }
 
-function formatShortDateTime(value: string | null) {
-  if (!value) {
-    return null;
-  }
-
-  const timestamp = Date.parse(value);
-
-  if (!Number.isFinite(timestamp)) {
-    return null;
-  }
-
-  return new Intl.DateTimeFormat('he-IL', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  }).format(new Date(timestamp));
-}
 
 function normalizeEmailInput(value: string) {
   return value.trim().toLowerCase();
@@ -1345,7 +1329,7 @@ function SubscriptionManagementPanel({
       </div>
 
       {actionNotice ? (
-        <p className="mt-2 rounded-2xl border border-[#b8e7df] bg-[#e3fbf7] px-3 py-2 text-sm font-bold text-[#123a36]">
+        <p role="status" className="sb-account-feedback mt-2 rounded-2xl border border-[#b8e7df] bg-[#e3fbf7] px-3 py-2 text-sm font-bold text-[#123a36]">
           {actionNotice}
         </p>
       ) : null}
@@ -1424,7 +1408,7 @@ function CouponRedeemPanel({
       </form>
 
       {couponNotice ? (
-        <p className="mt-2 rounded-2xl border border-[#b8e7df] bg-[#e3fbf7] px-3 py-2 text-sm font-bold text-[#123a36]">
+        <p role="status" className="sb-account-feedback mt-2 rounded-2xl border border-[#b8e7df] bg-[#e3fbf7] px-3 py-2 text-sm font-bold text-[#123a36]">
           {couponNotice}
         </p>
       ) : null}
@@ -1435,196 +1419,6 @@ function CouponRedeemPanel({
         </p>
       ) : null}
     </div>
-  );
-}
-
-type AccountCenterPanelProps = {
-  accountEmail: string | null;
-  isRecoverableAccount: boolean;
-  authEmailInput: string;
-  onAuthEmailInputChange: (value: string) => void;
-  onStartEmailLink: (intent: AuthEmailIntent, plan?: CheckoutPlan | null) => void;
-  isSendingAuthEmail: boolean;
-  isCompletingEmailLink: boolean;
-  pendingEmailCompletion: boolean;
-  authEmailNotice: string | null;
-  authEmailError: string | null;
-  isSessionReady: boolean;
-  isBillingLoading: boolean;
-  accountStatusLine: string;
-  nextConsumptionSource: BillingSnapshot['nextConsumptionSource'];
-  dailyResetAt: string | null;
-  paidCredits: number;
-  hasUnlimitedAccess: boolean;
-  managedSubscription: ManagedSubscriptionState | null;
-  onRefreshBilling: () => void;
-  className?: string;
-  compact?: boolean;
-  billingBypassEnabled?: boolean;
-};
-
-function AccountCenterPanel({
-  accountEmail,
-  isRecoverableAccount,
-  authEmailInput,
-  onAuthEmailInputChange,
-  onStartEmailLink,
-  isSendingAuthEmail,
-  isCompletingEmailLink,
-  pendingEmailCompletion,
-  authEmailNotice,
-  authEmailError,
-  isSessionReady,
-  isBillingLoading,
-  accountStatusLine,
-  nextConsumptionSource,
-  dailyResetAt,
-  paidCredits,
-  hasUnlimitedAccess,
-  managedSubscription,
-  onRefreshBilling,
-  className = '',
-  compact = false,
-  billingBypassEnabled = false,
-}: AccountCenterPanelProps) {
-  const emailInputId = useId();
-  const dailyResetLabel = formatShortDateTime(dailyResetAt);
-  const nextUseLabel = isBillingLoading
-    ? 'בודקים מאיפה יגיע השימוש הבא.'
-    : nextConsumptionSource === 'unlimited'
-      ? billingBypassEnabled ? 'כרגע אפשר ליצור תשובות ללא הגבלה.' : 'השימוש הבא כלול במנוי החודשי.'
-      : nextConsumptionSource === 'credits'
-        ? 'השימוש הבא ירד מיתרת הקרדיטים.'
-        : nextConsumptionSource === 'initial_free'
-          ? 'השימוש הבא ירד משימושי ההיכרות.'
-          : nextConsumptionSource === 'daily_free'
-            ? 'השימוש הבא ירד מהחינם היומי.'
-            : 'אין כרגע שימושים זמינים.';
-  const subscriptionLabel = isBillingLoading
-    ? 'בודקים מצב חבילה ומנוי.'
-    : managedSubscription
-      ? managedSubscription.cancelAtPeriodEnd
-        ? 'החיוב הבא מבוטל, והמנוי פעיל עד סוף התקופה.'
-        : 'המנוי מתחדש אוטומטית.'
-      : hasUnlimitedAccess
-        ? 'מסלול ללא הגבלה פעיל.'
-        : paidCredits > 0
-          ? `נשארו ${paidCredits} שימושים בחבילה.`
-          : null;
-
-  return (
-    <section
-      className={[
-        'w-full min-w-0 rounded-[24px] border border-[#e2d7c8] bg-white p-3.5 shadow-[0_12px_30px_rgba(49,23,13,0.06)]',
-        compact ? 'sm:p-4' : 'sm:p-5',
-        className,
-      ].join(' ').trim()}
-      aria-label="החשבון שלי"
-    >
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          {!compact ? <p className="text-xs font-semibold text-[#a45334]">החשבון שלי</p> : null}
-          <h2 className={compact ? 'mt-1 text-xl font-semibold text-[#181411]' : 'mt-1 text-2xl font-semibold text-[#181411]'}>
-            גישה ושחזור
-          </h2>
-          <p className="mt-1 text-sm font-bold leading-6 text-[#6d6259]">{accountStatusLine}</p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={onRefreshBilling}
-            disabled={!isSessionReady || isBillingLoading}
-            className={`min-h-[42px] rounded-full border border-[#ded2c3] bg-[#f8f3eb] px-3.5 py-2 text-xs font-semibold text-[#241d18] transition hover:bg-[#efe5d8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
-          >
-            {isBillingLoading ? 'מרעננים...' : 'רענון מצב חשבון'}
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-3 grid gap-2 md:grid-cols-3">
-        <div className="rounded-[18px] border border-[#b8e7df] bg-[#e3fbf7] px-3 py-2">
-          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[#4f6d68]">גישה</p>
-          <p className="mt-1 text-sm font-semibold text-[#123a36]">{nextUseLabel}</p>
-          {dailyResetLabel && nextConsumptionSource === 'blocked' ? (
-            <p className="mt-1 text-xs font-bold text-[#4f6d68]">החינם היומי יתחדש סביב {dailyResetLabel}.</p>
-          ) : null}
-        </div>
-        <div className="rounded-[18px] border border-[#e2d7c8] bg-[#f8f3eb] px-3 py-2">
-          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[#7a6e64]">שחזור גישה</p>
-          <p className="mt-1 text-sm font-semibold text-[#241d18]">
-            {isRecoverableAccount && accountEmail ? accountEmail : 'עדיין לא נשמר אימייל לשחזור.'}
-          </p>
-        </div>
-        <div className="rounded-[18px] border border-[#e2d7c8] bg-white px-3 py-2">
-          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-[#7a6e64]">מנוי וחבילות</p>
-          <p className="mt-1 text-sm font-semibold text-[#241d18]">{subscriptionLabel ?? 'אין חבילה או מנוי פעיל כרגע.'}</p>
-        </div>
-      </div>
-
-      {!isRecoverableAccount ? (
-        <form
-          className="mt-3 rounded-[20px] border border-[#e2d7c8] bg-[#fbf7f1] p-3"
-          onSubmit={(event: FormEvent<HTMLFormElement>) => {
-            event.preventDefault();
-            onStartEmailLink('checkout', null);
-          }}
-        >
-          <label htmlFor={emailInputId} className="text-sm font-semibold text-[#241d18]">
-            שמירת גישה באימייל
-          </label>
-          <p className="mt-1 text-xs font-bold leading-5 text-[#6d6259]">
-            לפני תשלום שולחים קישור חד־פעמי לאימייל. כך הקרדיטים והמנוי נשמרים גם אם מחליפים מכשיר.
-          </p>
-          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-            <input
-              id={emailInputId}
-              type="email"
-              dir="ltr"
-              inputMode="email"
-              autoComplete="email"
-              value={authEmailInput}
-              onChange={(event) => onAuthEmailInputChange(event.target.value)}
-              placeholder="name@example.com"
-              className={`min-h-[44px] w-full rounded-2xl border border-[#ded2c3] bg-white px-3 py-2 text-left text-sm font-bold text-[#241d18] placeholder:text-[#9b8f83] ${whiteSurfaceFocusClass}`}
-            />
-            <button
-              type="submit"
-              disabled={isSendingAuthEmail || isCompletingEmailLink}
-              className={`min-h-[44px] shrink-0 rounded-full bg-[#181411] px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
-            >
-              {isCompletingEmailLink
-                ? 'מחברים...'
-                : pendingEmailCompletion
-                  ? 'השלמת חיבור'
-                  : isSendingAuthEmail
-                    ? 'שולחים...'
-                    : 'שליחת קישור'}
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => onStartEmailLink('recover', null)}
-            disabled={isSendingAuthEmail || isCompletingEmailLink}
-            className={`mt-2 min-h-[38px] rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-semibold text-[#241d18] transition hover:bg-[#f8f3eb] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
-          >
-            כבר שילמת? התחבר/י לשחזור גישה
-          </button>
-        </form>
-      ) : null}
-
-      {authEmailNotice ? (
-        <p className="mt-2 rounded-2xl border border-[#b8e7df] bg-[#e3fbf7] px-3 py-2 text-sm font-bold text-[#123a36]">
-          {authEmailNotice}
-        </p>
-      ) : null}
-
-      {authEmailError ? (
-        <p className="mt-2 rounded-2xl border border-[#ffc4b5] bg-[#fff0ea] px-3 py-2 text-sm font-bold text-[#7a2d19]">
-          {authEmailError}
-        </p>
-      ) : null}
-    </section>
   );
 }
 
@@ -5474,7 +5268,7 @@ export default function Home({
         <ContinueConversationDialog suggestedReply={continueDialogReply} onCancel={() => setContinueDialogReply(null)} onContinue={handleContinueConversation} />
       ) : null}
       <AccountDialog open={showAccount} onClose={() => setShowAccount(false)}>
-        <div className="sb-account-content space-y-4">
+        <div className="sb-account-content">
           <AccountCenterPanel
                 accountEmail={accountEmail}
                 isRecoverableAccount={isRecoverableAccount}
@@ -5507,9 +5301,10 @@ export default function Home({
                   onAction={handleSubscriptionAction}
                   actionError={subscriptionActionError}
                   actionNotice={subscriptionActionNotice}
+                  className="sb-account-subscription"
                 /> : null}
-            <details className="rounded-xl border border-[#ded2c3] bg-white p-3">
-              <summary className="min-h-11 cursor-pointer py-2 text-sm font-medium">יש לכם קופון?</summary>
+            <details className="sb-account-coupon">
+              <summary><DirectionIcon name="tag" /><span>יש לך קופון?</span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg></summary>
             <CouponRedeemPanel
                     couponCode={couponCode}
                     onCouponCodeChange={handleCouponCodeChange}
@@ -5518,12 +5313,12 @@ export default function Home({
                     isSessionReady={isSessionReady}
                     couponError={couponError}
                     couponNotice={couponNotice}
-                    className="bg-white"
+                    className="sb-account-coupon-inner"
                   />
             </details>
-            <button type="button" onClick={() => { setShowAccount(false); openPaywall(); }} className="sb-primary-button w-full px-4">לצפייה במסלולים</button>
+            <button type="button" onClick={() => { setShowAccount(false); openPaywall(); }} className="sb-account-plans"><DirectionIcon name="sparkle" /><span>לצפייה במסלולים</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M13 8H3m4-4L3 8l4 4" /></svg></button>
           </> : null}
-          <button type="button" onClick={() => { setShowAccount(false); openConversationManagement(); }} className="min-h-11 w-full rounded-xl border border-[#ded2c3] px-4 text-sm">ניהול אנשים שמורים</button>
+          <button type="button" onClick={() => { setShowAccount(false); openConversationManagement(); }} className="sb-account-manage"><DirectionIcon name="people" /><span>ניהול אנשים שמורים</span><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M13 8H3m4-4L3 8l4 4" /></svg></button>
         </div>
       </AccountDialog>
 

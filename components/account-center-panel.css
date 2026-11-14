@@ -1,0 +1,43 @@
+.sb-account-center { container: account-center / inline-size; width: 100%; min-width: 0; padding: 16px; border: 1px solid #eadbc9; border-radius: 20px; background: #fffdf8; color: #795637; }
+.sb-account-center.sb-account-center-compact { padding: 0; border: 0; border-radius: 0; background: transparent; }
+.sb-account-center .sb-account-center-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.sb-account-center .sb-account-center-header > div { min-width: 0; }
+.sb-account-center .sb-account-center-header h3 { margin: 0; font-size: 14px; font-weight: 650; line-height: 22px; }
+.sb-account-center .sb-account-center-status { margin: 4px 0 0; color: #88694d; font-size: 12px; line-height: 20px; }
+.sb-account-center .sb-account-center-refresh { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 5px; min-height: 44px; padding: 7px 10px; border: 1px solid #eadbc9; border-radius: 10px; background: #fffdf8; color: #88694d; font-size: 11px; font-weight: 600; cursor: pointer; }
+.sb-account-center .sb-account-center-refresh > svg { width: 16px; height: 16px; }
+.sb-account-center .sb-account-center-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.sb-account-center .sb-account-center-fact { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-content: start; align-items: center; gap: 5px 7px; min-width: 0; margin: 0; padding: 12px; border: 1px solid #eadbc9; border-radius: 14px; background: #fffdf8; }
+.sb-account-center .sb-account-center-fact:first-child { grid-column: 1 / -1; border-color: #edcb91; background: #fff0d4; }
+.sb-account-center .sb-account-center-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 28px; width: 28px; height: 28px; border-radius: 9px; background: #f6eddf; color: #a36a38; }
+.sb-account-center .sb-account-center-icon > svg { width: 19px; height: 19px; }
+.sb-account-center .sb-account-center-access .sb-account-center-icon { background: #ffe0a0; }
+.sb-account-center .sb-account-center-fact dt { grid-column: 1 / -1; display: flex; align-items: center; gap: 7px; font-size: 11px; line-height: 18px; color: #795637; }
+.sb-account-center .sb-account-center-fact dd { grid-column: 1 / -1; min-width: 0; margin: 0; font-size: 12px; line-height: 19px; font-weight: 600; overflow-wrap: anywhere; }
+.sb-account-center .sb-account-center-fact dd.sb-account-center-reset { font-size: 11px; line-height: 18px; font-weight: 400; color: #88694d; }
+.sb-account-center .sb-account-center-email { margin-top: 14px; padding: 14px; border: 1px solid #eadbc9; border-radius: 16px; background: #f8f0e3; }
+.sb-account-center .sb-account-center-email-title { display: flex; align-items: center; gap: 8px; }
+.sb-account-center .sb-account-center-email-title > label { min-width: 0; font-size: 14px; font-weight: 650; line-height: 22px; }
+.sb-account-center .sb-account-center-email > p { margin: 7px 0 12px; color: #795637; font-size: 11px; line-height: 19px; }
+.sb-account-center .sb-account-center-email-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.sb-account-center .sb-account-center-email-fields > input { min-width: 0; width: 100%; min-height: 46px; padding: 10px 12px; border: 1px solid #dfc9ad; border-radius: 11px; background: #fffdf8; color: #795637; font-size: 16px; line-height: 24px; text-align: left; outline: none; }
+.sb-account-center .sb-account-center-email-fields > input::placeholder { color: #a18a72; }
+.sb-account-center .sb-account-center-primary { min-height: 46px; padding: 10px 15px; border: 1px solid #d64012; border-radius: 11px; background: #d64012; color: #fff; font-size: 13px; line-height: 22px; font-weight: 650; cursor: pointer; }
+.sb-account-center .sb-account-center-recover { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 44px; margin-top: 9px; padding: 8px 6px; border: 0; border-radius: 9px; background: transparent; color: #795637; font-size: 11px; line-height: 18px; font-weight: 600; cursor: pointer; }
+.sb-account-center .sb-account-center-recover > svg { flex-shrink: 0; width: 16px; height: 16px; }
+.sb-account-center .sb-account-center-notice, .sb-account-center .sb-account-center-error { margin: 12px 0 0; padding: 10px 12px; border: 1px solid #e6c98f; border-radius: 12px; background: #fff0d4; color: #795637; font-size: 12px; line-height: 20px; overflow-wrap: anywhere; }
+.sb-account-center .sb-account-center-error { border-color: #efc0ad; background: #fff0e8; color: #9c3d24; }
+.sb-account-center button:disabled { cursor: not-allowed; opacity: .6; }
+.sb-account-center :is(button, input):focus-visible { outline: 2px solid #c17c2c; outline-offset: 3px; }
+@container account-center (min-width: 500px) {
+  .sb-account-center .sb-account-center-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sb-account-center .sb-account-center-fact:first-child { grid-column: auto; }
+  .sb-account-center .sb-account-center-email-fields { grid-template-columns: minmax(0, 1fr) auto; }
+}
+@media (hover: hover) {
+  .sb-account-center .sb-account-center-refresh:hover, .sb-account-center .sb-account-center-recover:hover { background: #fff0d4; border-color: #d6b58e; }
+  .sb-account-center .sb-account-center-primary:hover { background: #bf3c16; border-color: #bf3c16; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sb-account-center button { transition: background-color 120ms ease, border-color 120ms ease; }
+}
