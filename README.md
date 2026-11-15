@@ -34,7 +34,7 @@ SayBack is a live, Hebrew-first web app for personal conversations, customer mes
 - **Get Hebrew phrasing right.** Choose how replies refer to you and the recipient. Your own grammatical preference is remembered in this browser; the recipient's is temporary.
 - **Refine without starting over.** Soften, sharpen, regenerate, or supply a custom rewriting instruction. Editing the incoming request marks older results as outdated.
 - **Follow up when there is no answer.** Switch to **שלחתי ולא ענו**, add your last outgoing message, and choose how much time has passed, including a custom duration.
-- **Upload a screenshot without manual resizing.** Large images are prepared in the browser before sending; small supported originals stay unchanged. Cancel or replace the image before generating. Readable text and clear sender context still matter.
+- **Upload a screenshot without manual resizing.** Supported JPEG, PNG and static WebP images are checked before decoding (up to 20 MiB, 25 megapixels and 16,384 pixels per edge). Large accepted images are prepared in the browser before sending; small supported originals stay unchanged. Unsupported formats, animation and unusually large metadata require a normal screenshot or conversion first. Cancel or replace the image before generating. Readable text and clear sender context still matter.
 - **Use it on a phone.** RTL layout, a growing text field, compact controls, and scrollable dialogs keep the interaction focused.
 - **Keep account actions together.** The account dialog brings access status, email-link recovery, saved people, and available billing actions into one place.
 
