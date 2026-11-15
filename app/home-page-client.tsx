@@ -15,6 +15,7 @@ import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { AccountDialog, ConversationDemo, ConversationGuide, ConversationHeader } from '@/components/conversation-experience';
 import './conversation-experience.css';
+import { prepareScreenshot } from '@/lib/prepare-screenshot';
 import {
   ConversationMemoryDialog,
   ManageConversationsDialog,
@@ -168,7 +169,6 @@ type CouponRedeemResponse = {
 
 const FREE_LIMIT = 3;
 const GENERATOR_FLOW_VERSION = 'direction_v3' as const;
-const MAX_IMAGE_UPLOAD_BYTES = 4 * 1024 * 1024;
 const MIN_LOADING_DISPLAY_MS = 200;
 const AUTH_EMAIL_STORAGE_KEY = 'sayback.auth.email';
 const AUTH_EMAIL_INTENT_STORAGE_KEY = 'sayback.auth.intent';
@@ -499,23 +499,6 @@ function getFocusableElements(container: HTMLElement | null) {
   });
 }
 
-function fileToBase64(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      if (typeof reader.result !== 'string') {
-        reject(new Error('טעינת התמונה נכשלה'));
-        return;
-      }
-
-      resolve(reader.result);
-    };
-
-    reader.onerror = () => reject(new Error('טעינת התמונה נכשלה'));
-    reader.readAsDataURL(file);
-  });
-}
 
 function isCompactViewport() {
   return window.matchMedia('(max-width: 1023px)').matches;
@@ -1973,6 +1956,7 @@ export default function Home({
   const [goal, setGoal] = useState<Goal | null>(null);
   const [continuePreference, setContinuePreference] = useState<ContinuePreference | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [isImageProcessing, setIsImageProcessing] = useState(false);
   const [imageName, setImageName] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [showDeepLinkPrefillBanner, setShowDeepLinkPrefillBanner] = useState(false);
@@ -2071,7 +2055,9 @@ export default function Home({
     !noReplyDurationPresets.some((preset) => preset.value === noReplyDurationValue && preset.unit === noReplyDurationUnit);
   const isNoReplyReady =
     Boolean(trimmedLastOutgoingMessage) && hasValidNoReplyDuration && hasNoReplyDurationUnit;
-  const generateButtonLabel = isLoading
+  const generateButtonLabel = isImageProcessing && !isNoReplyMode
+    ? 'מכינים את התמונה…'
+    : isLoading
     ? 'מכינים 3 תשובות...'
     : isNoReplyMode
       ? 'ליצור לי 3 הודעות המשך'
@@ -2185,10 +2171,12 @@ export default function Home({
       return;
     }
 
+    imageRequests.invalidate();
+    setIsImageProcessing(false);
     setImageBase64(null);
     setImageName(null);
     setImageError(null);
-  }, [composeMode]);
+  }, [composeMode, imageRequests]);
 
   useEffect(() => {
     if (!isSessionReady || isBillingLoading || hasTrackedQuotaBadgeViewRef.current) {
@@ -4085,7 +4073,7 @@ export default function Home({
   }
 
   async function handleMainSubmit() {
-    if (isGenerating || !isSessionReady) return;
+    if (isGenerating || !isSessionReady || (isImageProcessing && !isNoReplyMode)) return;
     const draft = getDraftRequest();
     const trimmedMessage = draft.message;
     const trimmedLastOutgoingMessage = draft.lastOutgoingMessage ?? '';
@@ -4209,6 +4197,7 @@ export default function Home({
     }
 
     const request = imageRequests.begin();
+    setIsImageProcessing(false);
 
     if (!file.type.startsWith('image/')) {
       setImageError('אפשר להעלות רק קובצי תמונה.');
@@ -4218,16 +4207,13 @@ export default function Home({
       return;
     }
 
-    if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
-      setImageError('התמונה גדולה מדי. אפשר להעלות עד 4MB.');
-      setImageBase64(null);
-      setImageName(null);
-      event.target.value = '';
-      return;
-    }
+    setIsImageProcessing(true);
+    setImageBase64(null);
+    setImageName(null);
+    setImageError(null);
 
     try {
-      const nextImageBase64 = await fileToBase64(file);
+      const nextImageBase64 = await prepareScreenshot(file, request.signal);
       if (!request.isCurrent()) return;
       setImageBase64(nextImageBase64);
       setImageName(file.name);
@@ -4242,11 +4228,14 @@ export default function Home({
       setImageError(error instanceof Error ? error.message : 'טעינת התמונה נכשלה');
       setImageBase64(null);
       setImageName(null);
+    } finally {
+      if (request.isCurrent()) setIsImageProcessing(false);
     }
   }
 
   function clearImage() {
     imageRequests.invalidate();
+    setIsImageProcessing(false);
     setImageBase64(null);
     setImageName(null);
     setImageError(null);
@@ -4926,7 +4915,7 @@ export default function Home({
                     className={`sb-message-input min-h-28 w-full resize-none rounded-[22px] rounded-bl-[14px] border border-[#ded2c3] bg-white px-4 py-3 text-base leading-7 font-medium text-[#241d18] outline-none transition placeholder:text-[#9b8f83] focus:bg-[#fffdfa] sm:min-h-40 sm:py-4 ${lightSurfaceFocusClass}`}
                   />
                   <div className="sb-input-footer" id="incoming-message-help">
-                    <span>טקסט קצר או תמונה עד 4MB</span>
+                    <span>טקסט או צילום מסך</span>
                     <span dir="ltr">{messageLength}/{MAX_INCOMING_MESSAGE_LENGTH}</span>
                   </div>
                   {!message.trim() && !imageBase64 ? (
@@ -4946,6 +4935,7 @@ export default function Home({
                     className="hidden"
                   />
 
+                  {isImageProcessing ? <p className="sb-status" role="status">מכינים את התמונה… <button type="button" onClick={clearImage} className="min-h-11 px-2 underline underline-offset-2">ביטול</button></p> : null}
                   {imageName && imageBase64 ? (
                     <div className="flex items-center gap-3 rounded-xl border border-[#ded2c3] p-3">
                       <Image src={imageBase64} alt="תצוגה מקדימה של צילום המסך" width={72} height={88} unoptimized className="h-22 w-18 shrink-0 rounded-lg object-contain" />
@@ -5018,7 +5008,7 @@ export default function Home({
                 <button
                   type="button"
                   onClick={handleMainSubmit}
-                  disabled={isGenerating || !isSessionReady || (isNoReplyMode && !isNoReplyReady)}
+                  disabled={isGenerating || !isSessionReady || (isNoReplyMode && !isNoReplyReady) || (isImageProcessing && !isNoReplyMode)}
                   className={`sb-primary-button inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-[#ff5a2a] px-5 py-3 text-base font-semibold text-white shadow-[0_14px_26px_rgba(255,90,42,0.24)] transition duration-150 hover:bg-[#f04d1f] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 ${lightSurfaceFocusClass}`}
                 >
                   {generateButtonLabel}

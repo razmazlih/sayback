@@ -24,7 +24,7 @@ function harness(overrides = {}) {
   const calls = { generation: [], events: [], errors: [], focus: [], editor: [] };
   const focusRef = (name) => ({ current: { focus: () => calls.focus.push(name) } });
   const scope = {
-    isGenerating: false, isSessionReady: true, isNoReplyMode: false, composeMode: "incoming",
+    isGenerating: false, isImageProcessing: false, isSessionReady: true, isNoReplyMode: false, composeMode: "incoming",
     message: "  תודה על ההודעה  ", imageBase64: null, lastOutgoingMessage: "",
     context: null, tone: "זורם", goal: null, continuePreference: null,
     languagePreferences: { speaker: "neutral", recipient: "neutral" },
@@ -129,7 +129,7 @@ test("no-reply uses its own goal and duration without incoming-only continuation
 
 test("empty input, incomplete follow-up, disconnected auth and pending generation never submit", async () => {
   for (const overrides of [
-    { message: " " }, { isSessionReady: false }, { isGenerating: true },
+    { message: " " }, { isSessionReady: false }, { isGenerating: true }, { isImageProcessing: true },
     { isNoReplyMode: true },
     { isNoReplyMode: true, lastOutgoingMessage: "הודעה" },
     { isNoReplyMode: true, lastOutgoingMessage: "הודעה", hasValidNoReplyDuration: true },

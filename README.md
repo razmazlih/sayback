@@ -47,6 +47,8 @@ SayBack is a live, Hebrew-first web app for personal conversations, customer mes
 
 **Availability is configuration-dependent.** The repository includes free-use limits, credit packs, subscriptions, coupons, and an open-access mode. The live site's current access policy may differ from a screenshot or local setup. Screenshot understanding requires the configured OpenAI mode; the local rule-based mode does not read images.
 
+**Screenshot support.** Heavy uploads are compressed in the browser; small supported originals remain unchanged. In OpenAI mode, high-detail vision extracts a validated, chronological conversation transcript before text-only reply generation. Keyboards and unsent drafts are excluded; ambiguous or unreadable images return a Hebrew error. Screenshot-only requests ending with your own sent message suggest an optional follow-up. Local AI mode rejects screenshots. Two model calls add latency and model usage. [Verification and limitations](docs/screenshot-verification.md).
+
 ## Engineering at a glance
 
 | Area | Implementation |

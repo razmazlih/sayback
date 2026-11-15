@@ -34,8 +34,8 @@ function harness({ delay = false, reducedMotion = false } = {}) {
   const images = [];
   const context = {
     ...historyModule.exports,
-    Error, MAX_IMAGE_UPLOAD_BYTES: 4 * 1024 * 1024,
-    fileToBase64: () => { const task = deferred(); images.push(task); return task.promise; },
+    Error,
+    prepareScreenshot: (_file, signal) => { const task = deferred(); images.push({ ...task, signal }); return task.promise; },
     markGeneratorInputStart() {},
     generationRequests: createLatestRequest(), imageRequests: createLatestRequest(),
     personalizationActiveRef: { current: false }, fileInputRef: { current: { value: 'old-file' } },
@@ -133,10 +133,12 @@ test('active errors still surface and release loading state', async () => {
 });
 
 for (const outcome of ['success', 'error']) {
-  test(`removed image ignores late file read ${outcome}`, async () => {
+  test(`removed image ignores late image preparation ${outcome}`, async () => {
     const h = harness();
     const pending = h.handleImageChange({ target: { files: [{ type: 'image/png', size: 20, name: 'old.png' }] } });
     h.clearImage();
+    assert.equal(h.images[0].signal.aborted, true);
+    assert.equal(h.state.isImageProcessing, false);
     if (outcome === 'success') h.images[0].resolve('data:image/png;base64,old');
     else h.images[0].reject(new Error('old file error'));
     await pending;
@@ -146,17 +148,20 @@ for (const outcome of ['success', 'error']) {
   });
 }
 
-test('latest image selection wins even when file reads finish out of order', async () => {
+test('latest image selection wins even when image preparations finish out of order', async () => {
   const h = harness();
   const event = (name) => ({ target: { files: [{ type: 'image/png', size: 20, name }] } });
   const old = h.handleImageChange(event('old.png'));
   const current = h.handleImageChange(event('current.png'));
+  assert.equal(h.images[0].signal.aborted, true);
+  assert.equal(h.state.isImageProcessing, true);
   h.images[1].resolve('data:image/png;base64,current');
   await current;
   h.images[0].resolve('data:image/png;base64,old');
   await old;
   assert.equal(h.state.imageName, 'current.png');
   assert.equal(h.state.imageBase64, 'data:image/png;base64,current');
+  assert.equal(h.state.isImageProcessing, false);
 });
 
 test('only a successful current refinement records comparison; failures preserve it and fresh results clear it', async () => {
@@ -239,4 +244,17 @@ test('reduced motion presents ready results without an artificial loading delay'
   assert.equal(h.timers.length, 0);
   assert.equal(h.state.result.replies[0], 'new');
   assert.equal(h.state.isLoading, false);
+});
+
+test('large source images are prepared without rejecting source size and clear old attachments', async () => {
+  const h = harness();
+  h.state.imageBase64 = 'data:image/png;base64,previous';
+  const pending = h.handleImageChange({target: {files: [{type: 'image/png', size: 20 * 1024 * 1024, name: 'large.png'}]}});
+  assert.equal(h.images.length, 1);
+  assert.equal(h.state.imageBase64, null);
+  assert.equal(h.state.isImageProcessing, true);
+  h.images[0].resolve('data:image/jpeg;base64,compressed');
+  await pending;
+  assert.equal(h.state.imageBase64, 'data:image/jpeg;base64,compressed');
+  assert.equal(h.state.isImageProcessing, false);
 });
