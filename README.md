@@ -2,7 +2,7 @@
 
 ### The message arrived. Find the words to reply.
 
-**Paste a message or upload a screenshot. Get three short, natural replies in Hebrew.**
+**Reply to a message. Follow up when nobody answers. Find three natural ways to say it in Hebrew.**
 
 SayBack is a live, Hebrew-first web app for personal conversations, customer messages, and everyday negotiations. Choose the wording that fits, refine it if needed, and send it yourself.
 
@@ -14,7 +14,7 @@ SayBack is a live, Hebrew-first web app for personal conversations, customer mes
 
 | Step | What you do |
 | --- | --- |
-| **1 · Add the message** | Paste text or upload a screenshot. You can also start with a built-in example. |
+| **1 · Choose the situation** | Reply to an incoming message with text or a screenshot, or follow up on a message you sent that is still unanswered. |
 | **2 · Set the direction** | Optionally choose a tone, recipient context, goal, or Hebrew grammatical preferences. |
 | **3 · Choose your words** | Compare three replies, copy one, or make it softer, sharper, or different. Nothing is sent automatically. |
 
@@ -34,7 +34,7 @@ SayBack is a live, Hebrew-first web app for personal conversations, customer mes
 - **Get Hebrew phrasing right.** Choose how replies refer to you and the recipient. Your own grammatical preference is remembered in this browser; the recipient's is temporary.
 - **Refine without starting over.** Soften, sharpen, regenerate, or supply a custom rewriting instruction. Editing the incoming request marks older results as outdated.
 - **Follow up when there is no answer.** Switch to **שלחתי ולא ענו**, add your last outgoing message, and choose how much time has passed, including a custom duration.
-- **Upload without file-size decisions.** Heavy images are compressed in the browser before sending; small supported PNG/JPEG/WebP originals stay unchanged. Encoding quality and dimensions adjust only as needed. Upload processing can be cancelled or replaced, and the old attachment cannot be submitted while a new one is being prepared.
+- **Upload a screenshot without manual resizing.** Large images are prepared in the browser before sending; small supported originals stay unchanged. Cancel or replace the image before generating. Readable text and clear sender context still matter.
 - **Use it on a phone.** RTL layout, a growing text field, compact controls, and scrollable dialogs keep the interaction focused.
 - **Keep account actions together.** The account dialog brings access status, email-link recovery, saved people, and available billing actions into one place.
 
@@ -46,21 +46,25 @@ SayBack is a live, Hebrew-first web app for personal conversations, customer mes
   </tr>
 </table>
 
-## Phone-first composers
+## Two situations, one focused workflow
 
-A two-choice mode picker stays visible at the top of the composer: **קיבלתי הודעה** (reply to an incoming message) and **שלחתי ולא ענו** (follow up on an unanswered message). Each choice has an icon, a short explanation and an explicit selected state. Clicking the selected mode leaves the draft untouched; switching modes retains their respective message inputs and never generates automatically. Both choices support keyboard activation and phone touch targets. Focus rings appear for keyboard navigation and are suppressed for mouse/touch input, including a pointer click on a control that was previously keyboard-focused.
+| Incoming message · קיבלתי הודעה | Unanswered message · שלחתי ולא ענו |
+| --- | --- |
+| Add what you received as text or a screenshot. | Add the last message you sent and how long you have waited. |
+| Optionally adjust tone, context and wording. | Choose an illustrated time preset or a custom number of minutes, hours or days. |
+| Generate three replies and choose the one that fits. | Generate three follow-ups without pretending a new answer arrived. |
 
-Incoming replies and follow-ups share a compact header, numbered input, warm cream/orange surfaces and a clear generation action. Optional style preferences stay collapsed until requested. Follow-ups use five illustrated elapsed-time cards, including **זמן אחר**, which opens a compact number-and-unit editor. Minutes, hours and days are direct choices; the selected duration stays visible above the cards.
+Switching modes retains each message draft and does not generate automatically. Optional style controls stay collapsed, missing details receive an inline hint, and the RTL layout is designed for phone-sized screens and keyboard navigation.
 
-Clicking an incomplete request focuses and reveals the first missing field with one short inline hint. Correcting the field clears the hint. During phone editing, the follow-up action remains visible and supporting content is reduced. Reduced-motion preferences are respected.
+### Using screenshots
 
-Verified locally in Chromium at 320–1440px with synthetic services, including photo input, optional preferences, generation and a reduced-height 320/390×400 editing simulation. Lint, TypeScript, 176 regression tests and production build passed. Physical phone keyboards, live AI and real payments were not verified. [Detailed visual verification](docs/design-verification.md).
+In OpenAI mode, SayBack first extracts a sender-labelled conversation, then generates replies from that transcript. It is designed to ignore keyboards and unsent drafts; ambiguous or unreadable conversations can return an error instead of a reply. If you also paste incoming text, that text remains the reply target.
 
-**Availability is configuration-dependent.** The repository includes free-use limits, credit packs, subscriptions, coupons, and an open-access mode. The live site's current access policy may differ from a screenshot or local setup. Screenshot understanding requires the configured OpenAI mode; the local rule-based mode does not read images.
+Keep relevant bubbles and senders visible. Crop long or cluttered captures when needed: hidden messages cannot be recovered, and model interpretation can be wrong. Review every suggestion before sending. Image processing uses two model calls and can take longer than text-only requests. Local rule-based mode does not read images.
 
-**Screenshot behavior and limits.** In OpenAI mode, screenshots use two model calls: high-detail vision first extracts a validated chronological transcript with explicit sender labels, then text-only generation suggests replies. Extraction ignores keyboards and unsent drafts; unreadable or ambiguous conversations return a Hebrew error before reply generation. When the phone owner sent the last visible message, screenshot-only requests suggest optional follow-ups without inventing elapsed time. Explicit pasted incoming text remains the reply target when supplied alongside an image. Full-screen captures can work when relevant bubbles and their senders are clearly visible; cropping can help with tiny text, long captures or visual clutter. Hidden or cut-off messages cannot be recovered. The local rule-based mode rejects image requests instead of pretending to read them. Browser tests cover compression, preservation and cancellation; mocked tests cover transcript validation, failure handling and request sequencing. These checks do not establish real-model accuracy across messaging apps or physical phones. Two-stage extraction adds latency and model usage compared with text-only requests.
+**Access depends on configuration.** The repository supports free-use limits, credit packs, subscriptions, coupons and open-access mode. The live site's policy may differ from a local setup or screenshot.
 
-To repeat the live screenshot check, run `node --env-file=.env.local scripts/verify-screenshot-understanding.mjs` with Playwright installed (or set `SAYBACK_PLAYWRIGHT_MODULE` to its module path). This sends four synthetic Hebrew fixtures to the configured model three times, incurs API usage, and writes images plus results to `output/playwright/`. Review the recorded replies for speaker, draft and already-sent-answer mistakes; the script checks response shape, not semantic accuracy. Set `SAYBACK_SCREENSHOT_REPEATS=1` for a smaller run. [Latest screenshot verification](docs/screenshot-verification.md) records the live-model results and limitations.
+**Verification scope:** the repository includes browser checks with synthetic services, regression tests and separate screenshot-understanding checks. These are not a guarantee of physical-phone compatibility, real-model accuracy or payment success. See the [visual checks](docs/design-verification.md) and [screenshot checks and reproduction steps](docs/screenshot-verification.md). The latter use a configured model and incur API usage.
 
 ## Engineering at a glance
 
@@ -80,7 +84,8 @@ To repeat the live screenshot check, run `node --env-file=.env.local scripts/ver
 - [`components/reply-direction-controls.tsx`](components/reply-direction-controls.tsx): direction dialogs and grammatical preferences.
 - [`components/account-center-panel.tsx`](components/account-center-panel.tsx): account overview and actions.
 - [`app/api/generate/route.ts`](app/api/generate/route.ts): authenticated generation, access checks, and failure rollback.
-- [`lib/ai.ts`](lib/ai.ts): input normalization, AI modes, and output validation.
+- [`lib/ai.ts`](lib/ai.ts): screenshot transcript extraction, AI modes, and output validation.
+- [`lib/prepare-screenshot.ts`](lib/prepare-screenshot.ts): browser-side image preparation, size budgeting, and cancellation.
 - [`lib/billing.ts`](lib/billing.ts): entitlements and payment lifecycle.
 - [`tests/`](tests) and [`scripts/`](scripts): regression suites and browser verification tools.
 
