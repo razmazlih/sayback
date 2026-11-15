@@ -38,7 +38,7 @@ function harness({ delay = false, reducedMotion = false } = {}) {
     prepareScreenshot: (_file, signal) => { const task = deferred(); images.push({ ...task, signal }); return task.promise; },
     markGeneratorInputStart() {},
     generationRequests: createLatestRequest(), imageRequests: createLatestRequest(),
-    personalizationActiveRef: { current: false }, fileInputRef: { current: { value: 'old-file' } },
+    messageInputRef: { current: { focus() {} } }, personalizationActiveRef: { current: false }, fileInputRef: { current: { value: 'old-file' } },
     advancedOptionsRef: { current: { open: true } }, composeMode: 'incoming', activeConversation: null,
     hasMonthlyFeatureAccess: false, MIN_LOADING_DISPLAY_MS: delay ? 500 : 0,
     window: { matchMedia: () => ({ matches: reducedMotion }), performance: { now: () => 0 }, setTimeout: (fn) => timers.push(fn), requestAnimationFrame: (fn) => frames.push(fn) },
@@ -257,4 +257,25 @@ test('large source images are prepared without rejecting source size and clear o
   await pending;
   assert.equal(h.state.imageBase64, 'data:image/jpeg;base64,compressed');
   assert.equal(h.state.isImageProcessing, false);
+});
+
+test('cancel image preparation invalidates late success and keeps text draft untouched', async () => {
+  const h = harness(); h.state.message = 'saved text';
+  const pending = h.handleImageChange({ target: { files: [{ type: 'image/png', name: 'one.png' }] } });
+  h.clearImage();
+  h.images[0].resolve('data:image/png;base64,stale'); await pending;
+  assert.equal(h.state.imageBase64, null); assert.equal(h.state.message, 'saved text');
+  assert.equal(h.state.isImageProcessing, false);
+});
+test('failed image selection preserves typed draft and allows selecting the same file again', async () => {
+  const h = harness(); h.state.message = 'saved text';
+  const pending = h.handleImageChange({ target: { files: [{ type: 'image/png', name: 'one.png' }] } });
+  h.images[0].reject(new Error('invalid image')); await pending;
+  assert.equal(h.state.imageBase64, null); assert.equal(h.state.message, 'saved text');
+  assert.equal(h.fileInputRef.current.value, ''); assert.equal(h.state.imageError, 'invalid image');
+});
+test('cancel file picker leaves a selected image untouched', async () => {
+  const h = harness(); h.state.imageBase64 = 'previous';
+  await h.handleImageChange({target: {files: []}});
+  assert.equal(h.state.imageBase64, 'previous'); assert.equal(h.images.length, 0);
 });
