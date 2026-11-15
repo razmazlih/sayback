@@ -1,3 +1,5 @@
+import { ScreenshotSourceError, validateScreenshotSource } from './screenshot-source';
+
 /** Leave room for JSON below the hosting platform's request-body limit. */
 export const MAX_SCREENSHOT_DATA_URL_LENGTH = 4 * 1024 * 1024;
 const MAX_ENCODED_BYTES = Math.floor((MAX_SCREENSHOT_DATA_URL_LENGTH - 64) * 3 / 4);
@@ -54,6 +56,7 @@ async function decodeImage(file: File, signal?: AbortSignal): Promise<HTMLImageE
 async function prepareScreenshotImage(file: File, signal?: AbortSignal): Promise<string> {
   checkCancelled(signal);
   if (!file.type.startsWith('image/')) throw new ScreenshotPreparationError('אפשר להעלות רק קובצי תמונה.');
+  await validateScreenshotSource(file, signal);
   // Preserve small supported originals, especially crisp PNG text.
   if (SUPPORTED_TYPES.has(file.type) && file.size <= MAX_ENCODED_BYTES) {
     return readDataUrl(file, signal);
@@ -102,7 +105,7 @@ export async function prepareScreenshot(file: File, signal?: AbortSignal): Promi
   try {
     return await prepareScreenshotImage(file, signal);
   } catch (error) {
-    if (error instanceof ScreenshotPreparationError || (error instanceof DOMException && error.name === 'AbortError')) throw error;
+    if (error instanceof ScreenshotPreparationError || error instanceof ScreenshotSourceError || (error instanceof DOMException && error.name === 'AbortError')) throw error;
     throw new ScreenshotPreparationError('לא הצלחנו להכין את התמונה. נסו צילום אחר.');
   }
 }
