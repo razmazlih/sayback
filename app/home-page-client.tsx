@@ -183,7 +183,7 @@ const AUTH_LINK_QUERY_KEYS = [
   'sb_auth_intent',
   'sb_auth_plan',
 ] as const;
-const AUTH_ERROR_MESSAGE = 'לא הצלחנו לחבר מחדש את החשבון. נסה שוב בעוד רגע.';
+const AUTH_ERROR_MESSAGE = 'לא הצלחנו להשלים את הבקשה. נסו שוב בעוד רגע.';
 const PAYWALL_TITLE = 'ממשיכים בלי להיתקע';
 const PAYWALL_BODY = 'בוחרים מסלול וממשיכים לנסח תשובות מעולות בלי לעצור.';
 const DAILY_FREE_EXHAUSTED_HELPER_TEXT =
@@ -2131,7 +2131,7 @@ export default function Home({
           : 'המכסה החינמית הסתיימה. אפשר לבחור חבילה ולהמשיך.';
   const accountStatusLine = isSessionReady
     ? billingStatusLine
-    : requestError ? 'החיבור לא הושלם. אפשר לנסות שוב.' : 'מכינים את החיבור המאובטח...';
+    : '';
   const accessState = hasUnlimitedAccess
     ? 'unlimited'
     : hasCreditBalance
@@ -4085,7 +4085,7 @@ export default function Home({
   }
 
   async function handleMainSubmit() {
-    if (isGenerating || !isSessionReady) return;
+    if (isGenerating) return;
     const draft = getDraftRequest();
     const trimmedMessage = draft.message;
     const trimmedLastOutgoingMessage = draft.lastOutgoingMessage ?? '';
@@ -5018,12 +5018,12 @@ export default function Home({
                 <button
                   type="button"
                   onClick={handleMainSubmit}
-                  disabled={isGenerating || !isSessionReady || (isNoReplyMode && !isNoReplyReady)}
+                  disabled={isGenerating || (isNoReplyMode && !isNoReplyReady)}
                   className={`sb-primary-button inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-[#ff5a2a] px-5 py-3 text-base font-semibold text-white shadow-[0_14px_26px_rgba(255,90,42,0.24)] transition duration-150 hover:bg-[#f04d1f] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 ${lightSurfaceFocusClass}`}
                 >
                   {generateButtonLabel}
                 </button>
-                <p className="sb-status">{accountStatusLine}</p>
+                {accountStatusLine ? <p className="sb-status">{accountStatusLine}</p> : null}
                 {paymentNotice ? (
                   <p className="rounded-2xl border border-[#b8e7df] bg-[#e3fbf7] px-4 py-3 text-sm font-semibold text-[#123a36]">
                     {paymentNotice}

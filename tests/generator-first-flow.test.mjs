@@ -127,9 +127,9 @@ test("no-reply uses its own goal and duration without incoming-only continuation
   assert.equal(payload.commitmentMode, undefined);
 });
 
-test("empty input, incomplete follow-up, disconnected auth and pending generation never submit", async () => {
+test("empty input, incomplete follow-up and pending generation never submit", async () => {
   for (const overrides of [
-    { message: " " }, { isSessionReady: false }, { isGenerating: true },
+    { message: " " }, { isGenerating: true },
     { isNoReplyMode: true },
     { isNoReplyMode: true, lastOutgoingMessage: "הודעה" },
     { isNoReplyMode: true, lastOutgoingMessage: "הודעה", hasValidNoReplyDuration: true },
@@ -139,4 +139,11 @@ test("empty input, incomplete follow-up, disconnected auth and pending generatio
     assert.equal(calls.generation.length, 0, JSON.stringify(overrides));
     assert.equal(calls.events.length, 0);
   }
+});
+
+ test("valid input submits while anonymous authentication runs in the background", async () => {
+  const { submit, calls } = harness({ isSessionReady: false });
+  await submit();
+  assert.equal(calls.generation.length, 1);
+  assert.equal(calls.errors.length, 0);
 });

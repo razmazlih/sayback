@@ -152,3 +152,5 @@ The account dialog follows the same cream, gold and warm brown palette as reply 
 ![Account dialog on desktop](docs/screenshots/account-desktop.jpg)
 
 Checked at 320px and 849px with ten local fixture states: free, credits, monthly, renewal canceled, blocked, loading, error, open access, sending and pending email completion. No horizontal clipping was found. Email-link/recovery, refresh, coupon and subscription callbacks were verified with local stubs; no email or payment action was sent. Keyboard focus stays inside the dialog, Escape closes it and focus returns to its trigger. The actual email field and sticky close control remain visible at 320×320 while editing. The temporary fixture was removed afterward; live billing and email delivery were not exercised.
+
+ההתחברות האנונימית מתבצעת ברקע: כפתור יצירת התשובות זמין גם בזמן האתחול, והבקשה ממתינה לאימות ללא שלב התחברות גלוי.
