@@ -186,3 +186,11 @@ After running the browser suite, inspect and copy these populated fixture captur
 
 Keep the [walkthrough provenance](walkthrough.md) accurate when replacing images.
 These captures mock services and must not be described as live generated output.
+
+## Screenshot preparation
+
+`lib/prepare-screenshot.ts` prepares uploads locally. There is no source-file byte-size rejection. Supported small PNG/JPEG/WebP files are preserved; larger files and other browser-decodable image formats are converted to JPEG on a white background. The encoder tries descending quality before reducing dimensions further. Re-encoding is bounded to 8 million canvas pixels and an 8192px edge. Output data URLs remain below 4 MiB, including base64 expansion, leaving room for the JSON envelope. Corrupt or browser-unsupported files still produce a Hebrew error.
+
+The current upload owns an abort signal. Clearing, replacing or switching to follow-up invalidates processing; generation waits for image preparation. UI fields do not display a file-size limit. No image contents are written to persistent client storage by this helper.
+
+Run `node scripts/verify-image-compression.mjs` with Playwright available, or point `SAYBACK_PLAYWRIGHT_MODULE` to its existing `index.mjs`. It uses an offline browser and a generated oversized fixture to exercise the real canvas encoder, encoded budget, small PNG preservation and cancellation. Artifacts go to `output/playwright/`. This does not test a live AI provider.

@@ -62,3 +62,9 @@ A two-choice picker replaces the one-way mode links. Both options remain visible
 ## Keyboard-only focus rings
 
 The composer records pointer versus navigation-key input without moving or blurring focus. Pointer input suppresses focus outlines and Tailwind rings, including when clicking the same control after keyboard navigation; navigation keys restore the normal `:focus-visible` styles. Duration radio labels follow the same rule. Selection styles remain intact. Chromium checks at 390 and 849px cover mouse, Tab/Shift+Tab, mouse-after-keyboard, a touch pointer event, retained focus/selection, and text spaces not re-enabling navigation rings. Touch was simulated; no physical phone test was performed.
+
+## Automatic screenshot compression
+
+Removed the visible file-size copy and source-size rejection. A generated 14,725,370-byte PNG was compressed by the real browser encoder to a 3,533,627-character JPEG data URL (budget: 4,194,304), preserving 2200×2200 dimensions. The text header was inspected visually. Small PNG bytes were preserved; pre-start and in-flight aborts and corrupt/non-image failures were checked. `scripts/verify-image-compression.mjs` reproduces these codec checks offline.
+
+The actual 390px upload UI was also checked with a valid image larger than 4 MiB: busy submit guard, compressed generation payload, cancellation, replacement race, mode-change abort and no stale preview. Generation/billing were synthetic; no live AI was called. Lint, TypeScript, 176 regression tests and production build are the release gates. Physical-device memory limits and browser-unsupported image formats are not guaranteed by these desktop Chromium checks.

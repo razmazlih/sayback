@@ -34,6 +34,7 @@ SayBack is a live, Hebrew-first web app for personal conversations, customer mes
 - **Get Hebrew phrasing right.** Choose how replies refer to you and the recipient. Your own grammatical preference is remembered in this browser; the recipient's is temporary.
 - **Refine without starting over.** Soften, sharpen, regenerate, or supply a custom rewriting instruction. Editing the incoming request marks older results as outdated.
 - **Follow up when there is no answer.** Switch to **שלחתי ולא ענו**, add your last outgoing message, and choose how much time has passed, including a custom duration.
+- **Upload without file-size decisions.** Heavy images are compressed in the browser before sending; small supported PNG/JPEG/WebP originals stay unchanged. Encoding quality and dimensions adjust only as needed. Upload processing can be cancelled or replaced, and the old attachment cannot be submitted while a new one is being prepared.
 - **Use it on a phone.** RTL layout, a growing text field, compact controls, and scrollable dialogs keep the interaction focused.
 - **Keep account actions together.** The account dialog brings access status, email-link recovery, saved people, and available billing actions into one place.
 
@@ -53,7 +54,7 @@ Incoming replies and follow-ups share a compact header, numbered input, warm cre
 
 Clicking an incomplete request focuses and reveals the first missing field with one short inline hint. Correcting the field clears the hint. During phone editing, the follow-up action remains visible and supporting content is reduced. Reduced-motion preferences are respected.
 
-Verified locally in Chromium at 320–1440px with synthetic services, including photo input, optional preferences, generation and a reduced-height 320/390×400 editing simulation. Lint, TypeScript, 175 regression tests and production build passed. Physical phone keyboards, live AI and real payments were not verified. [Detailed visual verification](docs/design-verification.md).
+Verified locally in Chromium at 320–1440px with synthetic services, including photo input, optional preferences, generation and a reduced-height 320/390×400 editing simulation. Lint, TypeScript, 176 regression tests and production build passed. Physical phone keyboards, live AI and real payments were not verified. [Detailed visual verification](docs/design-verification.md).
 
 **Availability is configuration-dependent.** The repository includes free-use limits, credit packs, subscriptions, coupons, and an open-access mode. The live site's current access policy may differ from a screenshot or local setup. Screenshot understanding requires the configured OpenAI mode; the local rule-based mode does not read images.
 
