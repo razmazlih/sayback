@@ -1,0 +1,21 @@
+{
+  "checks": [
+    "RTL, no overflow, generation and 3 replies at 320px",
+    "RTL, no overflow, generation and 3 replies at 360px",
+    "RTL, no overflow, generation and 3 replies at 390px",
+    "RTL, no overflow, generation and 3 replies at 768px",
+    "RTL, no overflow, generation and 3 replies at 1024px",
+    "RTL, no overflow, generation and 3 replies at 1440px",
+    "Account dialog focus, focus containment, Escape, preserved draft",
+    "Screenshot preview and removal",
+    "Navigation preserves drafts; all refine actions retain result context; refine and clipboard failures visible",
+    "daily_free access state",
+    "monthly access state",
+    "blocked access state",
+    "bypass access state",
+    "Sample and deep link prefill without automatic generation",
+    "Follow-up mode, duration presets and complete generation payload",
+    "All six direction dialogs open, fit the phone viewport and close with Escape"
+  ],
+  "scope": "Synthetic Firebase, billing and generation. No live AI or payments."
+}

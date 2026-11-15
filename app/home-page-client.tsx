@@ -395,7 +395,7 @@ const examples: ExampleScenario[] = [
 const exampleIds = examples.map((scenario) => scenario.id);
 
 const focusRingBaseClass =
-  'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#20d6c7]/40 focus-visible:ring-offset-2';
+  'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#f4c542]/40 focus-visible:ring-offset-2';
 const lightSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-[#f7f3ec]`;
 const whiteSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-white`;
 const darkSurfaceFocusClass = `${focusRingBaseClass} focus-visible:ring-offset-[#181411]`;
@@ -637,7 +637,7 @@ function HomeHero({
 }) {
   return (
     <section className="relative overflow-hidden rounded-[28px] border border-[#e2d7c8] bg-[#fffdfa] px-4 py-3 shadow-[0_20px_60px_rgba(49,23,13,0.12)] sm:rounded-[34px] sm:px-6 sm:py-5">
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-l from-[#ff5a2a] via-[#ffb089] to-[#20d6c7]" aria-hidden="true" />
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-l from-[#ff5a2a] via-[#ffb089] to-[#f4c542]" aria-hidden="true" />
       <div className="relative flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0 space-y-2 sm:space-y-3">
           <div className="flex items-center justify-center lg:justify-start">
@@ -801,7 +801,7 @@ function ReplyRefineMenu({
                 type="button"
                 onClick={() => onAdjust(index, 'softer')}
                 disabled={isBusy}
-                className={`inline-flex min-h-11 items-center justify-center rounded-xl border border-[#b8e7df] bg-[#e3fbf7] px-2 py-2 text-xs leading-5 text-[#123a36] transition hover:bg-[#cef6ef] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                className={`inline-flex min-h-11 items-center justify-center rounded-xl border border-[#e2d7c8] bg-[#fff6e8] px-2 py-2 text-xs leading-5 text-[#5b3d29] transition hover:bg-[#f6ead8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
               >
                 עדין יותר
               </button>
@@ -895,7 +895,7 @@ function ReplyActions({
         disabled={isUpdating}
         onClick={() => onCopy(reply, index)}
         aria-label={copied ? `תשובה ${index + 1} הועתקה` : `העתק תשובה ${index + 1}`}
-        className={`inline-flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition-colors disabled:cursor-wait disabled:opacity-50 ${copied ? 'bg-[#e3fbf7] text-[#123a36]' : 'bg-[#241d18] text-white hover:bg-[#463b33]'} ${whiteSurfaceFocusClass}`}
+        className={`inline-flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition-colors disabled:cursor-wait disabled:opacity-50 ${copied ? 'bg-[#fff6e8] text-[#5b3d29]' : 'bg-[#241d18] text-white hover:bg-[#463b33]'} ${whiteSurfaceFocusClass}`}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           {copied ? <path d="m5 12 4 4L19 6" /> : <><rect x="8" y="8" width="12" height="13" rx="2" /><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" /></>}
@@ -1004,14 +1004,14 @@ function ReplyCard({
     <article
       ref={cardRef}
       aria-labelledby={titleId}
-      className={`sb-reply-card relative w-full min-w-0 rounded-[24px] border bg-[#fffdfa] p-4 shadow-[0_4px_16px_rgba(49,23,13,0.04)] transition-colors sm:p-5 ${copied && !isEditing ? 'border-[#78b9a9] ring-1 ring-[#b8e7df]' : 'border-[#e2d7c8]'}`}
+      className={`sb-reply-card relative w-full min-w-0 rounded-[24px] border bg-[#fffdfa] p-4 shadow-[0_4px_16px_rgba(49,23,13,0.04)] transition-colors sm:p-5 ${copied && !isEditing ? 'border-[#d6b58e] ring-1 ring-[#e2d7c8]' : 'border-[#e2d7c8]'}`}
     >
       <div className="mb-3 flex min-h-8 flex-wrap items-center justify-between gap-2">
         <h3 id={titleId} className="flex items-center gap-2 text-sm font-bold text-[#6d6259]">
           <span aria-hidden="true" className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#f3e9df] text-xs tabular-nums text-[#7a2d19]">{index + 1}</span>
           תשובה {index + 1}
         </h3>
-        <span role="status" className="text-xs font-bold text-[#246354]">
+        <span role="status" className="text-xs font-bold text-[#795637]">
           {isUpdating ? 'מלטשים את הניסוח…' : copied && !isEditing ? 'הועתקה ללוח ✓' : previousReply && !isEditing ? 'הנוסח עודכן' : ''}
         </span>
       </div>
@@ -1053,7 +1053,7 @@ function ReplyCard({
           <button type="button" disabled={isBusy} onClick={() => {
             onRestore(index);
             window.requestAnimationFrame(() => cardRef.current?.querySelector<HTMLButtonElement>('[data-reply-copy]')?.focus());
-          }} className={`mt-3 min-h-11 rounded-xl border border-[#b8e7df] bg-white px-3 text-sm font-bold text-[#123a36] disabled:opacity-50 ${whiteSurfaceFocusClass}`}>להחזיר את הנוסח הקודם</button>
+          }} className={`mt-3 min-h-11 rounded-xl border border-[#e2d7c8] bg-white px-3 text-sm font-bold text-[#5b3d29] disabled:opacity-50 ${whiteSurfaceFocusClass}`}>להחזיר את הנוסח הקודם</button>
           <p className="mt-1 text-xs text-[#6d6259]">החזרה לנוסח הקודם אינה משתמשת בשימוש נוסף.</p>
         </details>
       ) : null}
@@ -1196,7 +1196,7 @@ function BillingSnapshotPanel({
     rows.push({
       label: 'ללא הגבלה',
       value: 'המסלול החודשי פעיל עכשיו.',
-      bgClass: 'bg-[#d7f9ff]',
+      bgClass: 'bg-[#fff6d8]',
     });
   }
 
@@ -1321,7 +1321,7 @@ function SubscriptionManagementPanel({
             type="button"
             onClick={() => onAction('resume_renewal')}
             disabled={!canSubmitAction}
-            className={`min-h-[42px] rounded-full border border-[#b8e7df] bg-[#e3fbf7] px-3.5 py-2 text-sm font-semibold text-[#123a36] transition hover:bg-[#cef6ef] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+            className={`min-h-[42px] rounded-full border border-[#e2d7c8] bg-[#fff6e8] px-3.5 py-2 text-sm font-semibold text-[#5b3d29] transition hover:bg-[#f6ead8] disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
           >
             {isLoading ? 'מעדכנים...' : 'להפעיל חידוש אוטומטי'}
           </button>
@@ -1329,7 +1329,7 @@ function SubscriptionManagementPanel({
       </div>
 
       {actionNotice ? (
-        <p role="status" className="sb-account-feedback mt-2 rounded-2xl border border-[#b8e7df] bg-[#e3fbf7] px-3 py-2 text-sm font-bold text-[#123a36]">
+        <p role="status" className="sb-account-feedback mt-2 rounded-2xl border border-[#e2d7c8] bg-[#fff6e8] px-3 py-2 text-sm font-bold text-[#5b3d29]">
           {actionNotice}
         </p>
       ) : null}
@@ -1408,7 +1408,7 @@ function CouponRedeemPanel({
       </form>
 
       {couponNotice ? (
-        <p role="status" className="sb-account-feedback mt-2 rounded-2xl border border-[#b8e7df] bg-[#e3fbf7] px-3 py-2 text-sm font-bold text-[#123a36]">
+        <p role="status" className="sb-account-feedback mt-2 rounded-2xl border border-[#e2d7c8] bg-[#fff6e8] px-3 py-2 text-sm font-bold text-[#5b3d29]">
           {couponNotice}
         </p>
       ) : null}
@@ -1695,7 +1695,7 @@ function PaywallModal({
                         className={[
                           'rounded-full border px-3 py-1 text-xs font-semibold',
                           checkoutSession.plan === 'credits_50'
-                            ? 'border-black bg-[#e3fbf7] text-black'
+                            ? 'border-black bg-[#fff6e8] text-black'
                             : 'border-white/40 bg-white/10 text-white',
                         ].join(' ')}
                       >
@@ -1742,7 +1742,7 @@ function PaywallModal({
           ) : (
             <>
               {resumePlan ? (
-                <div className="rounded-[22px] border border-[#ded2c3] bg-[#e3fbf7] p-3">
+                <div className="rounded-[22px] border border-[#ded2c3] bg-[#fff6e8] p-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8b2d10]">תשלום פתוח</p>
                   <p className="mt-1 text-sm font-bold leading-6 text-black">
                     אפשר להמשיך את התשלום האחרון, לבחור מסלול אחר, או לרענן את מצב החשבון אם כבר שילמתם.
@@ -1752,7 +1752,7 @@ function PaywallModal({
                       type="button"
                       onClick={() => onResumeCheckout(resumePlan)}
                       disabled={isCheckoutLoading || !canStartCheckout}
-                      className={`min-h-[42px] rounded-full border border-[#ded2c3] bg-[#e3fbf7] px-3.5 py-2 text-sm font-semibold text-black transition disabled:cursor-not-allowed disabled:opacity-70 ${lightSurfaceFocusClass}`}
+                      className={`min-h-[42px] rounded-full border border-[#ded2c3] bg-[#fff6e8] px-3.5 py-2 text-sm font-semibold text-black transition disabled:cursor-not-allowed disabled:opacity-70 ${lightSurfaceFocusClass}`}
                     >
                       להמשיך תשלום
                     </button>
@@ -1770,7 +1770,7 @@ function PaywallModal({
               <div className="rounded-[24px] border border-[#ded2c3] bg-white p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <span className="rounded-full border border-black bg-[#e3fbf7] px-3 py-1 text-xs font-semibold text-black">
+                    <span className="rounded-full border border-black bg-[#fff6e8] px-3 py-1 text-xs font-semibold text-black">
                       {CREDIT_PLAN_COPY.badge}
                     </span>
                     <h3 className="mt-3 text-lg font-semibold text-black">{CREDIT_PLAN_COPY.title}</h3>
@@ -1783,7 +1783,7 @@ function PaywallModal({
                   type="button"
                   onClick={() => onSelectPlan('credits_50')}
                   disabled={isCheckoutLoading || !canStartCheckout}
-                  className={`sb-primary-button mt-4 min-h-[48px] w-full rounded-2xl border border-[#ded2c3] bg-[#e3fbf7] px-4 py-3 text-sm font-semibold text-black transition disabled:cursor-not-allowed disabled:opacity-70 ${lightSurfaceFocusClass}`}
+                  className={`sb-primary-button mt-4 min-h-[48px] w-full rounded-2xl border border-[#ded2c3] bg-[#fff6e8] px-4 py-3 text-sm font-semibold text-black transition disabled:cursor-not-allowed disabled:opacity-70 ${lightSurfaceFocusClass}`}
                 >
                   {!isRecoverableAccount
                     ? 'קודם שומרים גישה באימייל'
@@ -4645,7 +4645,7 @@ export default function Home({
               className={[
                 'sm:hidden rounded-[20px] border px-3.5 py-3',
                 mobileComposeHelper.tone === 'ready'
-                  ? 'border-[#b8e7df] bg-[#e3fbf7]'
+                  ? 'border-[#e2d7c8] bg-[#fff6e8]'
                   : 'border-[#ffc4b5] bg-[#fff0ea]',
               ].join(' ')}
             >
@@ -4654,12 +4654,12 @@ export default function Home({
             </div> : null}
 
             {showDeepLinkPrefillBanner ? (
-              <div className="flex w-full min-w-0 flex-col gap-2 rounded-[22px] border border-[#b8e7df] bg-[#e3fbf7] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm font-semibold text-[#123a36]">{DEEP_LINK_PREFILL_BANNER_TEXT}</p>
+              <div className="flex w-full min-w-0 flex-col gap-2 rounded-[22px] border border-[#e2d7c8] bg-[#fff6e8] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm font-semibold text-[#5b3d29]">{DEEP_LINK_PREFILL_BANNER_TEXT}</p>
                 <button
                   type="button"
                   onClick={() => setShowDeepLinkPrefillBanner(false)}
-                  className={`min-h-[38px] rounded-full border border-[#b8e7df] bg-white px-3 py-1 text-xs font-semibold text-[#123a36] ${lightSurfaceFocusClass}`}
+                  className={`min-h-[38px] rounded-full border border-[#e2d7c8] bg-white px-3 py-1 text-xs font-semibold text-[#5b3d29] ${lightSurfaceFocusClass}`}
                 >
                   סגור
                 </button>
@@ -4965,8 +4965,8 @@ export default function Home({
               )}
 
               {!isNoReplyMode && previousOutgoingMessage ? (
-                <details className="rounded-2xl border border-[#b8e7df] bg-[#f0faf7] p-3">
-                  <summary className={`min-h-11 cursor-pointer py-2 text-sm font-bold text-[#123a36] ${lightSurfaceFocusClass}`}>בהמשך למה ששלחת · הקשר זמני</summary>
+                <details className="rounded-2xl border border-[#e2d7c8] bg-[#fffaf2] p-3">
+                  <summary className={`min-h-11 cursor-pointer py-2 text-sm font-bold text-[#5b3d29] ${lightSurfaceFocusClass}`}>בהמשך למה ששלחת · הקשר זמני</summary>
                   <p dir="auto" className="whitespace-pre-wrap text-start text-sm leading-6 text-[#463b33] [overflow-wrap:anywhere]">{previousOutgoingMessage}</p>
                   <button type="button" onClick={() => setPreviousOutgoingMessage('')} className={`mt-2 min-h-11 rounded-xl px-3 text-xs font-bold underline ${lightSurfaceFocusClass}`}>להמשיך בלי ההקשר הקודם</button>
                 </details>
@@ -5025,7 +5025,7 @@ export default function Home({
                 </button>
                 {accountStatusLine ? <p className="sb-status">{accountStatusLine}</p> : null}
                 {paymentNotice ? (
-                  <p className="rounded-2xl border border-[#b8e7df] bg-[#e3fbf7] px-4 py-3 text-sm font-semibold text-[#123a36]">
+                  <p className="rounded-2xl border border-[#e2d7c8] bg-[#fff6e8] px-4 py-3 text-sm font-semibold text-[#5b3d29]">
                     {paymentNotice}
                   </p>
                 ) : null}
@@ -5047,7 +5047,7 @@ export default function Home({
             ref={resultsSectionRef}
             id="results-section"
             className={[
-              'sb-results-panel sb-motion-panel mobile-section-anchor w-full min-w-0 space-y-4 rounded-[28px] border border-[#d3e4df] bg-white p-3.5 shadow-[0_20px_55px_rgba(18,58,54,0.1)] sm:rounded-[32px] sm:p-5',
+              'sb-results-panel sb-motion-panel mobile-section-anchor w-full min-w-0 space-y-4 rounded-[28px] border border-[#e2d7c8] bg-white p-3.5 shadow-[0_20px_55px_rgba(18,58,54,0.1)] sm:rounded-[32px] sm:p-5',
               mobilePrimaryView === 'results' ? 'block' : 'hidden lg:block',
             ].join(' ')}
           >
@@ -5151,7 +5151,7 @@ export default function Home({
                         type="button"
                         onClick={handleNewMessage}
                         disabled={isGenerating}
-                        className={`min-h-[40px] rounded-full border border-[#b8e7df] bg-[#e3fbf7] px-3 py-1.5 text-xs font-semibold text-[#123a36] transition hover:bg-[#cef6ef] ${whiteSurfaceFocusClass}`}
+                        className={`min-h-[40px] rounded-full border border-[#e2d7c8] bg-[#fff6e8] px-3 py-1.5 text-xs font-semibold text-[#5b3d29] transition hover:bg-[#f6ead8] ${whiteSurfaceFocusClass}`}
                       >
                         הודעה חדשה
                       </button>

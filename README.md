@@ -14,7 +14,7 @@ Actual local UI captures with synthetic authentication, billing and generation. 
 
 ## See the workflow
 
-![Full-width aligned reply direction toolbar](docs/screenshots/direction-toolbar-desktop.jpg)
+![SayBack conversation studio in its original cream, orange and warm ink palette](docs/screenshots/design-home-desktop.png)
 
 **One message → choose directions → compare three replies → copy or refine.**
 The compact controls keep tone, recipient context, goal, language preferences,
@@ -24,13 +24,18 @@ Open one inline editor, choose an option, and keep the selected value in view.
 <table>
   <tr><th width="50%">1. Write and choose a direction</th><th width="50%">2. Compare and refine</th></tr>
   <tr>
-    <td valign="top"><img src="docs/screenshots/direction-toolbar-mobile.jpg" alt="Mobile composer with message input, compact reply directions and generation button visible together." width="360"></td>
-    <td valign="top"><img src="docs/screenshots/reply-results-mobile.png" alt="Three synthetic Hebrew reply suggestions with copy, soften, sharpen, and retry controls." width="360"></td>
+    <td valign="top"><img src="docs/screenshots/design-home-mobile.png" alt="Mobile composer with message input, compact reply directions and generation button visible together." width="360"></td>
+    <td valign="top"><img src="docs/screenshots/design-results-mobile.png" alt="Three synthetic Hebrew reply suggestions with copy, soften, sharpen, and retry controls." width="360"></td>
   </tr>
   <tr><td>No direction is required. Start with the default <strong>זורם</strong> tone and add context only when useful.</td><td>Review the wording and choose what fits. SayBack leaves sending the message to you.</td></tr>
 </table>
 
-*Composer captures updated November 14, 2026, from the local app. The results capture is from November 6 with mocked authentication, billing and generation; its replies are synthetic. These captures do not verify live AI or payments. [Capture details and walkthrough](docs/walkthrough.md).*
+*Updated November 15, 2026. Local browser captures use synthetic authentication, billing and replies; they do not verify live AI or payments.*
+
+The visual refresh keeps SayBack’s cream, orange and warm ink identity. A clear white writing surface sits beside a conversation preview with three labelled alternatives. The larger input, quieter supporting actions, compact direction toolbar and stronger primary action establish a clear reading order. The same warm surfaces carry into results, follow-ups, pricing and help. No green is part of the refreshed palette; accent and success tokens use warm gold and sand.
+
+Checked in Chromium at 320, 360, 390, 768, 1024 and 1440px: RTL, document overflow, three reply cards, copy/refine states, screenshot input, follow-up duration, account focus and all six direction dialogs. Lint, TypeScript, 174 regression tests and the production build pass. See [visual verification details](docs/design-verification.md). Physical phone keyboards, live Firebase authentication, live AI and Stripe payment/webhook reconciliation remain unverified in this design pass.
+
 
 ## Send a follow-up
 
