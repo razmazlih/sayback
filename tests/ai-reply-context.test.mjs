@@ -7,7 +7,7 @@ import ts from 'typescript';
 
 const require = createRequire(import.meta.url);
 const root = resolve(import.meta.dirname, '..');
-function engine({ local = true, result = { intent: 'בירור', replies: ['אפשר עוד פרטים?', 'מה האפשרויות מבחינתך?', 'נמשיך לדבר ונראה.'] } } = {}) {
+function engine({ local = true, result = { intent: 'בירור', replies: ['אפשר עוד פרטים?', 'מה האפשרויות מבחינתך?', 'נמשיך לדבר ונראה.'] }, screenshotTranscript = { readable: true, turns: [{ speaker: 'other', text: 'אשלח את הטבלה. איזה פורמט עדיף?' }, { speaker: 'user', text: 'אקסל בבקשה' }] }, screenshotRawOutput, screenshotStatus = 200 } = {}) {
   const requests = [];
   const cache = new Map();
   function load(file) {
@@ -17,9 +17,14 @@ function engine({ local = true, result = { intent: 'בירור', replies: ['אפ
     cache.set(file, loadedModule.exports);
     const localRequire = (id) => id.startsWith('@/') ? load(resolve(root, `${id.slice(2)}.ts`)) : id.startsWith('.') ? load(resolve(file, '..', `${id}.ts`)) : require(id);
     new Function('require', 'module', 'exports', 'process', 'fetch', 'AbortSignal', output)(localRequire, loadedModule, loadedModule.exports, { env: { LOCAL_FREE_AI: String(local), OPENAI_API_KEY: 'test-only-key' } }, async (_url, init) => {
-      requests.push(JSON.parse(init.body));
+      const request = JSON.parse(init.body);
+      requests.push(request);
       if (local) throw new Error('LOCAL_FREE_AI must not call the network');
-      return new Response(JSON.stringify({ output_text: JSON.stringify(result) }), { status: 200 });
+      const isScreenshot = request.text?.format?.name === 'sayback_screenshot_transcript';
+      if (isScreenshot && screenshotStatus !== 200) return new Response(JSON.stringify({ error: { message: 'upstream unavailable' } }), { status: screenshotStatus });
+      if (isScreenshot && screenshotRawOutput !== undefined) return new Response(JSON.stringify({ output_text: screenshotRawOutput }), { status: 200 });
+      const output = isScreenshot ? screenshotTranscript : result;
+      return new Response(JSON.stringify({ output_text: JSON.stringify(output) }), { status: 200 });
     }, AbortSignal);
     return loadedModule.exports;
   }
@@ -31,6 +36,84 @@ function shape(result) {
   assert.equal(new Set(result.replies).size, 3);
   for (const reply of result.replies) assert.ok(reply.length > 0 && reply.length <= 220);
 }
+
+test('screenshots reach the vision request at high detail with full-screen conversation safeguards', async () => {
+  const ai = engine({ local: false });
+  const imageBase64 = 'data:image/png;base64,iVBORw0KGgo=';
+  const result = await ai.generateReplies({ imageBase64 });
+  shape(result);
+  assert.equal(ai.requests.length, 2);
+  const request = ai.requests[0];
+  assert.equal(request.store, false);
+  assert.deepEqual(request.input[0].content.find((item) => item.type === 'input_image'), {
+    type: 'input_image', image_url: imageBase64, detail: 'high',
+  });
+  const instructions = request.instructions;
+  assert.match(instructions, /latest incoming/i, 'Target the received message rather than the last visible text');
+  assert.match(instructions, /outgoing|sent messages/i, 'Separate the user’s own messages');
+  assert.match(instructions, /keyboard/i, 'Ignore full-screen keyboard content');
+  assert.match(instructions, /draft/i, 'Do not mistake an unsent composer for a received message');
+  assert.match(instructions, /ambiguous|unreadable/i, 'Handle uncertainty instead of inventing message content');
+  const generation = ai.requests[1];
+  assert.equal(generation.input[0].content.some((item) => item.type === 'input_image'), false);
+  const text = generation.input[0].content.filter((item) => item.type === 'input_text').map((item) => item.text).join('\n');
+  assert.ok(text.includes('אשלח את הטבלה. איזה פורמט עדיף?'));
+  assert.ok(text.includes('אקסל בבקשה'));
+  const transcript = text.slice(text.indexOf('Visible screenshot transcript'));
+  assert.ok(transcript.indexOf('אשלח את הטבלה. איזה פורמט עדיף?') < transcript.indexOf('אקסל בבקשה'), 'Preserve chronological ordering of received and sent turns');
+  assert.match(transcript, /YOU ALREADY SENT/);
+  assert.match(transcript, /No new incoming reply is visible/);
+  assert.match(text, /מצב לא ענה הרבה זמן: כן/);
+});
+
+test('explicit incoming text stays the reply target when the screenshot ends with an outgoing message', async () => {
+  const ai = engine({ local: false });
+  await ai.generateReplies({ message: 'ההודעה החדשה: מתי לדבר?', imageBase64: 'data:image/png;base64,iVBORw0KGgo=' });
+  assert.equal(ai.requests.length, 2);
+  const text = ai.requests[1].input[0].content[0].text;
+  assert.match(text, /מצב לא ענה הרבה זמן: לא/);
+  assert.match(text, /הודעה שהמשתמש קיבל:[\s\S]*ההודעה החדשה: מתי לדבר\?/);
+});
+
+test('malformed screenshot transcript fields fail before generation', async () => {
+  const invalid = [null, {}, { readable: 'true', turns: [{ speaker: 'other', text: 'היי' }] },
+    { readable: true, turns: [] }, { readable: true, turns: [{ speaker: 'unknown', text: 'היי' }] },
+    { readable: true, turns: [{ speaker: 'other', text: '  ' }] },
+    { readable: true, turns: [{ speaker: 'user', text: 'א'.repeat(2001) }] },
+    { readable: true, turns: Array.from({ length: 13 }, () => ({ speaker: 'other', text: 'היי' })) }];
+  for (const screenshotTranscript of invalid) {
+    const ai = engine({ local: false, screenshotTranscript });
+    await assert.rejects(ai.generateReplies({ imageBase64: 'data:image/png;base64,iVBORw0KGgo=' }),
+      (error) => error.status === 400 && /[א-ת]/.test(error.message));
+    assert.equal(ai.requests.length, 1);
+  }
+});
+
+test('invalid extraction JSON and upstream failure stop before reply generation', async () => {
+  for (const options of [{ screenshotRawOutput: 'not valid json' }, { screenshotStatus: 503 }]) {
+    const ai = engine({ local: false, ...options });
+    await assert.rejects(ai.generateReplies({ imageBase64: 'data:image/png;base64,iVBORw0KGgo=' }),
+      (error) => error.status >= 500 && /[א-ת]/.test(error.message));
+    assert.equal(ai.requests.length, 1);
+  }
+});
+
+test('unreadable screenshots fail explicitly before reply generation', async () => {
+  const ai = engine({ local: false, screenshotTranscript: { readable: false, turns: [] } });
+  await assert.rejects(ai.generateReplies({ imageBase64: 'data:image/png;base64,iVBORw0KGgo=' }),
+    (error) => error.status === 400 && /[א-ת]/.test(error.message));
+  assert.equal(ai.requests.length, 1, 'An unreadable image must not trigger a reply-generation call');
+  assert.equal(ai.requests[0].text.format.name, 'sayback_screenshot_transcript');
+});
+
+test('local mode rejects screenshots explicitly without calling a model, including when text is attached', async () => {
+  const ai = engine();
+  for (const message of [undefined, 'היי, מה קורה?']) {
+    await assert.rejects(ai.generateReplies({ message, imageBase64: 'data:image/png;base64,iVBORw0KGgo=' }),
+      (error) => error.status === 400 && /[א-ת]/.test(error.message));
+  }
+  assert.equal(ai.requests.length, 0);
+});
 
 test('continuing is not accepting an offer; closing is not disagreement', async () => {
   const ai = engine();
