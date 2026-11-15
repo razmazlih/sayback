@@ -15,6 +15,7 @@ import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { AccountDialog, ConversationDemo, ConversationGuide, ConversationHeader } from '@/components/conversation-experience';
 import './conversation-experience.css';
+import { DurationIcon } from '@/components/duration-icon';
 import {
   ConversationMemoryDialog,
   ManageConversationsDialog,
@@ -1864,7 +1865,7 @@ export default function Home({
   const lastOutgoingInputRef = useRef<HTMLTextAreaElement | null>(null);
   const noReplyDurationPresetRef = useRef<HTMLButtonElement | null>(null);
   const noReplyDurationInputRef = useRef<HTMLInputElement | null>(null);
-  const noReplyDurationUnitRef = useRef<HTMLSelectElement | null>(null);
+  const noReplyDurationUnitRef = useRef<HTMLInputElement | null>(null);
   const [directionField, setDirectionField] = useState<DirectionField | null>(null);
   const composeSectionRef = useRef<HTMLDivElement | null>(null);
   const resultsSectionRef = useRef<HTMLDivElement | null>(null);
@@ -4806,8 +4807,8 @@ export default function Home({
                             aria-describedby={hasTriedNoReplyContinue && trimmedLastOutgoingMessage && !hasValidNoReplyDuration ? 'no-reply-duration-error' : undefined}
                             className="sb-duration-option"
                           >
-                            <span className="sb-duration-icon"><DirectionIcon name={preset.unit === 'days' ? 'calendar' : 'clock'} /></span>
-                            {preset.label}
+                            <span className="sb-duration-icon"><DurationIcon unit={preset.unit} multiple={preset.unit === 'days' && preset.value !== '1'} /></span>
+                            <span className="sb-duration-option-label">{preset.label}</span>
                             {selected ? <svg className="sb-duration-check" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m3 8 3 3 7-7" /></svg> : null}
                           </button>
                         );
@@ -4831,8 +4832,7 @@ export default function Home({
                     </button>
                     {showCustomNoReplyDuration ? (
                     <div id="no-reply-custom-duration" className="sb-duration-custom-fields">
-                      <label htmlFor="no-reply-duration-value">כמה?</label>
-                      <label htmlFor="no-reply-duration-unit">יחידת זמן</label>
+                      <label className="sr-only" htmlFor="no-reply-duration-value">כמה?</label>
                       <input
                         id="no-reply-duration-value"
                         ref={noReplyDurationInputRef}
@@ -4850,33 +4850,31 @@ export default function Home({
                           );
                         }}
                         aria-label="מספר יחידות זמן"
-                        placeholder="למשל 3"
+                        placeholder="כמה?"
                         required
                         aria-invalid={((hasTriedNoReplyContinue && Boolean(trimmedLastOutgoingMessage)) || noReplyDurationValue.length > 0) && !hasValidNoReplyDuration}
                         aria-describedby={((hasTriedNoReplyContinue && Boolean(trimmedLastOutgoingMessage)) || noReplyDurationValue.length > 0) && !hasValidNoReplyDuration ? 'no-reply-duration-error' : undefined}
                         className={`min-h-[44px] w-full rounded-xl border bg-white px-3 py-2 text-sm font-bold text-[#241d18] outline-none transition focus:bg-[#fffdfa] ${((hasTriedNoReplyContinue && Boolean(trimmedLastOutgoingMessage)) || noReplyDurationValue.length > 0) && !hasValidNoReplyDuration ? 'border-[#c23318]' : 'border-[#ded2c3]'} ${lightSurfaceFocusClass}`}
                       />
-                      <select
-                        id="no-reply-duration-unit"
-                        ref={noReplyDurationUnitRef}
-                        aria-label="יחידת זמן ללא תשובה"
-                        value={noReplyDurationUnit}
-                        onChange={(event) => {
-                          setHasTriedNoReplyContinue(false);
-                          setNoReplyDurationUnit(event.target.value as NoReplyDurationUnitSelection);
-                        }}
-                        required
-                        aria-invalid={hasTriedNoReplyContinue && Boolean(trimmedLastOutgoingMessage) && hasValidNoReplyDuration && !hasNoReplyDurationUnit}
-                        aria-describedby={hasTriedNoReplyContinue && Boolean(trimmedLastOutgoingMessage) && hasValidNoReplyDuration && !hasNoReplyDurationUnit ? 'no-reply-duration-unit-error' : undefined}
-                        className={`min-h-[44px] w-full rounded-xl border bg-white px-3 py-2 text-sm font-semibold text-[#241d18] outline-none transition focus:bg-[#fffdfa] ${hasTriedNoReplyContinue && Boolean(trimmedLastOutgoingMessage) && hasValidNoReplyDuration && !hasNoReplyDurationUnit ? 'border-[#c23318]' : 'border-[#ded2c3]'} ${lightSurfaceFocusClass}`}
-                      >
-                        <option value="" disabled>בחרו יחידת זמן</option>
-                        {noReplyDurationUnitOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
+                      <fieldset className="sb-duration-units" aria-describedby={hasTriedNoReplyContinue && hasValidNoReplyDuration && !hasNoReplyDurationUnit ? 'no-reply-duration-unit-error' : undefined}>
+                        <legend className="sr-only">יחידת זמן</legend>
+                        {noReplyDurationUnitOptions.map((option, index) => (
+                          <label key={option.value}>
+                            <input
+                              ref={index === 0 ? noReplyDurationUnitRef : undefined}
+                              type="radio"
+                              name="no-reply-duration-unit"
+                              value={option.value}
+                              checked={noReplyDurationUnit === option.value}
+                              onChange={() => {
+                                setHasTriedNoReplyContinue(false);
+                                setNoReplyDurationUnit(option.value);
+                              }}
+                            />
+                            <span><DurationIcon unit={option.value} />{option.label}</span>
+                          </label>
                         ))}
-                      </select>
+                      </fieldset>
                     </div>
                     ) : null}
                     {((hasTriedNoReplyContinue && Boolean(trimmedLastOutgoingMessage)) || noReplyDurationValue.length > 0) && !hasValidNoReplyDuration ? (

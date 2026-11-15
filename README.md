@@ -41,7 +41,7 @@ Checked in Chromium at 320, 360, 390, 768, 1024 and 1440px: RTL, document overfl
 
 **לשלוח הודעת המשך** opens the follow-up composer. Paste the last outgoing message
 and choose the elapsed time in one tap: half an hour, 3 hours, a day, or 3 days.
-**זמן אחר** opens the exact number and minutes/hours/days controls. It can be collapsed without losing the selected duration, which stays visible in the trigger. Time presets use the same cream cards, original SVG icons and gold selection treatment as the reply directions; they fill two phone columns or one desktop row.
+**זמן אחר** opens one compact row: a number and direct minutes/hours/days radio choices, each with a matching time icon. It can be collapsed without losing the selected duration, which stays visible in the trigger. Time presets share one cream selection rail with original stopwatch, clock and calendar SVG icons and a warm gold selection treatment; they fill two phone columns or one desktop row.
 No time is selected by default.
 
 If a required detail is missing, the generation button remains clickable: it gently scrolls to and focuses the first missing field, with one short inline hint. Missing elapsed time points to the preset choices; custom fields open only when requested. Hints clear when corrected, reduced-motion preferences are respected, and generation remains disabled while a request is running. Verified in Chromium at 390px and 849px using synthetic generation.
@@ -54,9 +54,12 @@ If a required detail is missing, the generation button remains clickable: it gen
 
 ![Full-width follow-up toolbar on desktop](docs/screenshots/followup-toolbar-desktop.jpg)
 
-<img src="docs/screenshots/followup-duration-custom-mobile.jpg" alt="Custom elapsed time with labelled number and unit fields and the selected duration in its trigger" width="360">
+<img src="docs/screenshots/duration-picker-mobile.png" alt="Custom elapsed time with labelled number and unit fields and the selected duration in its trigger" width="360">
 
-*Elapsed-time controls checked at 320px, 378px and 849px: all four presets, custom five-hour entry, collapse/reopen retention and return to a preset. No generation or payment was submitted.*
+*Updated November 15: custom units and presets checked at 320px, 390px and 849px. All unit targets are at least 44px, selection survives collapsing and reopening, missing-unit guidance focuses the first choice, and a synthetic five-hour request retains its value and unit. No live AI or payment was submitted.*
+
+![Illustrated duration choices on desktop](docs/screenshots/duration-picker-desktop.png)
+
 
 ## What it does
 
