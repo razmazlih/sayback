@@ -39,27 +39,17 @@ Checked in Chromium at 320, 360, 390, 768, 1024 and 1440px: RTL, document overfl
 
 ## Send a follow-up
 
-**לשלוח הודעת המשך** opens the follow-up composer. Paste the last outgoing message
-and choose the elapsed time in one tap: half an hour, 3 hours, a day, or 3 days.
-**זמן אחר** opens one compact row: a number and direct minutes/hours/days radio choices, each with a matching time icon. It can be collapsed without losing the selected duration, which stays visible in the trigger. Time presets share one cream selection rail with original stopwatch, clock and calendar SVG icons and a warm gold selection treatment; they fill two phone columns or one desktop row.
-No time is selected by default.
+**לשלוח הודעת המשך** opens the follow-up composer. Paste the last outgoing message and choose how long it has been. One picker offers five equal choices: half an hour, 3 hours, a day, 3 days, or **זמן אחר**. Large numbers, original time illustrations and warm gold selection make the choice easy to scan. The five cards use one desktop row and a balanced 3+2 phone layout.
 
-If a required detail is missing, the generation button remains clickable: it gently scrolls to and focuses the first missing field, with one short inline hint. Missing elapsed time points to the preset choices; custom fields open only when requested. Hints clear when corrected, reduced-motion preferences are respected, and generation remains disabled while a request is running. Verified in Chromium at 390px and 849px using synthetic generation.
+**זמן אחר** reveals a small labelled editor with a number and direct minutes/hours/days choices. The selected duration stays visible above the cards, including after the editor is closed. No time is selected by default. Exact values and existing generation payloads are preserved.
 
-<img src="docs/screenshots/followup-missing-field-mobile.png" alt="Follow-up composer focusing the missing outgoing message with a single inline hint" width="360">
+If a required detail is missing, clicking the generation action gently scrolls to and focuses the first missing field, with one short inline hint. Correcting the field clears the hint. Reduced-motion preferences are respected, and the action is disabled during generation.
 
-<img src="docs/screenshots/followup-toolbar-mobile.jpg" alt="Hebrew follow-up composer with one-tap elapsed-time choices" width="360" />
+<img src="docs/screenshots/duration-picker-mobile.png" alt="Rebuilt duration picker with five illustrated choices and a compact custom-time editor" width="390">
 
-*Local browser capture updated November 14, 2026. Follow-up toolbar verified in the actual app at 320×568, 378×902 and 849×902: it fills the composer width (270px, 328px and 751px respectively), with four equal-height tiles in a 2×2 phone grid or one desktop row. At 378×400 while editing, the compact strip and generation action share the same 23px side insets. These are emulated viewport checks, not a physical-device keyboard test.*
+![Rebuilt duration picker on desktop](docs/screenshots/duration-picker-desktop.png)
 
-![Full-width follow-up toolbar on desktop](docs/screenshots/followup-toolbar-desktop.jpg)
-
-<img src="docs/screenshots/duration-picker-mobile.png" alt="Custom elapsed time with labelled number and unit fields and the selected duration in its trigger" width="360">
-
-*Updated November 15: custom units and presets checked at 320px, 390px and 849px. All unit targets are at least 44px, selection survives collapsing and reopening, missing-unit guidance focuses the first choice, and a synthetic five-hour request retains its value and unit. No live AI or payment was submitted.*
-
-![Illustrated duration choices on desktop](docs/screenshots/duration-picker-desktop.png)
-
+*Updated November 15, 2026. Chromium checks at 320, 390 and 849px verified no horizontal overflow, 44px minimum unit targets, selection, missing-unit focus, collapse/reopen retention and a synthetic five-hour generation payload. No physical-device keyboard, live AI or payment verification is included.*
 
 ## What it does
 

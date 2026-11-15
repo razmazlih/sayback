@@ -34,8 +34,11 @@ No physical-device keyboard test, live Firebase authentication, live AI output-q
 
 Verified after the follow-up validation update at 390×900 and 849×900, with reduced motion on the phone and smooth scrolling at 849px. Clicking the muted generation action focuses and reveals the first missing detail: outgoing message, a duration preset, or the custom time unit. Only the relevant inline hint appears; typing clears it. Incomplete submissions make no generation request, a valid submission makes one, and the action is disabled while generation is pending. The custom duration editor does not open automatically. Full regression suite: 175 tests passed.
 
-## Compact illustrated duration picker
+## Rebuilt duration picker
 
-The custom time unit dropdown is replaced by native radio choices for minutes, hours and days beside the number input. Stopwatch, clock and calendar SVGs distinguish the units; the quick presets share the same illustrations inside a single cream selection rail. Selected choices retain the warm gold treatment. Chromium checks at 320, 390 and 849px verified no document overflow, 44px minimum unit targets, all three selections, missing-unit focus, collapse/reopen retention and a synthetic five-hour generation payload. Lint, TypeScript, generator-flow tests and production build passed.
+The elapsed-time section is rebuilt as one five-choice picker: four illustrated presets and a custom-time card. Preset amounts are prominent, the custom option shares the grid, and a selected-duration badge remains visible above it. The custom card opens a contained, labelled number-and-unit editor. Mobile uses a balanced 3+2 grid; desktop uses five columns. The cream, orange, warm ink and gold palette is preserved.
 
-![Compact duration picker](screenshots/duration-picker-mobile.png)
+Chromium checks at 320, 390 and 849px verified no document overflow, 44px minimum unit targets, all unit selections, missing-unit focus, collapse/reopen retention and a synthetic five-hour generation payload. Lint, TypeScript, generator-flow tests and production build passed. Screenshots use synthetic identity and generation; live AI and payments are not verified.
+
+![Rebuilt mobile duration picker](screenshots/duration-picker-mobile.png)
+![Rebuilt desktop duration picker](screenshots/duration-picker-desktop.png)

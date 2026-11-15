@@ -2077,6 +2077,12 @@ export default function Home({
   const hasNoReplyDurationUnit = noReplyDurationUnit !== '';
   const hasCustomNoReplyDuration = hasValidNoReplyDuration && hasNoReplyDurationUnit &&
     !noReplyDurationPresets.some((preset) => preset.value === noReplyDurationValue && preset.unit === noReplyDurationUnit);
+  const selectedDurationUnitLabel = noReplyDurationValue === '1'
+    ? ({ minutes: 'דקה', hours: 'שעה', days: 'יום' } as const)[noReplyDurationUnit || 'minutes']
+    : noReplyDurationUnitOptions.find((option) => option.value === noReplyDurationUnit)?.label ?? '';
+  const selectedDurationLabel = noReplyDurationPresets.find(
+    (preset) => preset.value === noReplyDurationValue && preset.unit === noReplyDurationUnit,
+  )?.label ?? `${noReplyDurationValue} ${selectedDurationUnitLabel}`;
   const isNoReplyReady =
     Boolean(trimmedLastOutgoingMessage) && hasValidNoReplyDuration && hasNoReplyDurationUnit;
   const generateButtonLabel = isLoading
@@ -4788,15 +4794,20 @@ export default function Home({
                     <legend className="sb-duration-heading">
                       <DirectionIcon name="clock" />כמה זמן עבר? <span aria-hidden="true" className="text-[#c23318]">*</span>
                     </legend>
-                    <p className="sb-duration-help">גם בערך זה בסדר.</p>
+                    <div className="sb-duration-intro">
+                      <p className="sb-duration-help">לא צריך לדייק. בחרו מה שהכי קרוב.</p>
+                      <span className="sb-duration-selection" hidden={!hasValidNoReplyDuration || !hasNoReplyDurationUnit} aria-live="polite">{selectedDurationLabel}</span>
+                    </div>
                     <div className="sb-duration-presets">
                       {noReplyDurationPresets.map((preset, index) => {
                         const selected = !showCustomNoReplyDuration && noReplyDurationValue === preset.value && noReplyDurationUnit === preset.unit;
+                        const [amount, unitLabel] = preset.label === 'חצי שעה' ? ['½', 'שעה'] : preset.label === 'יום' ? ['1', 'יום'] : preset.label.split(' ');
                         return (
                           <button
                             key={preset.label}
                             type="button"
                             aria-pressed={selected}
+                            aria-label={preset.label}
                             onClick={() => {
                               setNoReplyDurationValue(preset.value);
                               setNoReplyDurationUnit(preset.unit);
@@ -4808,29 +4819,30 @@ export default function Home({
                             className="sb-duration-option"
                           >
                             <span className="sb-duration-icon"><DurationIcon unit={preset.unit} multiple={preset.unit === 'days' && preset.value !== '1'} /></span>
-                            <span className="sb-duration-option-label">{preset.label}</span>
+                            <span className="sb-duration-option-label"><strong>{amount}</strong><span>{unitLabel}</span></span>
                             {selected ? <svg className="sb-duration-check" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m3 8 3 3 7-7" /></svg> : null}
                           </button>
                         );
                       })}
-                    </div>
                     <button
                       type="button"
+                      aria-label="זמן אחר"
                       aria-expanded={showCustomNoReplyDuration}
                       aria-controls="no-reply-custom-duration"
-                      data-selected={hasCustomNoReplyDuration || undefined}
+                      data-selected={showCustomNoReplyDuration || hasCustomNoReplyDuration || undefined}
                       onClick={() => {
                         setShowCustomNoReplyDuration((visible) => !visible);
                         setHasTriedNoReplyContinue(false);
                       }}
                       className="sb-duration-custom-trigger"
                     >
-                      <DirectionIcon name="note" />
-                      זמן אחר
-                      {hasCustomNoReplyDuration ? <span className="sb-duration-custom-value">{noReplyDurationValue} {noReplyDurationUnitOptions.find((option) => option.value === noReplyDurationUnit)?.label}</span> : null}
-                      <svg className="sb-duration-chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
+                      <span className="sb-duration-icon"><DirectionIcon name="note" /></span>
+                      <span className="sb-duration-custom-label">זמן אחר<small>בדיוק שלכם</small></span>
                     </button>
+                    </div>
                     {showCustomNoReplyDuration ? (
+                    <div className="sb-duration-editor">
+                    <div className="sb-duration-editor-heading"><span>כמה זמן עבר?</span><span>מספר + יחידת זמן</span></div>
                     <div id="no-reply-custom-duration" className="sb-duration-custom-fields">
                       <label className="sr-only" htmlFor="no-reply-duration-value">כמה?</label>
                       <input
@@ -4875,6 +4887,7 @@ export default function Home({
                           </label>
                         ))}
                       </fieldset>
+                    </div>
                     </div>
                     ) : null}
                     {((hasTriedNoReplyContinue && Boolean(trimmedLastOutgoingMessage)) || noReplyDurationValue.length > 0) && !hasValidNoReplyDuration ? (
