@@ -33,7 +33,7 @@ SayBack is a live, Hebrew-first web app for personal conversations, customer mes
 - **Reply in your own direction.** Focused dialogs offer tone, context, goals, conversation continuation, and optional background. Open **להתאים את הסגנון** for optional direction controls; its summary retains the tone and recipient context.
 - **Get Hebrew phrasing right.** Choose how replies refer to you and the recipient. Your own grammatical preference is remembered in this browser; the recipient's is temporary.
 - **Refine without starting over.** Soften, sharpen, regenerate, or supply a custom rewriting instruction. Editing the incoming request marks older results as outdated.
-- **Follow up when there is no answer.** Switch to **לשלוח הודעת המשך**, add your last outgoing message, and choose how much time has passed, including a custom duration.
+- **Follow up when there is no answer.** Switch to **שלחתם ולא ענו?**, add your last outgoing message, and choose how much time has passed, including a custom duration.
 - **Use it on a phone.** RTL layout, a growing text field, compact controls, and scrollable dialogs keep the interaction focused.
 - **Keep account actions together.** The account dialog brings access status, email-link recovery, saved people, and available billing actions into one place.
 

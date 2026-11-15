@@ -35,7 +35,7 @@ Generation produces one short interpretation and exactly three reply cards. Revi
 
 ## 4. Follow up when there is no reply
 
-Choose **לשלוח הודעת המשך**, paste the last message you sent, and select the elapsed time. One five-card picker offers half an hour, three hours, a day, three days, and **זמן אחר**. The custom option opens a compact number input and illustrated minutes/hours/days choices. Clicking an incomplete request guides you to its first missing detail. No time is selected by default.
+Choose **שלחתם ולא ענו?**, paste the last message you sent, and select the elapsed time. One five-card picker offers half an hour, three hours, a day, three days, and **זמן אחר**. The custom option opens a compact number input and illustrated minutes/hours/days choices. Clicking an incomplete request guides you to its first missing detail. No time is selected by default.
 
 <img src="screenshots/followup-compose-mobile.png" alt="Follow-up mode with elapsed-time presets" width="360">
 

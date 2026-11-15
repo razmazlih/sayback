@@ -4708,15 +4708,15 @@ export default function Home({
                 <div className="sb-compose-mode">
                   <div className="sb-compose-mode-title">
                     <span className="sb-compose-mode-icon" aria-hidden="true"><DirectionIcon name={isNoReplyMode ? 'chat' : 'wave'} /></span>
-                    <div><h2>{isNoReplyMode ? 'הודעת המשך' : 'תשובה להודעה'}</h2>
-                    <p>{isNoReplyMode ? 'תזכורת קטנה, במילים שלכם.' : '3 דרכים לענות, בקול שלכם.'}</p></div>
+                    <div><h2>{isNoReplyMode ? 'עדיין לא ענו?' : 'תשובה להודעה'}</h2>
+                    <p>{isNoReplyMode ? 'ננסח הודעת המשך למה שכבר שלחתם.' : '3 דרכים לענות, בקול שלכם.'}</p></div>
                   </div>
                   <button
                     type="button"
                     onClick={() => handleComposeModeChange(isNoReplyMode ? 'incoming' : 'no_reply')}
                     className={`min-h-[44px] shrink-0 rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1.5 text-xs font-semibold text-[#7a2d19] transition hover:bg-[#ffe3da] ${lightSurfaceFocusClass}`}
                   >
-                    {isNoReplyMode ? 'לענות להודעה שקיבלתי' : 'לשלוח הודעת המשך'}
+                    {isNoReplyMode ? 'לענות להודעה שקיבלתי' : 'שלחתם ולא ענו?'}
                   </button>
                 </div>
               ) : (
