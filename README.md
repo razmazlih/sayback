@@ -8,7 +8,7 @@ SayBack is a live, Hebrew-first web app for personal conversations, customer mes
 
 **[Open the live website](https://sayback.vercel.app)** · [Visual walkthrough](docs/walkthrough.md) · [Watch the UI walkthrough](https://sayback.vercel.app/demo.html) · [Developer guide](docs/development.md)
 
-![SayBack desktop composer with Hebrew message input and reply-direction controls](docs/screenshots/direction-toolbar-desktop.jpg)
+![SayBack desktop composer with Hebrew message input and reply-direction controls](docs/screenshots/design-home-desktop.png)
 
 ## From message to reply
 
@@ -21,8 +21,8 @@ SayBack is a live, Hebrew-first web app for personal conversations, customer mes
 <table>
   <tr><th width="50%">Write and choose a direction</th><th width="50%">Compare three replies</th></tr>
   <tr>
-    <td valign="top"><img src="docs/screenshots/direction-toolbar-mobile.jpg" alt="Mobile composer with message input, reply directions and generation button" width="320"></td>
-    <td valign="top"><img src="docs/screenshots/reply-results-mobile.png" alt="Three illustrative Hebrew replies with copy and refinement actions" width="320"></td>
+    <td valign="top"><img src="docs/screenshots/design-home-mobile.png" alt="Mobile composer with message input, reply directions and generation button" width="320"></td>
+    <td valign="top"><img src="docs/screenshots/design-results-mobile.png" alt="Three illustrative Hebrew replies with copy and refinement actions" width="320"></td>
   </tr>
 </table>
 
@@ -30,24 +30,37 @@ SayBack is a live, Hebrew-first web app for personal conversations, customer mes
 
 ## Built around real conversations
 
-- **Reply in your own direction.** Focused dialogs offer tone, context, goals, conversation continuation, and optional background. Selected choices stay visible in the composer.
+- **Reply in your own direction.** Focused dialogs offer tone, context, goals, conversation continuation, and optional background. Open **להתאים את הסגנון** for optional direction controls; its summary retains the tone and recipient context.
 - **Get Hebrew phrasing right.** Choose how replies refer to you and the recipient. Your own grammatical preference is remembered in this browser; the recipient's is temporary.
 - **Refine without starting over.** Soften, sharpen, regenerate, or supply a custom rewriting instruction. Editing the incoming request marks older results as outdated.
-- **Follow up when there is no answer.** Switch to **לשלוח הודעת המשך**, add your last outgoing message, and choose how much time has passed, including a custom duration.
+- **Follow up when there is no answer.** Switch to **שלחתי ולא ענו**, add your last outgoing message, and choose how much time has passed, including a custom duration.
+- **Upload without file-size decisions.** Heavy images are compressed in the browser before sending; small supported PNG/JPEG/WebP originals stay unchanged. Encoding quality and dimensions adjust only as needed. Upload processing can be cancelled or replaced, and the old attachment cannot be submitted while a new one is being prepared.
 - **Use it on a phone.** RTL layout, a growing text field, compact controls, and scrollable dialogs keep the interaction focused.
 - **Keep account actions together.** The account dialog brings access status, email-link recovery, saved people, and available billing actions into one place.
 
 <table>
   <tr><th width="50%">Follow up thoughtfully</th><th width="50%">Keep account actions in one place</th></tr>
   <tr>
-    <td valign="top"><img src="docs/screenshots/followup-toolbar-mobile.jpg" alt="Follow-up composer with elapsed-time choices" width="300"></td>
+    <td valign="top"><img src="docs/screenshots/followup-compose-mobile.png" alt="Follow-up composer with elapsed-time choices" width="300"></td>
     <td valign="top"><img src="docs/screenshots/account-mobile.jpg" alt="Account dialog with access status, email-link recovery and saved people" width="300"></td>
   </tr>
 </table>
 
+## Phone-first composers
+
+A two-choice mode picker stays visible at the top of the composer: **קיבלתי הודעה** (reply to an incoming message) and **שלחתי ולא ענו** (follow up on an unanswered message). Each choice has an icon, a short explanation and an explicit selected state. Clicking the selected mode leaves the draft untouched; switching modes retains their respective message inputs and never generates automatically. Both choices support keyboard activation and phone touch targets. Focus rings appear for keyboard navigation and are suppressed for mouse/touch input, including a pointer click on a control that was previously keyboard-focused.
+
+Incoming replies and follow-ups share a compact header, numbered input, warm cream/orange surfaces and a clear generation action. Optional style preferences stay collapsed until requested. Follow-ups use five illustrated elapsed-time cards, including **זמן אחר**, which opens a compact number-and-unit editor. Minutes, hours and days are direct choices; the selected duration stays visible above the cards.
+
+Clicking an incomplete request focuses and reveals the first missing field with one short inline hint. Correcting the field clears the hint. During phone editing, the follow-up action remains visible and supporting content is reduced. Reduced-motion preferences are respected.
+
+Verified locally in Chromium at 320–1440px with synthetic services, including photo input, optional preferences, generation and a reduced-height 320/390×400 editing simulation. Lint, TypeScript, 176 regression tests and production build passed. Physical phone keyboards, live AI and real payments were not verified. [Detailed visual verification](docs/design-verification.md).
+
 **Availability is configuration-dependent.** The repository includes free-use limits, credit packs, subscriptions, coupons, and an open-access mode. The live site's current access policy may differ from a screenshot or local setup. Screenshot understanding requires the configured OpenAI mode; the local rule-based mode does not read images.
 
-**Screenshot support.** Heavy uploads are compressed in the browser; small supported originals remain unchanged. In OpenAI mode, high-detail vision extracts a validated, chronological conversation transcript before text-only reply generation. Keyboards and unsent drafts are excluded; ambiguous or unreadable images return a Hebrew error. Screenshot-only requests ending with your own sent message suggest an optional follow-up. Local AI mode rejects screenshots. Two model calls add latency and model usage. [Verification and limitations](docs/screenshot-verification.md).
+**Screenshot behavior and limits.** In OpenAI mode, screenshots use two model calls: high-detail vision first extracts a validated chronological transcript with explicit sender labels, then text-only generation suggests replies. Extraction ignores keyboards and unsent drafts; unreadable or ambiguous conversations return a Hebrew error before reply generation. When the phone owner sent the last visible message, screenshot-only requests suggest optional follow-ups without inventing elapsed time. Explicit pasted incoming text remains the reply target when supplied alongside an image. Full-screen captures can work when relevant bubbles and their senders are clearly visible; cropping can help with tiny text, long captures or visual clutter. Hidden or cut-off messages cannot be recovered. The local rule-based mode rejects image requests instead of pretending to read them. Browser tests cover compression, preservation and cancellation; mocked tests cover transcript validation, failure handling and request sequencing. These checks do not establish real-model accuracy across messaging apps or physical phones. Two-stage extraction adds latency and model usage compared with text-only requests.
+
+To repeat the live screenshot check, run `node --env-file=.env.local scripts/verify-screenshot-understanding.mjs` with Playwright installed (or set `SAYBACK_PLAYWRIGHT_MODULE` to its module path). This sends four synthetic Hebrew fixtures to the configured model three times, incurs API usage, and writes images plus results to `output/playwright/`. Review the recorded replies for speaker, draft and already-sent-answer mistakes; the script checks response shape, not semantic accuracy. Set `SAYBACK_SCREENSHOT_REPEATS=1` for a smaller run. [Latest screenshot verification](docs/screenshot-verification.md) records the live-model results and limitations.
 
 ## Engineering at a glance
 

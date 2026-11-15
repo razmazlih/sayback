@@ -25,11 +25,18 @@ export function ConversationHeader({ onOpenAccount }: { onOpenAccount: () => voi
         </nav>
       </div>
       <div className="sb-heading-block">
-        <p className="sb-eyebrow"><span aria-hidden="true" /> קצת עזרה עם המילים</p>
-        <h1>יש הודעה. <span>יש מה לענות.</span></h1>
-        <p className="sb-heading-description">
-          מדביקים הודעה או צילום מסך, ומקבלים 3 תשובות קצרות וטבעיות בעברית.
-        </p>
+        <div className="sb-heading-copy">
+          <p className="sb-eyebrow"><span aria-hidden="true" /> קצת עזרה עם המילים</p>
+          <h1>יש הודעה. <span>יש מה לענות.</span></h1>
+          <p className="sb-heading-description">
+            מדביקים הודעה או צילום מסך, ומקבלים 3 תשובות קצרות וטבעיות בעברית.
+          </p>
+        </div>
+        <div className="sb-heading-aside">
+          <span className="sb-heading-aside-mark" aria-hidden="true">״</span>
+          <p>המילים הנכונות.<br />עדיין בקול שלכם.</p>
+          <span>לשיחה אישית, להודעה בעבודה ולכל מה שביניהן.</span>
+        </div>
       </div>
     </header>
   );
@@ -62,7 +69,7 @@ export function ConversationDemo() {
         {DEMO_REPLIES.map((reply, index) => (
           <li key={reply}>
             <span className="sb-demo-reply-number" aria-hidden="true">0{index + 1}</span>
-            <p>{reply}</p>
+            <div><span className="sb-demo-reply-tone">{['פשוט לזרום', 'להציע משהו ברור', 'להשאיר פתח למחר'][index]}</span><p>{reply}</p></div>
           </li>
         ))}
       </ol>

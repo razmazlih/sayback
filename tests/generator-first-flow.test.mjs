@@ -7,7 +7,7 @@ import ts from "typescript";
 // interaction, focus and option access are verified by the mocked browser suite.
 const source = readFileSync(new URL("../app/home-page-client.tsx", import.meta.url), "utf8");
 const tree = ts.createSourceFile("home.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-const functions = ["getReplyContextForRequest", "getDraftRequest", "getActivationTimingPayload", "handleMainSubmit"];
+const functions = ["getReplyContextForRequest", "getDraftRequest", "getActivationTimingPayload", "handleMainSubmit", "focusComposeField"];
 const snippets = [];
 function visit(node) {
   if (ts.isFunctionDeclaration(node) && functions.includes(node.name?.text)) snippets.push(node.getText(tree));
@@ -22,7 +22,7 @@ const compiled = ts.transpileModule(snippets.join("\n"), {
 
 function harness(overrides = {}) {
   const calls = { generation: [], events: [], errors: [], focus: [], editor: [] };
-  const focusRef = (name) => ({ current: { focus: () => calls.focus.push(name) } });
+  const focusRef = (name) => ({ current: { focus: () => calls.focus.push(name), scrollIntoView: () => {} } });
   const scope = {
     isGenerating: false, isImageProcessing: false, isSessionReady: true, isNoReplyMode: false, composeMode: "incoming",
     message: "  תודה על ההודעה  ", imageBase64: null, lastOutgoingMessage: "",
@@ -40,7 +40,8 @@ function harness(overrides = {}) {
     setDirectionField: (value) => calls.editor.push(value),
     setRequestError: (value) => calls.errors.push(value),
     setHasTriedNoReplyContinue() {}, setShowCustomNoReplyDuration() {}, scrollToComposeSection() {}, scrollToMobileSection() {},
-    isCompactViewport: () => false,
+    isCompactViewport: () => false, getPreferredScrollBehavior: () => "auto",
+    showCustomNoReplyDuration: false, noReplyDurationPresetRef: focusRef("duration-presets"),
     messageInputRef: focusRef("message"), lastOutgoingInputRef: focusRef("outgoing"),
     noReplyDurationInputRef: focusRef("duration"), noReplyDurationUnitRef: focusRef("unit"),
     trackEvent: (name, payload) => calls.events.push({ name, payload }),
@@ -127,9 +128,9 @@ test("no-reply uses its own goal and duration without incoming-only continuation
   assert.equal(payload.commitmentMode, undefined);
 });
 
-test("empty input, incomplete follow-up, disconnected auth and pending generation never submit", async () => {
+test("empty input, incomplete follow-up and pending generation never submit", async () => {
   for (const overrides of [
-    { message: " " }, { isSessionReady: false }, { isGenerating: true }, { isImageProcessing: true },
+    { message: " " }, { isGenerating: true }, { isImageProcessing: true },
     { isNoReplyMode: true },
     { isNoReplyMode: true, lastOutgoingMessage: "הודעה" },
     { isNoReplyMode: true, lastOutgoingMessage: "הודעה", hasValidNoReplyDuration: true },
@@ -138,5 +139,27 @@ test("empty input, incomplete follow-up, disconnected auth and pending generatio
     await submit();
     assert.equal(calls.generation.length, 0, JSON.stringify(overrides));
     assert.equal(calls.events.length, 0);
+  }
+});
+
+ test("valid input submits while anonymous authentication runs in the background", async () => {
+  const { submit, calls } = harness({ isSessionReady: false });
+  await submit();
+  assert.equal(calls.generation.length, 1);
+  assert.equal(calls.errors.length, 0);
+});
+
+test("incomplete follow-up points only to the first missing field without generating", async () => {
+  for (const [overrides, expectedFocus] of [
+    [{}, "outgoing"],
+    [{lastOutgoingMessage: "היי"}, "duration-presets"],
+    [{lastOutgoingMessage: "היי", showCustomNoReplyDuration: true}, "duration"],
+    [{lastOutgoingMessage: "היי", showCustomNoReplyDuration: true, hasValidNoReplyDuration: true}, "unit"],
+  ]) {
+    const {submit, calls} = harness({isNoReplyMode: true, ...overrides});
+    await submit();
+    assert.deepEqual(calls.focus, [expectedFocus]);
+    assert.equal(calls.generation.length, 0);
+    assert.deepEqual(calls.errors, [null], "No duplicate error banner");
   }
 });
