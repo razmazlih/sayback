@@ -212,12 +212,12 @@ const composeModeOptions: Array<{ value: ComposeMode; label: string; description
   {
     value: 'incoming',
     label: 'קיבלתי הודעה',
-    description: 'קיבלת הודעה חדשה ורוצה תשובה טובה ומהירה.',
+    description: 'לענות למה שכתבו לי',
   },
   {
     value: 'no_reply',
-    label: 'מחכה לתשובה',
-    description: 'רוצה לשלוח הודעה נוספת לשיחה שעוד לא נענתה.',
+    label: 'שלחתי ולא ענו',
+    description: 'לנסח הודעת המשך',
   },
 ];
 const noReplyDurationPresets: Array<{ label: string; value: string; unit: NoReplyDurationUnit }> = [
@@ -4705,19 +4705,23 @@ export default function Home({
 
             <div className="w-full min-w-0 space-y-4">
               {isGeneratorPrimaryMode ? (
-                <div className="sb-compose-mode">
-                  <div className="sb-compose-mode-title">
-                    <span className="sb-compose-mode-icon" aria-hidden="true"><DirectionIcon name={isNoReplyMode ? 'chat' : 'wave'} /></span>
-                    <div><h2>{isNoReplyMode ? 'עדיין לא ענו?' : 'תשובה להודעה'}</h2>
-                    <p>{isNoReplyMode ? 'ננסח הודעת המשך למה שכבר שלחתם.' : '3 דרכים לענות, בקול שלכם.'}</p></div>
+                <div className="sb-compose-mode sb-compose-mode-picker">
+                  <p className="sb-mode-question">מה קורה בשיחה?</p>
+                  <div className="sb-mode-options" role="group" aria-label="מצב כתיבה">
+                    {composeModeOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        aria-label={option.label}
+                        aria-pressed={composeMode === option.value}
+                        onClick={() => handleComposeModeChange(option.value)}
+                      >
+                        <span className="sb-mode-icon"><DirectionIcon name={option.value === 'incoming' ? 'chat' : 'clock'} /></span>
+                        <span className="sb-mode-copy"><strong>{option.label}</strong><small>{option.description}</small></span>
+                        <span className="sb-mode-indicator" aria-hidden="true">{composeMode === option.value ? <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="m3 8 3 3 7-7" /></svg> : null}</span>
+                      </button>
+                    ))}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleComposeModeChange(isNoReplyMode ? 'incoming' : 'no_reply')}
-                    className={`min-h-[44px] shrink-0 rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1.5 text-xs font-semibold text-[#7a2d19] transition hover:bg-[#ffe3da] ${lightSurfaceFocusClass}`}
-                  >
-                    {isNoReplyMode ? 'לענות להודעה שקיבלתי' : 'שלחתם ולא ענו?'}
-                  </button>
                 </div>
               ) : (
               <div className="rounded-[20px] border border-[#e4d8c8] bg-[#f8f3eb] p-3">

@@ -6,6 +6,8 @@ SayBack turns an incoming message into three short Hebrew reply suggestions. The
 
 ## 1. Add the message
 
+The composer starts with two visible mode choices: **קיבלתי הודעה** and **שלחתי ולא ענו**. Icons and a checked active state distinguish them. Choose the first for a message you received, or the second when your own message has not been answered.
+
 Paste text, choose a built-in example, or upload a screenshot. The text field grows with its contents. The incoming composer keeps the reply-direction controls and generation action together.
 
 <img src="screenshots/design-home-mobile.png" alt="Mobile incoming-message composer with compact directions" width="360">
@@ -35,7 +37,7 @@ Generation produces one short interpretation and exactly three reply cards. Revi
 
 ## 4. Follow up when there is no reply
 
-Choose **שלחתם ולא ענו?**, paste the last message you sent, and select the elapsed time. One five-card picker offers half an hour, three hours, a day, three days, and **זמן אחר**. The custom option opens a compact number input and illustrated minutes/hours/days choices. Clicking an incomplete request guides you to its first missing detail. No time is selected by default.
+Choose **שלחתי ולא ענו**, paste the last message you sent, and select the elapsed time. One five-card picker offers half an hour, three hours, a day, three days, and **זמן אחר**. The custom option opens a compact number input and illustrated minutes/hours/days choices. Clicking an incomplete request guides you to its first missing detail. No time is selected by default.
 
 <img src="screenshots/followup-compose-mobile.png" alt="Follow-up mode with elapsed-time presets" width="360">
 

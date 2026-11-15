@@ -33,7 +33,7 @@ SayBack is a live, Hebrew-first web app for personal conversations, customer mes
 - **Reply in your own direction.** Focused dialogs offer tone, context, goals, conversation continuation, and optional background. Open **להתאים את הסגנון** for optional direction controls; its summary retains the tone and recipient context.
 - **Get Hebrew phrasing right.** Choose how replies refer to you and the recipient. Your own grammatical preference is remembered in this browser; the recipient's is temporary.
 - **Refine without starting over.** Soften, sharpen, regenerate, or supply a custom rewriting instruction. Editing the incoming request marks older results as outdated.
-- **Follow up when there is no answer.** Switch to **שלחתם ולא ענו?**, add your last outgoing message, and choose how much time has passed, including a custom duration.
+- **Follow up when there is no answer.** Switch to **שלחתי ולא ענו**, add your last outgoing message, and choose how much time has passed, including a custom duration.
 - **Use it on a phone.** RTL layout, a growing text field, compact controls, and scrollable dialogs keep the interaction focused.
 - **Keep account actions together.** The account dialog brings access status, email-link recovery, saved people, and available billing actions into one place.
 
@@ -46,6 +46,8 @@ SayBack is a live, Hebrew-first web app for personal conversations, customer mes
 </table>
 
 ## Phone-first composers
+
+A two-choice mode picker stays visible at the top of the composer: **קיבלתי הודעה** (reply to an incoming message) and **שלחתי ולא ענו** (follow up on an unanswered message). Each choice has an icon, a short explanation and an explicit selected state. Clicking the selected mode leaves the draft untouched; switching modes retains their respective message inputs and never generates automatically. Both choices support keyboard activation and phone touch targets.
 
 Incoming replies and follow-ups share a compact header, numbered input, warm cream/orange surfaces and a clear generation action. Optional style preferences stay collapsed until requested. Follow-ups use five illustrated elapsed-time cards, including **זמן אחר**, which opens a compact number-and-unit editor. Minutes, hours and days are direct choices; the selected duration stays visible above the cards.
 

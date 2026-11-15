@@ -54,3 +54,7 @@ Lint, TypeScript, 175 regression tests and production build passed. Live AI and 
 <img src="screenshots/design-home-mobile.png" width="390" alt="Incoming composer on a phone">
 <img src="screenshots/followup-compose-mobile.png" width="390" alt="Matching follow-up composer on a phone">
 <img src="screenshots/followup-keyboard-mobile.png" width="390" alt="Simulated reduced-height phone editing">
+
+## Two visible writing modes
+
+A two-choice picker replaces the one-way mode links. Both options remain visible: incoming message and sent-but-unanswered message, with icons, descriptions and an exclusive `aria-pressed` state. Chromium checks at 320, 390, 849 and 1440px verified exactly two choices, 44px minimum targets, click/Space activation, retained message drafts, no automatic generation and the follow-up payload. The mode picker hides during compact phone editing and returns afterward. The regression suite remains at 175 passing tests.
