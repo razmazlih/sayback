@@ -1931,19 +1931,6 @@ export default function Home({
     };
   }, []);
 
-  useEffect(() => {
-    function resizeMessageInput() {
-      const input = messageInputRef.current;
-      if (!input) return;
-      input.style.height = '0px';
-      const border = input.offsetHeight - input.clientHeight;
-      input.style.height = `${input.scrollHeight + border}px`;
-    }
-    resizeMessageInput();
-    window.addEventListener('resize', resizeMessageInput);
-    return () => window.removeEventListener('resize', resizeMessageInput);
-  }, [message, composeMode, mobilePrimaryView]);
-
   const [languagePreferences, setLanguagePreferences] = useState<LanguagePreferences>({ speaker: 'neutral', recipient: 'neutral' });
   useEffect(() => {
     let cancelled = false;
@@ -1983,6 +1970,18 @@ export default function Home({
   const [isImageProcessing, setIsImageProcessing] = useState(false);
   const [imageName, setImageName] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
+  useEffect(() => {
+    function resizeMessageInput() {
+      const input = messageInputRef.current;
+      if (!input) return;
+      input.style.height = '0px';
+      const border = input.offsetHeight - input.clientHeight;
+      input.style.height = `${input.scrollHeight + border}px`;
+    }
+    resizeMessageInput();
+    window.addEventListener('resize', resizeMessageInput);
+    return () => window.removeEventListener('resize', resizeMessageInput);
+  }, [message, composeMode, mobilePrimaryView, imageBase64, isImageProcessing]);
   const [showDeepLinkPrefillBanner, setShowDeepLinkPrefillBanner] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [replyError, setReplyError] = useState<{ index: number; message: string } | null>(null);
@@ -4070,7 +4069,7 @@ export default function Home({
   }
 
   function getReplyContextForRequest(): ReplyContext {
-    const hasCommitmentQuestion = !isNoReplyMode && getMissingCommitmentKind(message) !== null;
+    const hasCommitmentQuestion = !isNoReplyMode && !imageBase64 && getMissingCommitmentKind(message) !== null;
     const choice = commitmentChoice?.message === message ? commitmentChoice : null;
     return {
       languagePreferences,
@@ -4083,7 +4082,7 @@ export default function Home({
   function getDraftRequest(): GenerationDraft {
     return {
       ...getReplyContextForRequest(),
-      message: isNoReplyMode ? '' : message.trim().slice(0, MAX_INCOMING_MESSAGE_LENGTH),
+      message: isNoReplyMode || imageBase64 ? '' : message.trim().slice(0, MAX_INCOMING_MESSAGE_LENGTH),
       imageBase64: isNoReplyMode ? null : imageBase64,
       context: context ?? undefined,
       tone,
@@ -4244,7 +4243,10 @@ export default function Home({
       setImageBase64(null);
       setImageName(null);
     } finally {
-      if (request.isCurrent()) setIsImageProcessing(false);
+      if (request.isCurrent()) {
+        setIsImageProcessing(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
     }
   }
 
@@ -4258,6 +4260,7 @@ export default function Home({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    window.requestAnimationFrame(() => messageInputRef.current?.focus({ preventScroll: true }));
   }
 
   async function handleCopy(reply: string, index: number) {
@@ -4917,10 +4920,10 @@ export default function Home({
                 <div className="sb-input-zone sb-incoming-input sb-motion-panel space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <div>
-                      <label htmlFor="incoming-message" className="text-sm font-semibold text-[#241d18]">
-                        <span className="sb-compose-step" aria-hidden="true">1</span> ההודעה שקיבלתם
-                      </label>
-                      <p className="text-[11px] font-bold text-[#6d6259]">הדביקו את ההודעה, או צרפו צילום.</p>
+                      <p id="incoming-message-label" className="text-sm font-semibold text-[#241d18]">
+                        <span className="sb-compose-step" aria-hidden="true">1</span> {imageBase64 || isImageProcessing ? 'צילום השיחה שלכם' : 'ההודעה שקיבלתם'}
+                      </p>
+                      <p className="text-[11px] font-bold text-[#6d6259]">{imageBase64 ? 'נכין תשובות לפי השיחה שבתמונה.' : isImageProcessing ? 'עוד רגע, מכינים את התמונה בשבילכם.' : 'הדביקו את ההודעה, או צרפו צילום.'}</p>
                     </div>
                     <button
                       type="button"
@@ -4928,12 +4931,14 @@ export default function Home({
                       className={`min-h-[44px] shrink-0 rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-semibold text-[#241d18] transition hover:bg-[#f8f3eb] ${lightSurfaceFocusClass}`}
                     >
                       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><circle cx="8" cy="9" r="1.5" /><path d="m4 17 5-5 4 4 3-3 5 5" /></svg>
-                      צילום מסך
+                      {imageBase64 ? 'החלפת צילום' : 'צילום מסך'}
                     </button>
                   </div>
 
+                  {!imageBase64 && !isImageProcessing ? (<>
                   <textarea
                     id="incoming-message"
+                    aria-labelledby="incoming-message-label"
                     ref={messageInputRef}
                     value={message}
                     onChange={handleIncomingMessageChange}
@@ -4955,6 +4960,7 @@ export default function Home({
                       ))}
                     </div>
                   ) : null}
+                  </>) : null}
 
                   <input
                     ref={fileInputRef}
@@ -4966,15 +4972,15 @@ export default function Home({
 
                   {isImageProcessing ? <p className="sb-status" role="status">מכינים את התמונה… <button type="button" onClick={clearImage} className="min-h-11 px-2 underline underline-offset-2">ביטול</button></p> : null}
                   {imageName && imageBase64 ? (
-                    <div className="flex items-center gap-3 rounded-xl border border-[#ded2c3] p-3">
-                      <Image src={imageBase64} alt="תצוגה מקדימה של צילום המסך" width={72} height={88} unoptimized className="h-22 w-18 shrink-0 rounded-lg object-contain" />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm">{imageName}</p>
-                        <div className="mt-1 flex gap-3 text-sm">
-                          <button type="button" onClick={() => fileInputRef.current?.click()} className="min-h-11 underline underline-offset-4">החלפת צילום</button>
-                          <button type="button" onClick={clearImage} className="min-h-11 underline underline-offset-4">הסרת צילום</button>
-                        </div>
+                    <div className="rounded-[22px] border border-[#ded2c3] bg-[#fffdfa] p-3 sm:p-4" aria-labelledby="incoming-message-label">
+                      <div className="flex justify-center overflow-hidden rounded-2xl bg-[#f3ede4] p-2">
+                        <Image src={imageBase64} alt="צילום השיחה שהעליתם" width={360} height={240} unoptimized className="max-h-60 w-full rounded-lg object-contain sm:max-h-72" />
                       </div>
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                        <p className="min-w-0 flex-1 truncate text-xs text-[#6d6259]" title={imageName}>{imageName}</p>
+                        <button type="button" onClick={clearImage} className={`min-h-11 rounded-full border border-[#ded2c3] bg-white px-4 text-sm font-semibold text-[#463b33] ${lightSurfaceFocusClass}`}>חזרה לכתיבה</button>
+                      </div>
+                      {message.trim() ? <p className="text-xs leading-5 text-[#6d6259]">הטקסט שכתבתם שמור כאן. הוא יחזור כשתעברו לכתיבה.</p> : null}
                     </div>
                   ) : null}
                   <p className="sb-status">ההודעה משמשת להכנת התשובות. <a href="/privacy" className="underline underline-offset-2">על הפרטיות</a></p>
@@ -4991,7 +4997,7 @@ export default function Home({
                 </details>
               ) : null}
 
-              {!isNoReplyMode && getMissingCommitmentKind(message) ? (
+              {!isNoReplyMode && !imageBase64 && getMissingCommitmentKind(message) ? (
                 <CommitmentControls
                   kind={getMissingCommitmentKind(message)!}
                   mode={commitmentChoice?.message === message ? commitmentChoice.mode : 'ask'}
