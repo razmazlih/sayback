@@ -1,54 +1,57 @@
 # SayBack visual walkthrough
 
-[Back to project overview](../README.md) · [Open the live app](https://sayback.vercel.app)
+[Project overview](../README.md) · [Open the live website](https://sayback.vercel.app)
 
-These are real browser captures of the compact reply-direction UI on **November 6,
-2026**. They use a locally running app and synthetic services. They illustrate the
-interaction and layout, rather than live AI quality or payment integration.
+SayBack turns an incoming message into three short Hebrew reply suggestions. These screenshots illustrate the interface; see [capture scope](#capture-scope) before treating them as evidence of live services.
 
-## 1. Add a message and choose directions
+## 1. Add the message
 
-The sample incoming message is “היי, מתאים לך שנדבר בערב?” (Can we talk tonight?).
-Six compact controls cover tone, context, goal, language, conversation continuation,
-and background. Only one inline editor opens at a time. Here the tone editor is
-expanded so its choices are easy to see; selecting a tone closes it and returns focus.
+Paste text, choose a built-in example, or upload a screenshot. The text field grows with its contents. The incoming composer keeps the reply-direction controls and generation action together.
 
-<img src="screenshots/reply-directions-mobile.png" alt="Populated mobile composer with expanded tone choices" width="360">
+<img src="screenshots/design-home-mobile.png" alt="Mobile incoming-message composer with compact directions" width="360">
 
-Single-choice fields close after selection. Language and background stay open until
-**סיימתי**, Escape, or another field is selected. Each direction has a clear action;
-clearing tone restores **זורם**. Direction edits do not consume a use. Some choices
-require monthly access; buying credits does not unlock monthly features.
+## 2. Choose only the guidance you need
 
-## 2. Compare three replies
+Open **להתאים את הסגנון**, then a direction button to choose tone, recipient context, goal, grammatical preferences, or conversation continuation. Background and some options depend on access level. A selection stays visible on its button; reset controls clear it.
 
-An explicit generation request shows one short interpretation and exactly three
-reply cards. These fixture replies all answer the same sample invitation. Copy a
-reply, soften it, sharpen it, or try another wording. SayBack does not send it.
+<table>
+  <tr><th>Tone</th><th>Recipient</th><th>Goal</th></tr>
+  <tr>
+    <td><img src="screenshots/direction-tone-mobile.jpg" alt="Tone options with Hebrew labels and illustrations" width="240"></td>
+    <td><img src="screenshots/direction-context-mobile.jpg" alt="Recipient-context options" width="240"></td>
+    <td><img src="screenshots/direction-goal-mobile.jpg" alt="Reply goals with brief explanations" width="240"></td>
+  </tr>
+</table>
 
-<img src="screenshots/reply-results-mobile.png" alt="Three synthetic replies to the sample invitation, with copy and refinement controls" width="360">
+Single-choice options close their dialog after selection. Grammatical preferences ask two questions: how to refer to you and how to refer to the recipient. Choosing both during the current visit closes the dialog; closing early keeps the choice already made. Your own preference is remembered in this browser. Use **ניקוי** to clear the preferences.
 
-## 3. Use the desktop workspace
+<img src="screenshots/reply-language-dialog.jpg" alt="Two questions for Hebrew grammatical preferences" width="360">
 
-The desktop view keeps the populated composer, expanded editor, and reply cards
-side by side. Changing request details marks existing replies as outdated; refining
-an existing result uses that result's original request.
+## 3. Compare and refine
 
-![Updated desktop workspace with sample input, expanded tone choices and three synthetic replies](screenshots/reply-directions-desktop.png)
+Generation produces one short interpretation and exactly three reply cards. Review the text, copy what fits, or soften, sharpen, regenerate, or give a custom rewriting instruction. SayBack does not send the message for you. Changing the request marks existing replies as outdated; refinement retains the original request context.
 
-## Capture notes
+<img src="screenshots/design-results-mobile.png" alt="Synthetic sample reply cards illustrating the comparison and refinement flow" width="360">
 
-- **Source:** local Next.js app at `http://127.0.0.1:3100`, based on PR #20 plus the documentation conflict resolution.
-- **Capture date:** 2026-11-06 UTC.
-- **Input:** synthetic invitation quoted above; default **זורם** tone, no saved person or private conversation.
-- **Method:** `scripts/verify-conversation-experience.mjs` captures the running UI after sample entry and a mocked generation. The editor is opened after generation without changing its selection. Screenshots are not fabricated or composited.
-- **Typography:** the local server uses the Rubik font from the official Google Fonts GitHub repository through a local font response fixture because Google Fonts is unavailable in this environment. No application styling was changed.
-- **Services:** Firebase authentication and application APIs, including billing and generation, are intercepted with synthetic responses; other external browser traffic is blocked. No live AI response, Firebase write, Stripe charge, or webhook delivery is verified.
-- **Privacy:** no personal messages, actual names, account email addresses, payment details, or private account screens appear in these captures.
-- **UI verification:** RTL and overflow, exactly three reply cards, compact editor choices, clearing, focus/Escape, access restrictions, payloads, stale results, and refinement context are covered by the browser runner.
-- **Not covered:** live image understanding, account linking, persistence, paid checkout, or webhook reconciliation. See [development and verification](development.md).
+## 4. Follow up when there is no reply
 
-The older `01-compose.jpg`, `02-style.jpg`, and `03-replies.jpg` files are retained
-as historical live-site captures. They predate the compact controls and are no
-longer used to present the current workflow. Earlier live-generation provenance
-applies only to those historical images, not to the new fixture captures.
+Choose **לשלוח הודעת המשך**, paste the last message you sent, and select the elapsed time. One five-card picker offers half an hour, three hours, a day, three days, and **זמן אחר**. The custom option opens a compact number input and illustrated minutes/hours/days choices. Clicking an incomplete request guides you to its first missing detail. No time is selected by default.
+
+<img src="screenshots/followup-compose-mobile.png" alt="Follow-up mode with elapsed-time presets" width="360">
+
+## 5. Manage access and account recovery
+
+The account dialog displays current access and available actions, including email-link recovery and saved people. Plan, coupon, and subscription controls depend on configuration and account state. The screenshot below shows open access, not a permanent pricing promise.
+
+<img src="screenshots/account-mobile.jpg" alt="Account status and email-link recovery form" width="360">
+
+## Capture scope
+
+- Composer, follow-up and reply-results captures were refreshed locally on November 15, 2026 using synthetic authentication, billing and generation. They do not demonstrate the deployed website or live services. Direction-dialog and account screenshots are retained from the earlier local walkthrough.
+- The composers use the shared phone-first layout and collapsible optional preferences. Detailed viewport checks and keyboard-simulation limits are recorded in [visual verification](design-verification.md).
+- Reply-results and recorded-video responses are synthetic. Account and access examples may use stubbed services. They do not demonstrate live OpenAI quality, email delivery, subscriptions, or payment reconciliation.
+- Inputs are examples, not private customer conversations. No capture date is overlaid or used as a promotional label.
+- Browser viewport emulation is not a physical iOS/Android keyboard test. Hosted payment fields and real device behavior require separate validation.
+- The older `01-compose.jpg`, `02-style.jpg`, `03-replies.jpg`, and inline-editor screenshots remain in repository history/assets but are not presented here as the current interface.
+
+For implementation checks and service setup, see the [developer guide](development.md).

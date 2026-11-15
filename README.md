@@ -1,160 +1,108 @@
 # SayBack
 
-**Turn an incoming message into three short, natural Hebrew replies.**
+### The message arrived. Find the words to reply.
 
-SayBack is a Hebrew-first, right-to-left web app for finding the right words in personal conversations, customer messages, and everyday negotiations. Paste a message, choose a tone, then copy or refine the reply that fits.
+**Paste a message or upload a screenshot. Get three short, natural replies in Hebrew.**
 
-**[Try the live app](https://sayback.vercel.app)** · [Visual walkthrough](docs/walkthrough.md) · [Setup & operations](docs/development.md)
+SayBack is a live, Hebrew-first web app for personal conversations, customer messages, and everyday negotiations. Choose the wording that fits, refine it if needed, and send it yourself.
 
-## 40-second project demo
+**[Open the live website](https://sayback.vercel.app)** · [Visual walkthrough](docs/walkthrough.md) · [Watch the UI walkthrough](https://sayback.vercel.app/demo.html) · [Developer guide](docs/development.md)
 
-**[Watch the walkthrough](https://sayback.vercel.app/demo.html)** · [Demo scope and evidence](docs/demos/README.md)
+![SayBack desktop composer with Hebrew message input and reply-direction controls](docs/screenshots/design-home-desktop.png)
 
-Actual local UI captures with synthetic authentication, billing and generation. Fixture replies illustrate the interface; live AI and payments are not demonstrated.
+## From message to reply
 
-## See the workflow
-
-![SayBack shared composers in the original cream, orange and warm ink palette](docs/screenshots/design-home-desktop.png)
-
-**One message → choose directions → compare three replies → copy or refine.**
-The phone-first composer puts the message first and the main action within easy reach. **להתאים את הסגנון** opens the optional direction controls; the summary retains the current tone and recipient context. Incoming replies and follow-ups share the same compact header, numbered input, warm surfaces and primary action. Text, screenshots, direction dialogs and refinement retain their existing behavior.
+| Step | What you do |
+| --- | --- |
+| **1 · Add the message** | Paste text or upload a screenshot. You can also start with a built-in example. |
+| **2 · Set the direction** | Optionally choose a tone, recipient context, goal, or Hebrew grammatical preferences. |
+| **3 · Choose your words** | Compare three replies, copy one, or make it softer, sharper, or different. Nothing is sent automatically. |
 
 <table>
-  <tr><th width="50%">1. Write and choose a direction</th><th width="50%">2. Compare and refine</th></tr>
+  <tr><th width="50%">Write and choose a direction</th><th width="50%">Compare three replies</th></tr>
   <tr>
-    <td valign="top"><img src="docs/screenshots/design-home-mobile.png" alt="Mobile composer with message input, compact reply directions and generation button visible together." width="360"></td>
-    <td valign="top"><img src="docs/screenshots/design-results-mobile.png" alt="Three synthetic Hebrew reply suggestions with copy, soften, sharpen, and retry controls." width="360"></td>
+    <td valign="top"><img src="docs/screenshots/design-home-mobile.png" alt="Mobile composer with message input, reply directions and generation button" width="320"></td>
+    <td valign="top"><img src="docs/screenshots/design-results-mobile.png" alt="Three illustrative Hebrew replies with copy and refinement actions" width="320"></td>
   </tr>
-  <tr><td>No direction is required. Start with the default <strong>זורם</strong> tone and add context only when useful.</td><td>Review the wording and choose what fits. SayBack leaves sending the message to you.</td></tr>
 </table>
 
-*Updated November 15, 2026. Local browser captures use synthetic authentication, billing and replies; they do not verify live AI or payments.*
+*Screenshots show the local app with non-sensitive sample data. The reply-results image uses synthetic responses and illustrates the results flow, not current live AI output. The video also uses local fixtures. Neither demonstrates live billing. [Image scope and limitations](docs/walkthrough.md#capture-scope).*
 
-The visual refresh keeps SayBack’s cream, orange and warm ink identity. A clear white writing surface sits beside a conversation preview with three labelled alternatives. The larger input, quieter supporting actions, compact direction toolbar and stronger primary action establish a clear reading order. The same warm surfaces carry into results, follow-ups, pricing and help. No green is part of the refreshed palette; accent and success tokens use warm gold and sand.
+## Built around real conversations
 
-Checked in Chromium at 320, 360, 390, 768, 1024 and 1440px: RTL, document overflow, three reply cards, copy/refine states, screenshot input, follow-up duration, account focus and all six direction dialogs. Lint, TypeScript, 175 regression tests and the production build pass. See [visual verification details](docs/design-verification.md). Physical phone keyboards, live Firebase authentication, live AI and Stripe payment/webhook reconciliation remain unverified in this design pass.
+- **Reply in your own direction.** Focused dialogs offer tone, context, goals, conversation continuation, and optional background. Open **להתאים את הסגנון** for optional direction controls; its summary retains the tone and recipient context.
+- **Get Hebrew phrasing right.** Choose how replies refer to you and the recipient. Your own grammatical preference is remembered in this browser; the recipient's is temporary.
+- **Refine without starting over.** Soften, sharpen, regenerate, or supply a custom rewriting instruction. Editing the incoming request marks older results as outdated.
+- **Follow up when there is no answer.** Switch to **לשלוח הודעת המשך**, add your last outgoing message, and choose how much time has passed, including a custom duration.
+- **Use it on a phone.** RTL layout, a growing text field, compact controls, and scrollable dialogs keep the interaction focused.
+- **Keep account actions together.** The account dialog brings access status, email-link recovery, saved people, and available billing actions into one place.
 
+<table>
+  <tr><th width="50%">Follow up thoughtfully</th><th width="50%">Keep account actions in one place</th></tr>
+  <tr>
+    <td valign="top"><img src="docs/screenshots/followup-compose-mobile.png" alt="Follow-up composer with elapsed-time choices" width="300"></td>
+    <td valign="top"><img src="docs/screenshots/account-mobile.jpg" alt="Account dialog with access status, email-link recovery and saved people" width="300"></td>
+  </tr>
+</table>
 
-## Send a follow-up
+## Phone-first composers
 
-**לשלוח הודעת המשך** opens the follow-up composer. Paste the last outgoing message and choose how long it has been. One picker offers five equal choices: half an hour, 3 hours, a day, 3 days, or **זמן אחר**. Large numbers, original time illustrations and warm gold selection make the choice easy to scan. The five cards use one desktop row and a balanced 3+2 phone layout.
+Incoming replies and follow-ups share a compact header, numbered input, warm cream/orange surfaces and a clear generation action. Optional style preferences stay collapsed until requested. Follow-ups use five illustrated elapsed-time cards, including **זמן אחר**, which opens a compact number-and-unit editor. Minutes, hours and days are direct choices; the selected duration stays visible above the cards.
 
-**זמן אחר** reveals a small labelled editor with a number and direct minutes/hours/days choices. The selected duration stays visible above the cards, including after the editor is closed. No time is selected by default. Exact values and existing generation payloads are preserved.
+Clicking an incomplete request focuses and reveals the first missing field with one short inline hint. Correcting the field clears the hint. During phone editing, the follow-up action remains visible and supporting content is reduced. Reduced-motion preferences are respected.
 
-The follow-up form uses two clear steps: the outgoing message and elapsed time. On phones, the shorter input and compact header leave more room for the choices; optional style controls stay collapsed until requested. While typing in a reduced viewport, the follow-up action remains in reach and supporting content is reduced.
+Verified locally in Chromium at 320–1440px with synthetic services, including photo input, optional preferences, generation and a reduced-height 320/390×400 editing simulation. Lint, TypeScript, 175 regression tests and production build passed. Physical phone keyboards, live AI and real payments were not verified. [Detailed visual verification](docs/design-verification.md).
 
-<img src="docs/screenshots/followup-compose-custom-mobile.png" alt="Phone-first follow-up form with a custom time and optional style settings collapsed" width="390">
+**Availability is configuration-dependent.** The repository includes free-use limits, credit packs, subscriptions, coupons, and an open-access mode. The live site's current access policy may differ from a screenshot or local setup. Screenshot understanding requires the configured OpenAI mode; the local rule-based mode does not read images.
 
-If a required detail is missing, clicking the generation action gently scrolls to and focuses the first missing field, with one short inline hint. Correcting the field clears the hint. Reduced-motion preferences are respected, and the action is disabled during generation.
-
-<img src="docs/screenshots/followup-compose-mobile.png" alt="Rebuilt duration picker with five illustrated choices and a compact custom-time editor" width="390">
-
-![Rebuilt duration picker on desktop](docs/screenshots/followup-compose-desktop.png)
-
-*Updated November 15, 2026. Chromium checks at 320, 390 and 849px verified no horizontal overflow, 44px minimum unit targets, selection, missing-unit focus, collapse/reopen retention and a synthetic five-hour generation payload. A 320/390×400 reduced-height editing simulation also confirmed the focused message and follow-up action do not overlap and that normal layout is restored after editing. No physical-device keyboard, live AI or payment verification is included.*
-
-## What it does
-
-- **Three suggestions per request:** a short interpretation of the incoming message plus exactly three Hebrew replies.
-- **Compact reply directions:** a compact composer toolbar opening focused dialogs for tone, context, goal, grammatical preferences, conversation continuation and background. Every option has a custom SVG icon, a short Hebrew label and a practical subtitle in the warm cream/orange palette. Tone, context and goals use compact cards: two columns on phones and three from 600px wide; continuation uses two side-by-side cards. All six incoming goals fit without scrolling at 320×568 and at 849×902, while keeping their short descriptions visible. Language preferences retain their two-part guided flow. Long lists scroll inside the dialog with the close control remaining visible. The toolbar fills the composer width with equal-height tiles: 3+2 for five fields, 2+2 for four, and 3+3 for six. Containers at least 600px wide use one equal-width row. Long selections wrap without truncation; compact keyboard mode retains a horizontally scrollable strip. Checked at 320px and 378px with long selected values and at 849px on desktop. Selected values stay visible in the category buttons; selecting an option closes the dialog without advancing to another category, except grammatical preferences, which stay open until both questions have been chosen during that visit. Speaker grammatical preference is remembered in this browser; recipient preference stays temporary; all 10 tones and 12 contexts remain available under their existing access rules. Selected values and explicit resets stay visible, including grammatical preferences. Monthly features require a monthly subscription.
-- **Refinement:** soften, sharpen, regenerate, or give a custom rewriting instruction. Editing the request marks previous results as outdated; refining a result keeps its original request context.
-- **Follow-ups:** draft a message when someone has not replied, using the last outgoing message and elapsed time.
-- **Text or screenshot input:** image understanding is available through the configured OpenAI mode; local free mode is rule-based and does not read image contents.
-- **Account and billing infrastructure:** Firebase authentication, Firestore-backed usage limits, Stripe checkout, subscriptions, and coupon redemption. Availability depends on deployment configuration and access level.
-
-## Engineering highlights
+## Engineering at a glance
 
 | Area | Implementation |
 | --- | --- |
-| Frontend | Next.js 16.2.1 App Router, React 19.2.4, strict TypeScript, Tailwind CSS v4; Hebrew RTL interface |
-| Generation | Server-side API with a schema-validated `intent` + exactly three `replies`; optional OpenAI Responses API or local rule-based mode |
-| Access control | Firebase ID-token verification, Firestore-backed rate limits, usage accounting, and usage rollback when generation fails |
-| Payments | Stripe Checkout Elements, checkout reconciliation, and idempotent webhook processing |
-| Privacy | Message content is excluded from generation usage logs; analytics privacy filters and regression tests are included |
-| Quality checks | ESLint, TypeScript, identity/conversation/personalization tests, generation and insights regressions, production build |
+| **Interface** | Next.js 16.2.1 App Router, React 19.2.4, strict TypeScript, Tailwind CSS v4, Hebrew RTL |
+| **Generation contract** | Server-side validation of one short `intent` and exactly three `replies`; OpenAI Responses API or local rule-based generation |
+| **Identity and access** | Firebase authentication and server-side ID-token verification; Firestore-backed limits and usage accounting |
+| **Failure handling** | Generation access is refunded when generation fails; refinement retains the original request context |
+| **Payments** | Stripe Checkout Elements, checkout reconciliation, and idempotent webhook processing |
+| **Privacy boundaries** | Generation usage logs omit message content; analytics privacy filters have regression coverage. This is not a claim that all processing happens locally. |
+| **Quality gates** | ESLint, TypeScript, regression tests, and production build through `npm run check` |
 
-### Code map
+### Where to look in the code
 
-- [`app/home-page-client.tsx`](app/home-page-client.tsx): generator state, input, results, refinement, and account UI.
-- [`components/conversation-experience.tsx`](components/conversation-experience.tsx): shared Hebrew conversation interface.
-- [`app/api/generate/route.ts`](app/api/generate/route.ts): authenticated generation request, access checks, and rollback.
-- [`lib/ai.ts`](lib/ai.ts): input normalization, local/API mode selection, and output validation.
-- [`lib/billing.ts`](lib/billing.ts) and [Stripe webhook](app/api/stripe/webhook/route.ts): entitlements and payment lifecycle.
-- [`tests/`](tests) and [`scripts/`](scripts): regression suites and browser verification.
+- [`app/home-page-client.tsx`](app/home-page-client.tsx): composer state, generation, results, refinement, and account flows.
+- [`components/reply-direction-controls.tsx`](components/reply-direction-controls.tsx): direction dialogs and grammatical preferences.
+- [`components/account-center-panel.tsx`](components/account-center-panel.tsx): account overview and actions.
+- [`app/api/generate/route.ts`](app/api/generate/route.ts): authenticated generation, access checks, and failure rollback.
+- [`lib/ai.ts`](lib/ai.ts): input normalization, AI modes, and output validation.
+- [`lib/billing.ts`](lib/billing.ts): entitlements and payment lifecycle.
+- [`tests/`](tests) and [`scripts/`](scripts): regression suites and browser verification tools.
 
 ## Run locally
 
-Requires Node.js 22 LTS (CI version; Next.js requires at least 20.9), npm 10+, and Firebase client/admin configuration. See [`.env.example`](.env.example) for the complete environment template.
+Use **Node.js 22 LTS** and **npm 10+**. Firebase client/admin configuration is required; see [`.env.example`](.env.example) and the [developer guide](docs/development.md).
 
 ```bash
 npm ci
 cp .env.example .env.local
-# Fill in the required Firebase credentials and environment settings.
+# Fill in Firebase credentials and the required environment settings.
 npm run dev
 ```
 
-Open http://localhost:3000. The example environment enables `LOCAL_FREE_AI=true`, which makes no OpenAI calls. To use the OpenAI mode, set `LOCAL_FREE_AI=false` and provide `OPENAI_API_KEY`. Stripe credentials are needed for checkout and webhook functionality.
+Open `http://localhost:3000`.
+
+- `LOCAL_FREE_AI=true` uses local rules and makes no OpenAI calls. It is not equivalent to the live AI experience.
+- For OpenAI generation, set `LOCAL_FREE_AI=false` and provide `OPENAI_API_KEY`.
+- Stripe credentials are needed to exercise checkout and webhooks; do not use real payments as a casual test.
 
 ```bash
-npm run check
+npm test          # Regression suites
+npm run check     # Lint + typecheck + tests + production build
 ```
 
-This runs lint, type checking, regression suites, and a production build. For the isolated multi-viewport browser checks, analytics verification, billing bypass flags, Stripe events, coupon collections, and Vercel commands, see the **[complete development guide](docs/development.md)**.
+For configuration, isolated browser fixtures, billing modes, and deployment steps, see the [complete developer guide](docs/development.md).
 
-## Documentation
+## More detail
 
-- [Visual walkthrough and screenshot provenance](docs/walkthrough.md)
-- [Development, configuration, verification, and deployment](docs/development.md)
-- [Visitor insights](docs/visitor-insights.md)
-
-Mobile layout verified at 320×568, 360×740, 375×667 and 390×844 CSS pixels: the incoming message field, direction toolbar and generation action fit in the initial viewport. Direction dialogs close on selection (after both questions for grammatical preferences), Escape or a click outside. These checks use browser emulation; an on-screen phone keyboard reduces available space.
-
-The incoming message field grows and shrinks with its content, capped at 160px on phones (120px on short viewports) and 240px on desktop, with internal scrolling beyond the cap. Direction dialogs use a circular 44px close control.
-
-![Clear, concise Hebrew goals with custom SVG icons](docs/screenshots/direction-goal-desktop.jpg)
-
-<table>
-  <tr><th>Style</th><th>Recipient context</th><th>Goal</th></tr>
-  <tr>
-    <td><img src="docs/screenshots/direction-tone-mobile.jpg" alt="Mobile tone cards with drawn icons and short descriptions" width="240"></td>
-    <td><img src="docs/screenshots/direction-context-mobile.jpg" alt="Mobile recipient context cards" width="240"></td>
-    <td><img src="docs/screenshots/direction-goal-mobile.jpg" alt="Mobile goals with concise labels and practical descriptions" width="240"></td>
-  </tr>
-</table>
-
-Local UI captures, November 14, 2026. Checked at 320×568, 378×902 and 849×902 CSS pixels, including selection, reset, scrolling and follow-up goals. All six dialogs were also exercised with an isolated local component fixture at these three sizes, covering all 10 tones, 12 contexts, 6 reply goals, 3 follow-up goals, both continuation choices, language and background. No horizontally clipped text was found; card descriptions used at most two lines at 320px. Full monthly lists scroll inside the dialog on phones; selecting a locked option brings its notice into view. Language choices and background edits were checked for immediate updates. The fixture was removed afterward; live subscription and payment flows were not exercised.
-
-![All twelve recipient contexts in a local monthly-access UI fixture](docs/screenshots/direction-monthly-desktop.jpg)
-
-The grammatical preference dialog stacks two clear questions, each with a pair of generous masculine/feminine buttons and short Hebrew examples. Custom inline SVG illustrations keep the icons consistent across devices. Each choice applies immediately: the first moves focus to the other question and highlights it; choosing both sides during the current visit closes the dialog automatically, in either order. Changing the same side again keeps it open, and closing early keeps that choice. Use **ניקוי** to clear both preferences and restart this flow; there is no separate “no preference” option or save button.
-
-![Mobile Hebrew grammatical preferences with custom SVG icons](docs/screenshots/reply-language-dialog.jpg)
-
-### Mobile keyboard layout
-
-The UI observes `visualViewport` resize/scroll and focus changes, keeping dialogs within the visible area. While typing on a small viewport, the incoming composer hides introductory content and uses a compact direction strip. Follow-up mode keeps the direction strip and generation action above the keyboard, reserving scroll space and revealing the focused field. Text inputs use 16px text on mobile.
-
-Verified with reduced viewports (390×400, 375×360, 320×320), plus an emulated visual-viewport shrink with the layout viewport unchanged: multiline incoming text, follow-up text, custom numeric time, account email, and restoration after dismissal. Actual iOS/Android keyboard behavior and hosted Stripe fields still require a physical-device pass; no payment or email was submitted.
-
-![Simulated mobile keyboard layout; keyboard itself is not rendered](docs/screenshots/mobile-keyboard-layout.png)
-
-## Local admin dashboard
-
-Enable `LOCAL_ADMIN_ENABLED=true` in your local environment and open `/admin` while running the development server. The dashboard remains unavailable in production.
-
-- Four primary activity metrics stay visible; additional metrics and output-integrity checks expand on demand. Counts describe loaded, filtered events rather than lifetime totals.
-- Search messages, replies, errors, or user IDs. Use quick filters for failures, blocked requests, retries, and invalid output; expand additional filters for source, action, status, and sorting.
-- Desktop shows users, activity, and event details side by side. On smaller screens, choose a user to advance to activity, then an event to see details; use the three step buttons to return.
-- Event details show input and output with expandable technical/billing information. Refresh reloads the current data without clearing the filters.
-
-## Account dialog
-
-The account dialog follows the same cream, gold and warm brown palette as reply directions: original SVG icons, a sticky header with a circular close control, compact access/recovery/plan facts, an inset email form and clearly separated saved-people, plan, coupon and subscription actions. The primary email action uses a darker coral for readable white text. Long email addresses wrap and stay LTR.
-
-<img src="docs/screenshots/account-mobile.jpg" alt="Account dialog on mobile in the unified cream and gold design" width="360">
-
-![Account dialog on desktop](docs/screenshots/account-desktop.jpg)
-
-Checked at 320px and 849px with ten local fixture states: free, credits, monthly, renewal canceled, blocked, loading, error, open access, sending and pending email completion. No horizontal clipping was found. Email-link/recovery, refresh, coupon and subscription callbacks were verified with local stubs; no email or payment action was sent. Keyboard focus stays inside the dialog, Escape closes it and focus returns to its trigger. The actual email field and sticky close control remain visible at 320×320 while editing. The temporary fixture was removed afterward; live billing and email delivery were not exercised.
-
-ההתחברות האנונימית מתבצעת ברקע: כפתור יצירת התשובות זמין גם בזמן האתחול, והבקשה ממתינה לאימות ללא שלב התחברות גלוי.
+- [Visual walkthrough](docs/walkthrough.md): directions, follow-ups, account UI, and screenshot scope.
+- [Development guide](docs/development.md): setup, tests, configuration, and operations.
+- [Video scope](docs/demos/README.md): what the recorded walkthrough does and does not demonstrate.
