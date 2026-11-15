@@ -42,3 +42,15 @@ Chromium checks at 320, 390 and 849px verified no document overflow, 44px minimu
 
 ![Rebuilt mobile duration picker](screenshots/duration-picker-mobile.png)
 ![Rebuilt desktop duration picker](screenshots/duration-picker-desktop.png)
+
+## Shared phone-first composers
+
+Incoming replies and follow-ups now share a compact title/icon, numbered message input, discreet support actions, collapsible optional style preferences and a clear generation action. Follow-ups have a second numbered elapsed-time step. Input height and supporting copy are reduced for phones; the follow-up action stays visible during editing.
+
+Verified with synthetic identity/billing/generation at 320, 390, 849 and 1440px: no horizontal overflow, optional preferences and tone dialog, screenshot upload/removal, incoming generation with exactly three replies. Follow-up checks at 320, 390 and 849px retain custom time, optional preferences and the five-hour payload. Reduced-height 320/390×400 simulations keep the focused follow-up text and action visible without overlap, restore the normal layout and allow switching to the incoming form. These are browser simulations, not physical iPhone/Android keyboard tests.
+
+Lint, TypeScript, 175 regression tests and production build passed. Live AI and payments were not exercised.
+
+<img src="screenshots/design-home-mobile.png" width="390" alt="Incoming composer on a phone">
+<img src="screenshots/followup-compose-mobile.png" width="390" alt="Matching follow-up composer on a phone">
+<img src="screenshots/followup-keyboard-mobile.png" width="390" alt="Simulated reduced-height phone editing">

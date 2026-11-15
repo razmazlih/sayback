@@ -485,3 +485,82 @@
   outline-offset: 2px;
   box-shadow: none;
 }
+
+/* Shared phone-first composers: a short path from context to a ready reply. */
+.sb-experience #compose-section { padding: 24px; border-color: #e4d5c1; background: #fffdfa; box-shadow: 0 12px 36px #7956370a; }
+.sb-experience #compose-section .sb-compose-mode { align-items: center; flex-wrap: nowrap; gap: 16px; margin-bottom: 20px; padding: 0 0 20px; border-bottom-color: #eee3d4; }
+.sb-compose-mode-title { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.sb-compose-mode-icon { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 14px; background: #fff0d4; color: #a15a20; }
+.sb-compose-mode-icon > svg { width: 24px; height: 24px; }
+.sb-compose-mode-title h2 { color: #3c2b21; font-size: 20px; line-height: 1.4; font-weight: 500; letter-spacing: -.4px; }
+.sb-compose-mode-title p { margin-top: 3px; color: #88694d; font-size: 12px; font-weight: 400; }
+.sb-experience #compose-section .sb-compose-mode > button { min-height: 44px; padding: 6px 0; border: 0; background: transparent; color: #88694d; text-decoration: underline; text-underline-offset: 4px; font-size: 11px; }
+.sb-experience .sb-input-zone .sb-compose-field-heading { margin-bottom: 10px; }
+.sb-experience .sb-input-zone .sb-compose-field-heading label { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 500; }
+.sb-experience .sb-input-zone .sb-compose-field-heading p { margin: 5px 34px 0 0; font-size: 12px; color: #88694d; font-weight: 400; }
+.sb-compose-step { display: inline-grid; place-items: center; flex: 0 0 25px; width: 25px; height: 25px; border: 1px solid #eadbc9; border-radius: 50%; background: #f8f0e4; color: #9b6530; font-size: 12px; font-weight: 500; }
+.sb-experience #last-outgoing-message { min-height: 112px; height: 112px; resize: vertical; border-radius: 14px; border-color: #e4d5c1; background: #fff; padding: 14px 16px; font-size: 16px; line-height: 1.8; font-weight: 400; box-shadow: 0 2px 6px #79563703; }
+.sb-experience #last-outgoing-message::placeholder { color: #9b8f83; }
+.sb-experience #last-outgoing-message:focus { background: #fff; border-color: #c17c2c; }
+.sb-followup-input-footer { display: flex; justify-content: space-between; gap: 12px; color: #8a7968; font-size: 11px; line-height: 1.6; }
+.sb-experience .sb-followup-input .sb-duration { margin-top: 18px; padding-top: 16px; border-top-color: #eee3d4; }
+.sb-experience .sb-followup-input .sb-duration-heading { font-size: 15px; font-weight: 500; gap: 8px; }
+.sb-experience .sb-followup-input .sb-duration-intro { margin: 3px 34px 12px 0; }
+.sb-experience .sb-followup-input .sb-duration-help { font-size: 11px; }
+.sb-compose-preferences { margin-top: 18px; border: 1px solid #eee3d4; border-radius: 13px; background: #faf5ec; }
+.sb-compose-preferences > summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 54px; padding: 10px 14px; cursor: pointer; list-style: none; }
+.sb-compose-preferences > summary::-webkit-details-marker { display: none; }
+.sb-preferences-label { display: flex; align-items: center; gap: 8px; color: #795637; font-size: 12px; font-weight: 500; }
+.sb-preferences-label > svg { width: 18px; height: 18px; }
+.sb-preferences-label small { margin-inline-start: 8px; font-size: 10px; font-weight: 400; color: #8a7968; }
+.sb-preferences-value { display: flex; gap: 12px; align-items: center; color: #88694d; font-size: 11px; }
+.sb-compose-preferences[open] .sb-preferences-value > span { transform: rotate(180deg); }
+.sb-experience .sb-compose-preferences .sb-direction-inline { margin: 0 12px 12px; border: 0; padding-top: 0; }
+.sb-compose-preferences .sb-direction-title { display: none; }
+.sb-experience #compose-section .sb-generation-actions { padding-top: 2px; }
+.sb-experience #compose-section .sb-generation-actions > .sb-status { text-align: center; font-size: 11px; font-weight: 400; }
+@media (max-width: 639px) {
+  .sb-experience #compose-section { padding: 16px; }
+  .sb-experience #compose-section .sb-compose-mode { gap: 10px; margin-bottom: 16px; padding-bottom: 16px; }
+  .sb-compose-mode-icon { width: 36px; height: 36px; border-radius: 12px; }
+  .sb-compose-mode-title { gap: 9px; }
+  .sb-compose-mode-title h2 { font-size: 18px; }
+  .sb-compose-mode-title p { font-size: 11px; }
+  .sb-experience #compose-section .sb-compose-mode > button { max-width: 84px; line-height: 1.6; font-size: 10px; }
+  .sb-experience #last-outgoing-message { min-height: 100px; height: 100px; padding: 12px; }
+  .sb-preferences-label small { display: none; }
+}
+/* Keep the existing keyboard layout compact. */
+@media (max-width: 639px) {
+  html[data-sb-keyboard] .sb-experience #compose-section { padding: 10px 10px 110px; }
+  html[data-sb-keyboard] .sb-experience #last-outgoing-message { min-height: 72px; height: 72px; }
+}
+
+@media (max-width: 639px) {
+  .sb-compose-mode-title p { display: none; }
+  .sb-experience #compose-section .sb-compose-mode > button { max-width: 84px; min-height: 44px; font-size: 11px; }
+  .sb-experience #compose-section .sb-duration-option,
+  .sb-experience #compose-section .sb-duration-custom-trigger { min-height: 74px; gap: 5px; padding-block: 8px; }
+  .sb-experience .sb-followup-input .sb-duration-intro { margin-inline-start: 0; }
+  .sb-preferences-value { min-width: 0; max-width: 45%; overflow-wrap: anywhere; text-align: end; }
+  html[data-sb-keyboard] .sb-compose-preferences { margin: 0; border: 0; background: transparent; }
+  html[data-sb-keyboard] .sb-compose-preferences > summary,
+  html[data-sb-keyboard] .sb-compose-preferences .sb-direction-tabs { display: none; }
+  html[data-sb-keyboard] .sb-experience .sb-compose-preferences .sb-direction-inline { position: static; margin: 0; padding: 0; box-shadow: none; }
+  html[data-sb-keyboard] .sb-followup-input-footer,
+  html[data-sb-keyboard] .sb-compose-field-heading p { display: none; }
+}
+
+.sb-experience .sb-incoming-input > div:first-child > div > label { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 500; }
+.sb-experience .sb-incoming-input > div:first-child > div > p { margin: 5px 34px 0 0; color: #88694d; font-size: 12px; font-weight: 400; }
+.sb-experience .sb-incoming-input > div:first-child > button { display: inline-flex; align-items: center; gap: 6px; border-color: #eadbc9; border-radius: 11px; background: #faf5ec; color: #795637; font-weight: 500; }
+.sb-experience .sb-message-input { min-height: 112px; height: 112px; padding: 14px 16px; border-radius: 14px; background: #fff; border-color: #e4d5c1; font-size: 16px; box-shadow: 0 2px 6px #79563703; }
+.sb-experience .sb-inline-examples > button { border: 1px solid #eee3d4; background: #faf5ec; }
+.sb-experience .sb-input-zone > .sb-status { font-size: 11px; color: #8a7968; }
+@media (max-width: 639px) {
+  .sb-experience .sb-message-input { min-height: 100px; height: 100px; padding: 12px; }
+  .sb-experience .sb-incoming-input > div:first-child > div > p { margin-inline-start: 0; font-size: 11px; }
+  .sb-experience .sb-incoming-input > div:first-child > button { padding-inline: 10px; font-size: 11px; }
+  html[data-sb-keyboard] .sb-experience .sb-message-input { min-height: 72px; height: 72px; }
+  html[data-sb-keyboard] .sb-incoming-input > div:first-child > div > p { display: none; }
+}

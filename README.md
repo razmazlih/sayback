@@ -14,12 +14,10 @@ Actual local UI captures with synthetic authentication, billing and generation. 
 
 ## See the workflow
 
-![SayBack conversation studio in its original cream, orange and warm ink palette](docs/screenshots/design-home-desktop.png)
+![SayBack shared composers in the original cream, orange and warm ink palette](docs/screenshots/design-home-desktop.png)
 
 **One message → choose directions → compare three replies → copy or refine.**
-The compact controls keep tone, recipient context, goal, language preferences,
-conversation continuation, and extra background together above the generate button.
-Open one inline editor, choose an option, and keep the selected value in view.
+The phone-first composer puts the message first and the main action within easy reach. **להתאים את הסגנון** opens the optional direction controls; the summary retains the current tone and recipient context. Incoming replies and follow-ups share the same compact header, numbered input, warm surfaces and primary action. Text, screenshots, direction dialogs and refinement retain their existing behavior.
 
 <table>
   <tr><th width="50%">1. Write and choose a direction</th><th width="50%">2. Compare and refine</th></tr>
@@ -43,13 +41,17 @@ Checked in Chromium at 320, 360, 390, 768, 1024 and 1440px: RTL, document overfl
 
 **זמן אחר** reveals a small labelled editor with a number and direct minutes/hours/days choices. The selected duration stays visible above the cards, including after the editor is closed. No time is selected by default. Exact values and existing generation payloads are preserved.
 
+The follow-up form uses two clear steps: the outgoing message and elapsed time. On phones, the shorter input and compact header leave more room for the choices; optional style controls stay collapsed until requested. While typing in a reduced viewport, the follow-up action remains in reach and supporting content is reduced.
+
+<img src="docs/screenshots/followup-compose-custom-mobile.png" alt="Phone-first follow-up form with a custom time and optional style settings collapsed" width="390">
+
 If a required detail is missing, clicking the generation action gently scrolls to and focuses the first missing field, with one short inline hint. Correcting the field clears the hint. Reduced-motion preferences are respected, and the action is disabled during generation.
 
-<img src="docs/screenshots/duration-picker-mobile.png" alt="Rebuilt duration picker with five illustrated choices and a compact custom-time editor" width="390">
+<img src="docs/screenshots/followup-compose-mobile.png" alt="Rebuilt duration picker with five illustrated choices and a compact custom-time editor" width="390">
 
-![Rebuilt duration picker on desktop](docs/screenshots/duration-picker-desktop.png)
+![Rebuilt duration picker on desktop](docs/screenshots/followup-compose-desktop.png)
 
-*Updated November 15, 2026. Chromium checks at 320, 390 and 849px verified no horizontal overflow, 44px minimum unit targets, selection, missing-unit focus, collapse/reopen retention and a synthetic five-hour generation payload. No physical-device keyboard, live AI or payment verification is included.*
+*Updated November 15, 2026. Chromium checks at 320, 390 and 849px verified no horizontal overflow, 44px minimum unit targets, selection, missing-unit focus, collapse/reopen retention and a synthetic five-hour generation payload. A 320/390×400 reduced-height editing simulation also confirmed the focused message and follow-up action do not overlap and that normal layout is restored after editing. No physical-device keyboard, live AI or payment verification is included.*
 
 ## What it does
 

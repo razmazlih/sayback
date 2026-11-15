@@ -1907,7 +1907,7 @@ export default function Home({
           const field = document.activeElement;
           const rect = field.getBoundingClientRect();
           const followup = field.closest('#compose-section[data-compose-mode="no_reply"]') && !field.closest('dialog');
-          const safeBottom = offset + height - (followup ? 150 : 8);
+          const safeBottom = offset + height - (followup ? 100 : 8);
           if (followup && rect.bottom > safeBottom) window.scrollBy(0, rect.bottom - safeBottom);
           else if (rect.top < offset + 8 || rect.bottom > safeBottom) field.scrollIntoView({ block: 'nearest' });
         }
@@ -4706,9 +4706,11 @@ export default function Home({
             <div className="w-full min-w-0 space-y-4">
               {isGeneratorPrimaryMode ? (
                 <div className="sb-compose-mode">
-                  <p className="min-w-0 text-sm font-semibold text-[#241d18]">
-                    {isNoReplyMode ? 'כותבים הודעת המשך' : 'עונים להודעה שקיבלת'}
-                  </p>
+                  <div className="sb-compose-mode-title">
+                    <span className="sb-compose-mode-icon" aria-hidden="true"><DirectionIcon name={isNoReplyMode ? 'chat' : 'wave'} /></span>
+                    <div><h2>{isNoReplyMode ? 'הודעת המשך' : 'תשובה להודעה'}</h2>
+                    <p>{isNoReplyMode ? 'תזכורת קטנה, במילים שלכם.' : '3 דרכים לענות, בקול שלכם.'}</p></div>
+                  </div>
                   <button
                     type="button"
                     onClick={() => handleComposeModeChange(isNoReplyMode ? 'incoming' : 'no_reply')}
@@ -4757,13 +4759,13 @@ export default function Home({
               )}
 
               {isNoReplyMode ? (
-                <div className="sb-input-zone sb-motion-panel space-y-3">
-                  <div>
+                <div className="sb-input-zone sb-followup-input sb-motion-panel space-y-3">
+                  <div className="sb-compose-field-heading">
                     <label htmlFor="last-outgoing-message" className="text-sm font-semibold text-[#241d18]">
-                      מה שלחת לאחרונה? <span aria-hidden="true" className="text-[#c23318]">*</span>
+                      <span className="sb-compose-step" aria-hidden="true">1</span> ההודעה ששלחתם
                     </label>
                     <p className="text-xs font-bold text-[#6d6259]">
-                      מדביקים את ההודעה ששלחת ושעדיין לא קיבלה תשובה.
+                      הדביקו כאן את ההודעה שעדיין מחכה לתשובה.
                     </p>
                   </div>
 
@@ -4773,7 +4775,7 @@ export default function Home({
                     value={lastOutgoingMessage}
                     onChange={handleLastOutgoingMessageChange}
                     onPaste={handleMessagePaste}
-                    placeholder='למשל: "היי, רק בודק/ת אם זה עדיין רלוונטי לך"'
+                    placeholder='למשל: "היי, רציתי לבדוק אם זה עדיין רלוונטי"'
                     maxLength={MAX_LAST_OUTGOING_MESSAGE_LENGTH}
                     required
                     aria-invalid={hasTriedNoReplyContinue && !trimmedLastOutgoingMessage}
@@ -4785,17 +4787,17 @@ export default function Home({
                       כתבו את ההודעה האחרונה ששלחתם כדי להמשיך.
                     </p>
                   ) : null}
-                  <p className="text-xs font-bold text-[#6d6259]">
-                    עד {MAX_LAST_OUTGOING_MESSAGE_LENGTH} תווים ({lastOutgoingMessageLength}/
-                    {MAX_LAST_OUTGOING_MESSAGE_LENGTH}).
-                  </p>
+                  <div className="sb-followup-input-footer">
+                    <span>נשתמש בה כדי להבין את ההקשר.</span>
+                    <span dir="ltr" aria-label={`${lastOutgoingMessageLength} מתוך ${MAX_LAST_OUTGOING_MESSAGE_LENGTH} תווים`}>{lastOutgoingMessageLength}/{MAX_LAST_OUTGOING_MESSAGE_LENGTH}</span>
+                  </div>
 
                   <fieldset className="sb-duration" aria-label="כמה זמן עבר מאז ששלחת?">
                     <legend className="sb-duration-heading">
-                      <DirectionIcon name="clock" />כמה זמן עבר? <span aria-hidden="true" className="text-[#c23318]">*</span>
+                      <span className="sb-compose-step" aria-hidden="true">2</span> כמה זמן עבר?
                     </legend>
                     <div className="sb-duration-intro">
-                      <p className="sb-duration-help">לא צריך לדייק. בחרו מה שהכי קרוב.</p>
+                      <p className="sb-duration-help">גם בערך זה בסדר.</p>
                       <span className="sb-duration-selection" hidden={!hasValidNoReplyDuration || !hasNoReplyDurationUnit} aria-live="polite">{selectedDurationLabel}</span>
                     </div>
                     <div className="sb-duration-presets">
@@ -4903,19 +4905,20 @@ export default function Home({
                   </fieldset>
                 </div>
               ) : (
-                <div className="sb-input-zone sb-motion-panel space-y-3">
+                <div className="sb-input-zone sb-incoming-input sb-motion-panel space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <label htmlFor="incoming-message" className="text-sm font-semibold text-[#241d18]">
-                        מה כתבו לך?
+                        <span className="sb-compose-step" aria-hidden="true">1</span> ההודעה שקיבלתם
                       </label>
-                      <p className="text-[11px] font-bold text-[#6d6259]">מדביקים טקסט או מצרפים צילום.</p>
+                      <p className="text-[11px] font-bold text-[#6d6259]">הדביקו את ההודעה, או צרפו צילום.</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       className={`min-h-[44px] shrink-0 rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-semibold text-[#241d18] transition hover:bg-[#f8f3eb] ${lightSurfaceFocusClass}`}
                     >
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><circle cx="8" cy="9" r="1.5" /><path d="m4 17 5-5 4 4 3-3 5 5" /></svg>
                       צילום מסך
                     </button>
                   </div>
@@ -4986,39 +4989,45 @@ export default function Home({
                   onChange={(mode, details) => setCommitmentChoice({ message, mode, details })}
                 />
               ) : null}
-              <ReplyDirectionControls
-                openField={directionField}
-                onOpenFieldChange={handleDirectionFieldChange}
-                tone={tone}
-                onToneChange={(value) => {
-                  trackEvent('tone_select', { value });
-                  setTone(value);
-                }}
-                context={context}
-                onContextChange={(value) => {
-                  if (value) trackEvent('situation_select', { value });
-                  setContext(value);
-                }}
-                goal={goal}
-                onGoalChange={(value) => {
-                  if (value) trackEvent('goal_select', { value, compose_mode: composeMode });
-                  setGoal(value);
-                }}
-                continuePreference={continuePreference}
-                onContinuePreferenceChange={(value) => {
-                  if (value) trackEvent('agrees_select', { value });
-                  setContinuePreference(value);
-                }}
-                languagePreferences={languagePreferences}
-                onLanguagePreferencesChange={updateLanguagePreferences}
-                conversationBackground={conversationBackground}
-                onBackgroundChange={setConversationBackground}
-                isNoReplyMode={isNoReplyMode}
-                showMonthlyOptions={shouldShowMonthlyFeatureOptions}
-                hasMonthlyFeatureAccess={hasMonthlyFeatureAccess}
-                isBillingLoading={isBillingLoading}
-                onUpgrade={openPaywall}
-              />
+              <details className="sb-compose-preferences">
+                <summary>
+                  <span className="sb-preferences-label"><DirectionIcon name="wave" /><span>להתאים את הסגנון<small>לא חובה</small></span></span>
+                  <span className="sb-preferences-value">{tone}{context ? ` · ${context}` : ''}<span aria-hidden="true">⌄</span></span>
+                </summary>
+                <ReplyDirectionControls
+                  openField={directionField}
+                  onOpenFieldChange={handleDirectionFieldChange}
+                  tone={tone}
+                  onToneChange={(value) => {
+                    trackEvent('tone_select', { value });
+                    setTone(value);
+                  }}
+                  context={context}
+                  onContextChange={(value) => {
+                    if (value) trackEvent('situation_select', { value });
+                    setContext(value);
+                  }}
+                  goal={goal}
+                  onGoalChange={(value) => {
+                    if (value) trackEvent('goal_select', { value, compose_mode: composeMode });
+                    setGoal(value);
+                  }}
+                  continuePreference={continuePreference}
+                  onContinuePreferenceChange={(value) => {
+                    if (value) trackEvent('agrees_select', { value });
+                    setContinuePreference(value);
+                  }}
+                  languagePreferences={languagePreferences}
+                  onLanguagePreferencesChange={updateLanguagePreferences}
+                  conversationBackground={conversationBackground}
+                  onBackgroundChange={setConversationBackground}
+                  isNoReplyMode={isNoReplyMode}
+                  showMonthlyOptions={shouldShowMonthlyFeatureOptions}
+                  hasMonthlyFeatureAccess={hasMonthlyFeatureAccess}
+                  isBillingLoading={isBillingLoading}
+                  onUpgrade={openPaywall}
+                />
+              </details>
 
               <div className="sb-generation-actions space-y-2.5">
                 <button
@@ -5029,6 +5038,7 @@ export default function Home({
                   className={`sb-primary-button inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-[#ff5a2a] px-5 py-3 text-base font-semibold text-white shadow-[0_14px_26px_rgba(255,90,42,0.24)] transition duration-150 hover:bg-[#f04d1f] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 ${lightSurfaceFocusClass}`}
                 >
                   {generateButtonLabel}
+                  {!isGenerating ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" /></svg> : null}
                 </button>
                 {accountStatusLine ? <p className="sb-status">{accountStatusLine}</p> : null}
                 {paymentNotice ? (
