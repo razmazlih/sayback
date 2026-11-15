@@ -476,3 +476,12 @@
   .sb-experience .sb-direction-tabs[data-count="6"] { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .sb-experience .sb-direction-tabs[data-count] button { grid-column: auto; }
 }
+
+/* Incomplete requests still accept a click to guide users to the missing field. */
+.sb-experience .sb-primary-button[data-incomplete] { background: #e7a28c; color: #49251b; box-shadow: none; }
+.sb-experience .sb-primary-button[data-incomplete]:hover { background: #df957e; }
+.sb-experience #last-outgoing-message[aria-invalid="true"]:focus-visible {
+  outline: 2px solid var(--sb-coral);
+  outline-offset: 2px;
+  box-shadow: none;
+}

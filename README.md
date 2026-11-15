@@ -34,7 +34,7 @@ Open one inline editor, choose an option, and keep the selected value in view.
 
 The visual refresh keeps SayBack’s cream, orange and warm ink identity. A clear white writing surface sits beside a conversation preview with three labelled alternatives. The larger input, quieter supporting actions, compact direction toolbar and stronger primary action establish a clear reading order. The same warm surfaces carry into results, follow-ups, pricing and help. No green is part of the refreshed palette; accent and success tokens use warm gold and sand.
 
-Checked in Chromium at 320, 360, 390, 768, 1024 and 1440px: RTL, document overflow, three reply cards, copy/refine states, screenshot input, follow-up duration, account focus and all six direction dialogs. Lint, TypeScript, 174 regression tests and the production build pass. See [visual verification details](docs/design-verification.md). Physical phone keyboards, live Firebase authentication, live AI and Stripe payment/webhook reconciliation remain unverified in this design pass.
+Checked in Chromium at 320, 360, 390, 768, 1024 and 1440px: RTL, document overflow, three reply cards, copy/refine states, screenshot input, follow-up duration, account focus and all six direction dialogs. Lint, TypeScript, 175 regression tests and the production build pass. See [visual verification details](docs/design-verification.md). Physical phone keyboards, live Firebase authentication, live AI and Stripe payment/webhook reconciliation remain unverified in this design pass.
 
 
 ## Send a follow-up
@@ -43,6 +43,10 @@ Checked in Chromium at 320, 360, 390, 768, 1024 and 1440px: RTL, document overfl
 and choose the elapsed time in one tap: half an hour, 3 hours, a day, or 3 days.
 **זמן אחר** opens the exact number and minutes/hours/days controls. It can be collapsed without losing the selected duration, which stays visible in the trigger. Time presets use the same cream cards, original SVG icons and gold selection treatment as the reply directions; they fill two phone columns or one desktop row.
 No time is selected by default.
+
+If a required detail is missing, the generation button remains clickable: it gently scrolls to and focuses the first missing field, with one short inline hint. Missing elapsed time points to the preset choices; custom fields open only when requested. Hints clear when corrected, reduced-motion preferences are respected, and generation remains disabled while a request is running. Verified in Chromium at 390px and 849px using synthetic generation.
+
+<img src="docs/screenshots/followup-missing-field-mobile.png" alt="Follow-up composer focusing the missing outgoing message with a single inline hint" width="360">
 
 <img src="docs/screenshots/followup-toolbar-mobile.jpg" alt="Hebrew follow-up composer with one-tap elapsed-time choices" width="360" />
 

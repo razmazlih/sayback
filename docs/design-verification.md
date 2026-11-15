@@ -29,3 +29,7 @@ The original `verify-conversation-experience.mjs` uses obsolete inline-editor se
 ## Limits
 
 No physical-device keyboard test, live Firebase authentication, live AI output-quality test, Stripe charge or live webhook reconciliation was performed. Changes are local and committed; no deployment is included. Server-side generation, billing and authentication logic is unchanged.
+
+## Required-field guidance
+
+Verified after the follow-up validation update at 390×900 and 849×900, with reduced motion on the phone and smooth scrolling at 849px. Clicking the muted generation action focuses and reveals the first missing detail: outgoing message, a duration preset, or the custom time unit. Only the relevant inline hint appears; typing clears it. Incomplete submissions make no generation request, a valid submission makes one, and the action is disabled while generation is pending. The custom duration editor does not open automatically. Full regression suite: 175 tests passed.

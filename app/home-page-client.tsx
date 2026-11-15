@@ -525,6 +525,12 @@ function getPreferredScrollBehavior(): ScrollBehavior {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
 }
 
+function focusComposeField(element: HTMLElement | null) {
+  if (!element) return;
+  element.focus({ preventScroll: true });
+  element.scrollIntoView({ behavior: getPreferredScrollBehavior(), block: 'center' });
+}
+
 function subscribeToHydration() {
   return () => {};
 }
@@ -1856,6 +1862,7 @@ export default function Home({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const lastOutgoingInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const noReplyDurationPresetRef = useRef<HTMLButtonElement | null>(null);
   const noReplyDurationInputRef = useRef<HTMLInputElement | null>(null);
   const noReplyDurationUnitRef = useRef<HTMLSelectElement | null>(null);
   const [directionField, setDirectionField] = useState<DirectionField | null>(null);
@@ -4097,42 +4104,27 @@ export default function Home({
       setHasTriedNoReplyContinue(true);
 
       if (!trimmedLastOutgoingMessage) {
-        setRequestError('כדי להמשיך צריך למלא מה שלחת בהודעה האחרונה.');
-        scrollToComposeSection();
-        window.requestAnimationFrame(() => lastOutgoingInputRef.current?.focus());
+        setRequestError(null);
+        window.requestAnimationFrame(() => focusComposeField(lastOutgoingInputRef.current));
 
         return;
       }
 
-      if (!hasValidNoReplyDuration) {
-        setRequestError(
-          `צריך לבחור זמן תקין בין 1 ל-${MAX_NO_REPLY_DURATION_VALUE} (${noReplyDurationUnitOptions
-            .map((option) => option.label)
-            .join('/')}).`,
-        );
-        scrollToComposeSection();
-        setShowCustomNoReplyDuration(true);
-        window.requestAnimationFrame(() => noReplyDurationInputRef.current?.focus());
-
-        return;
-      }
-
-      if (!hasNoReplyDurationUnit) {
-        setRequestError('בחרו יחידת זמן כדי להמשיך.');
-        scrollToComposeSection();
-        setShowCustomNoReplyDuration(true);
-        window.requestAnimationFrame(() => noReplyDurationUnitRef.current?.focus());
-
+      if (!hasValidNoReplyDuration || !hasNoReplyDurationUnit) {
+        setRequestError(null);
+        if (showCustomNoReplyDuration) {
+          window.requestAnimationFrame(() => focusComposeField(
+            !hasValidNoReplyDuration ? noReplyDurationInputRef.current : noReplyDurationUnitRef.current,
+          ));
+        } else {
+          window.requestAnimationFrame(() => focusComposeField(noReplyDurationPresetRef.current));
+        }
         return;
       }
     } else if (!trimmedMessage && !imageBase64) {
       setRequestError('כדי לקבל תשובות, הדביקו הודעה או העלו צילום מסך.');
 
-      if (isCompactViewport()) {
-        scrollToMobileSection('compose', { source: 'system' });
-      } else {
-        messageInputRef.current?.focus();
-      }
+      window.requestAnimationFrame(() => focusComposeField(messageInputRef.current));
 
       return;
     }
@@ -4558,6 +4550,7 @@ export default function Home({
   function handleLastOutgoingMessageChange(event: ChangeEvent<HTMLTextAreaElement>) {
     const nextMessage = event.target.value.slice(0, MAX_LAST_OUTGOING_MESSAGE_LENGTH);
     setLastOutgoingMessage(nextMessage);
+    setHasTriedNoReplyContinue(false);
 
     if (nextMessage.trim()) {
       markGeneratorInputStart('typing');
@@ -4796,7 +4789,7 @@ export default function Home({
                     </legend>
                     <p className="sb-duration-help">גם בערך זה בסדר.</p>
                     <div className="sb-duration-presets">
-                      {noReplyDurationPresets.map((preset) => {
+                      {noReplyDurationPresets.map((preset, index) => {
                         const selected = !showCustomNoReplyDuration && noReplyDurationValue === preset.value && noReplyDurationUnit === preset.unit;
                         return (
                           <button
@@ -4809,6 +4802,8 @@ export default function Home({
                               setShowCustomNoReplyDuration(false);
                               setHasTriedNoReplyContinue(false);
                             }}
+                            ref={index === 0 ? noReplyDurationPresetRef : undefined}
+                            aria-describedby={hasTriedNoReplyContinue && trimmedLastOutgoingMessage && !hasValidNoReplyDuration ? 'no-reply-duration-error' : undefined}
                             className="sb-duration-option"
                           >
                             <span className="sb-duration-icon"><DirectionIcon name={preset.unit === 'days' ? 'calendar' : 'clock'} /></span>
@@ -4857,9 +4852,9 @@ export default function Home({
                         aria-label="מספר יחידות זמן"
                         placeholder="למשל 3"
                         required
-                        aria-invalid={(hasTriedNoReplyContinue || noReplyDurationValue.length > 0) && !hasValidNoReplyDuration}
-                        aria-describedby={(hasTriedNoReplyContinue || noReplyDurationValue.length > 0) && !hasValidNoReplyDuration ? 'no-reply-duration-error' : undefined}
-                        className={`min-h-[44px] w-full rounded-xl border bg-white px-3 py-2 text-sm font-bold text-[#241d18] outline-none transition focus:bg-[#fffdfa] ${(hasTriedNoReplyContinue || noReplyDurationValue.length > 0) && !hasValidNoReplyDuration ? 'border-[#c23318]' : 'border-[#ded2c3]'} ${lightSurfaceFocusClass}`}
+                        aria-invalid={((hasTriedNoReplyContinue && Boolean(trimmedLastOutgoingMessage)) || noReplyDurationValue.length > 0) && !hasValidNoReplyDuration}
+                        aria-describedby={((hasTriedNoReplyContinue && Boolean(trimmedLastOutgoingMessage)) || noReplyDurationValue.length > 0) && !hasValidNoReplyDuration ? 'no-reply-duration-error' : undefined}
+                        className={`min-h-[44px] w-full rounded-xl border bg-white px-3 py-2 text-sm font-bold text-[#241d18] outline-none transition focus:bg-[#fffdfa] ${((hasTriedNoReplyContinue && Boolean(trimmedLastOutgoingMessage)) || noReplyDurationValue.length > 0) && !hasValidNoReplyDuration ? 'border-[#c23318]' : 'border-[#ded2c3]'} ${lightSurfaceFocusClass}`}
                       />
                       <select
                         id="no-reply-duration-unit"
@@ -4871,9 +4866,9 @@ export default function Home({
                           setNoReplyDurationUnit(event.target.value as NoReplyDurationUnitSelection);
                         }}
                         required
-                        aria-invalid={hasTriedNoReplyContinue && !hasNoReplyDurationUnit}
-                        aria-describedby={hasTriedNoReplyContinue && !hasNoReplyDurationUnit ? 'no-reply-duration-unit-error' : undefined}
-                        className={`min-h-[44px] w-full rounded-xl border bg-white px-3 py-2 text-sm font-semibold text-[#241d18] outline-none transition focus:bg-[#fffdfa] ${hasTriedNoReplyContinue && !hasNoReplyDurationUnit ? 'border-[#c23318]' : 'border-[#ded2c3]'} ${lightSurfaceFocusClass}`}
+                        aria-invalid={hasTriedNoReplyContinue && Boolean(trimmedLastOutgoingMessage) && hasValidNoReplyDuration && !hasNoReplyDurationUnit}
+                        aria-describedby={hasTriedNoReplyContinue && Boolean(trimmedLastOutgoingMessage) && hasValidNoReplyDuration && !hasNoReplyDurationUnit ? 'no-reply-duration-unit-error' : undefined}
+                        className={`min-h-[44px] w-full rounded-xl border bg-white px-3 py-2 text-sm font-semibold text-[#241d18] outline-none transition focus:bg-[#fffdfa] ${hasTriedNoReplyContinue && Boolean(trimmedLastOutgoingMessage) && hasValidNoReplyDuration && !hasNoReplyDurationUnit ? 'border-[#c23318]' : 'border-[#ded2c3]'} ${lightSurfaceFocusClass}`}
                       >
                         <option value="" disabled>בחרו יחידת זמן</option>
                         {noReplyDurationUnitOptions.map((option) => (
@@ -4884,12 +4879,12 @@ export default function Home({
                       </select>
                     </div>
                     ) : null}
-                    {(hasTriedNoReplyContinue || noReplyDurationValue.length > 0) && !hasValidNoReplyDuration ? (
+                    {((hasTriedNoReplyContinue && Boolean(trimmedLastOutgoingMessage)) || noReplyDurationValue.length > 0) && !hasValidNoReplyDuration ? (
                       <p id="no-reply-duration-error" className="mt-2 text-xs font-bold text-[#b42318]" role="alert">
-                        הזינו מספר שלם בין 1 ל־{MAX_NO_REPLY_DURATION_VALUE}.
+                        {showCustomNoReplyDuration ? <>הזינו מספר שלם בין 1 ל־{MAX_NO_REPLY_DURATION_VALUE}.</> : 'בחרו בערך כמה זמן עבר.'}
                       </p>
                     ) : null}
-                    {hasTriedNoReplyContinue && !hasNoReplyDurationUnit ? (
+                    {hasTriedNoReplyContinue && Boolean(trimmedLastOutgoingMessage) && hasValidNoReplyDuration && !hasNoReplyDurationUnit ? (
                       <p id="no-reply-duration-unit-error" className="mt-2 text-xs font-bold text-[#b42318]" role="alert">
                         בחרו דקות, שעות או ימים.
                       </p>
@@ -5018,7 +5013,8 @@ export default function Home({
                 <button
                   type="button"
                   onClick={handleMainSubmit}
-                  disabled={isGenerating || (isNoReplyMode && !isNoReplyReady)}
+                  disabled={isGenerating}
+                  data-incomplete={(isNoReplyMode && !isNoReplyReady) || undefined}
                   className={`sb-primary-button inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-[#ff5a2a] px-5 py-3 text-base font-semibold text-white shadow-[0_14px_26px_rgba(255,90,42,0.24)] transition duration-150 hover:bg-[#f04d1f] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 ${lightSurfaceFocusClass}`}
                 >
                   {generateButtonLabel}
