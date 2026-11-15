@@ -58,3 +58,7 @@ Lint, TypeScript, 175 regression tests and production build passed. Live AI and 
 ## Two visible writing modes
 
 A two-choice picker replaces the one-way mode links. Both options remain visible: incoming message and sent-but-unanswered message, with icons, descriptions and an exclusive `aria-pressed` state. Chromium checks at 320, 390, 849 and 1440px verified exactly two choices, 44px minimum targets, click/Space activation, retained message drafts, no automatic generation and the follow-up payload. The mode picker hides during compact phone editing and returns afterward. The regression suite remains at 175 passing tests.
+
+## Keyboard-only focus rings
+
+The composer records pointer versus navigation-key input without moving or blurring focus. Pointer input suppresses focus outlines and Tailwind rings, including when clicking the same control after keyboard navigation; navigation keys restore the normal `:focus-visible` styles. Duration radio labels follow the same rule. Selection styles remain intact. Chromium checks at 390 and 849px cover mouse, Tab/Shift+Tab, mouse-after-keyboard, a touch pointer event, retained focus/selection, and text spaces not re-enabling navigation rings. Touch was simulated; no physical phone test was performed.

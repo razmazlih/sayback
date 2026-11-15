@@ -47,7 +47,7 @@ SayBack is a live, Hebrew-first web app for personal conversations, customer mes
 
 ## Phone-first composers
 
-A two-choice mode picker stays visible at the top of the composer: **קיבלתי הודעה** (reply to an incoming message) and **שלחתי ולא ענו** (follow up on an unanswered message). Each choice has an icon, a short explanation and an explicit selected state. Clicking the selected mode leaves the draft untouched; switching modes retains their respective message inputs and never generates automatically. Both choices support keyboard activation and phone touch targets.
+A two-choice mode picker stays visible at the top of the composer: **קיבלתי הודעה** (reply to an incoming message) and **שלחתי ולא ענו** (follow up on an unanswered message). Each choice has an icon, a short explanation and an explicit selected state. Clicking the selected mode leaves the draft untouched; switching modes retains their respective message inputs and never generates automatically. Both choices support keyboard activation and phone touch targets. Focus rings appear for keyboard navigation and are suppressed for mouse/touch input, including a pointer click on a control that was previously keyboard-focused.
 
 Incoming replies and follow-ups share a compact header, numbered input, warm cream/orange surfaces and a clear generation action. Optional style preferences stay collapsed until requested. Follow-ups use five illustrated elapsed-time cards, including **זמן אחר**, which opens a compact number-and-unit editor. Minutes, hours and days are direct choices; the selected duration stays visible above the cards.
 

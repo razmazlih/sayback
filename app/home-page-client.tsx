@@ -1890,6 +1890,22 @@ export default function Home({
   const [message, setMessage] = useState('');
   useEffect(() => {
     const root = document.documentElement;
+    const usePointer = () => root.setAttribute('data-sb-pointer-input', '');
+    const useKeyboard = (event: KeyboardEvent) => {
+      if (['Tab', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key) || event.key.startsWith('Arrow')) {
+        root.removeAttribute('data-sb-pointer-input');
+      }
+    };
+    window.addEventListener('pointerdown', usePointer, true);
+    window.addEventListener('keydown', useKeyboard, true);
+    return () => {
+      window.removeEventListener('pointerdown', usePointer, true);
+      window.removeEventListener('keydown', useKeyboard, true);
+      root.removeAttribute('data-sb-pointer-input');
+    };
+  }, []);
+  useEffect(() => {
+    const root = document.documentElement;
     const viewport = window.visualViewport;
     let frame = 0;
     function updateViewport() {

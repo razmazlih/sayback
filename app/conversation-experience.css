@@ -579,3 +579,12 @@
 @media (max-width: 639px) {
   html[data-sb-keyboard] .sb-experience #compose-section .sb-compose-mode-picker { display: none; }
 }
+
+/* Keep keyboard focus visible without leaving rings after mouse/touch input. */
+html[data-sb-pointer-input] :is(.sb-experience, .sb-account-dialog) :is(button, a, input, textarea, select, summary):focus-visible {
+  outline: none;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-ring-offset-shadow: 0 0 #0000;
+}
+html[data-sb-pointer-input] .sb-experience .sb-message-input:focus-visible { box-shadow: none; }
+html[data-sb-pointer-input] .sb-duration-units input:focus-visible + span { outline: none; }
