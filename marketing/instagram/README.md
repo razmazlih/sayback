@@ -49,3 +49,15 @@ node marketing/instagram/scripts/export-instagram-posts.cjs \
   --out marketing/instagram/outputs/pack-v3 \
   --prefix sayback-instagram-v3
 ```
+
+## Regenerating earlier Instagram posts
+
+From the repository root, render the archived HTML campaigns with Node.js.
+
+```sh
+node output/instagram-posts/render-posts.mjs
+node output/instagram-posts-minimal/render-minimal-posts.mjs
+node output/instagram-posts-minimal/render-centered-ads.mjs
+```
+
+The first script renders posts 1–20. The others render two variants of posts 31–40. The original minimal posts 21–30 are kept as standalone HTML in `output/instagram-posts-minimal/`.

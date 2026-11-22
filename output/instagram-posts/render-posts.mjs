@@ -1,7 +1,8 @@
 import { readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 
-const ROOT = resolve('/Users/razmaz/Desktop/code/free_time/medium/SayBack/output/instagram-posts');
+const ROOT = fileURLToPath(new URL('.', import.meta.url));
 const inputPath = resolve(ROOT, 'posts-data.json');
 
 const data = JSON.parse(readFileSync(inputPath, 'utf8'));
