@@ -8,12 +8,14 @@ const [billing, pricing, stripe, generateRoute] = await Promise.all([
   readFile(new URL("../lib/stripe.ts", import.meta.url), "utf8"),
   readFile(new URL("../app/api/generate/route.ts", import.meta.url), "utf8"),
 ]);
-const [profiles, relationshipMemory, productEvents, conversationUi, homeUi] = await Promise.all([
+const [profiles, relationshipMemory, productEvents, conversationUi, homeUi, repliesUi, billingUi] = await Promise.all([
   readFile(new URL("../lib/conversation-profiles.ts", import.meta.url), "utf8"),
   readFile(new URL("../lib/relationship-memory.ts", import.meta.url), "utf8"),
   readFile(new URL("../lib/product-events.ts", import.meta.url), "utf8"),
   readFile(new URL("../components/conversation-memory.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/home-page-client.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../components/home-replies.tsx", import.meta.url), "utf8"),
+  readFile(new URL("../components/home-billing.tsx", import.meta.url), "utf8"),
 ]);
 
 test("current billing economics remain unchanged", () => {
@@ -44,7 +46,7 @@ test("relationship memory remains bounded, private, best-effort, and does not ru
 });
 
 test("relationship analytics and UI expose no personal content or memory marketing banner", () => {
-  const ui = conversationUi + homeUi;
+  const ui = conversationUi + homeUi + repliesUi + billingUi;
   assert.match(productEvents, /relationship_memory_used/);
   assert.match(productEvents, /same_person_repeat_generation/);
   assert.doesNotMatch(generateRoute, /metadata:\s*\{[^}]*summary/s);
