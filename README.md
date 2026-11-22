@@ -78,16 +78,7 @@ Keep relevant bubbles and senders visible. Crop long or cluttered captures when 
 | **Privacy boundaries** | Generation usage logs omit message content; analytics privacy filters have regression coverage. This is not a claim that all processing happens locally. |
 | **Quality gates** | ESLint, TypeScript, regression tests, and production build through `npm run check` |
 
-### Where to look in the code
-
-- [`app/home-page-client.tsx`](app/home-page-client.tsx): composer state, generation, results, refinement, and account flows.
-- [`components/reply-direction-controls.tsx`](components/reply-direction-controls.tsx): direction dialogs and grammatical preferences.
-- [`components/account-center-panel.tsx`](components/account-center-panel.tsx): account overview and actions.
-- [`app/api/generate/route.ts`](app/api/generate/route.ts): authenticated generation, access checks, and failure rollback.
-- [`lib/ai.ts`](lib/ai.ts): screenshot transcript extraction, AI modes, and output validation.
-- [`lib/prepare-screenshot.ts`](lib/prepare-screenshot.ts): browser-side image preparation, size budgeting, and cancellation.
-- [`lib/billing.ts`](lib/billing.ts): entitlements and payment lifecycle.
-- [`tests/`](tests) and [`scripts/`](scripts): regression suites and browser verification tools.
+For code entry points by task, product contracts and validation, see the [repository guide](AGENTS.md).
 
 ## Run locally
 
