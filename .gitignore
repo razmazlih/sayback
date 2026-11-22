@@ -13,6 +13,8 @@
 # testing
 /coverage
 /output/playwright/
+/.playwright-mcp/
+/.playwright-cli/
 
 # next.js
 /.next/
@@ -49,3 +51,9 @@ marketing/instagram/outputs/prism-campaign-v1/
 marketing/instagram/scripts/export-instagram-campaign.cjs
 marketing/instagram/scripts/qa-instagram-campaign.cjs
 marketing/instagram/templates/sayback-instagram-prism-campaign-v1.html
+
+# Reproducible legacy Instagram renders
+/output/instagram-posts/post-*.html
+/output/instagram-posts-minimal/centered-post-*.html
+/output/instagram-posts-minimal/minimal-post-3[1-9].html
+/output/instagram-posts-minimal/minimal-post-40.html
