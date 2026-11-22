@@ -64,7 +64,7 @@ Keep relevant bubbles and senders visible. Crop long or cluttered captures when 
 
 **Access depends on configuration.** The repository supports free-use limits, credit packs, subscriptions, coupons and open-access mode. The live site's policy may differ from a local setup or screenshot.
 
-**Verification scope:** the repository includes browser checks with synthetic services, regression tests and separate screenshot-understanding checks. These are not a guarantee of physical-phone compatibility, real-model accuracy or payment success. See the [visual checks](docs/design-verification.md) and [screenshot checks and reproduction steps](docs/screenshot-verification.md). The latter use a configured model and incur API usage.
+**Verification scope:** the repository includes browser checks with synthetic services, regression tests and separate screenshot-understanding checks. These are not a guarantee of physical-phone compatibility, real-model accuracy or payment success. See the [visual checks](docs/design-verification.md) and [screenshot checks and reproduction steps](docs/screenshot-verification.md). The latter use a configured model and incur API usage. A [production verification report](docs/real-whatsapp-verification.md) records the results for seven publicly available WhatsApp screenshots.
 
 ## Engineering at a glance
 
