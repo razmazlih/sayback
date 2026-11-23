@@ -14,12 +14,12 @@ SayBack is a live, Hebrew-first web app for personal conversations, customer mes
 
 | Step | What you do |
 | --- | --- |
-| **1 · Choose the situation** | Reply to an incoming message with text or a screenshot, or follow up on a message you sent that is still unanswered. |
-| **2 · Set the direction** | Optionally choose a tone, recipient context, goal, or Hebrew grammatical preferences. |
-| **3 · Choose your words** | Compare three replies, copy one, or make it softer, sharper, or different. Nothing is sent automatically. |
+| **1 · Add the message** | Paste what you received or attach a screenshot. Choose **לא ענו לי** to follow up on a message you sent. |
+| **2 · Generate** | Select **הכנת 3 תשובות**. For more control, open **התאמת הסגנון** below the generation button. |
+| **3 · Choose your words** | Select **העתקה** on the reply you want. Open **אפשרויות** to edit, share, continue the conversation, or refine with AI. |
 
 <table>
-  <tr><th width="50%">Write and choose a direction</th><th width="50%">Compare three replies</th></tr>
+  <tr><th width="50%">Add a message</th><th width="50%">Compare three replies</th></tr>
   <tr>
     <td valign="top"><img src="docs/screenshots/design-home-mobile.png" alt="Mobile composer with message input, reply directions and generation button" width="320"></td>
     <td valign="top"><img src="docs/screenshots/design-results-mobile.png" alt="Three illustrative Hebrew replies with copy and refinement actions" width="320"></td>
@@ -30,10 +30,10 @@ SayBack is a live, Hebrew-first web app for personal conversations, customer mes
 
 ## Built around real conversations
 
-- **Reply in your own direction.** Focused dialogs offer tone, context, goals, conversation continuation, and optional background. Open **להתאים את הסגנון** for optional direction controls; its summary retains the tone and recipient context.
+- **Reply in your own direction.** Focused dialogs offer tone, context, goals, conversation continuation, and optional background. Open **התאמת הסגנון** for optional direction controls; its summary retains the tone and recipient context.
 - **Get Hebrew phrasing right.** Choose how replies refer to you and the recipient. Your own grammatical preference is remembered in this browser; the recipient's is temporary.
 - **Refine without starting over.** Soften, sharpen, regenerate, or supply a custom rewriting instruction. Editing the incoming request marks older results as outdated.
-- **Follow up when there is no answer.** Switch to **שלחתי ולא ענו**, add your last outgoing message, and choose how much time has passed, including a custom duration.
+- **Follow up when there is no answer.** Switch to **לא ענו לי**, add your last outgoing message, and choose how much time has passed, including a custom duration.
 - **Upload a screenshot without manual resizing.** Supported JPEG, PNG and static WebP images are checked before decoding (up to 20 MiB, 25 megapixels and 16,384 pixels per edge). Large accepted images are prepared in the browser before sending; small supported originals stay unchanged. Unsupported formats, animation and unusually large metadata require a normal screenshot or conversion first. Cancel or replace the image before generating. Readable text and clear sender context still matter.
 - **Use it on a phone.** RTL layout, a growing text field, compact controls, and scrollable dialogs keep the interaction focused.
 - **Keep account actions together.** The account dialog brings access status, email-link recovery, saved people, and available billing actions into one place.
@@ -48,7 +48,7 @@ SayBack is a live, Hebrew-first web app for personal conversations, customer mes
 
 ## Two situations, one focused workflow
 
-| Incoming message · קיבלתי הודעה | Unanswered message · שלחתי ולא ענו |
+| Incoming message · קיבלתי הודעה | Unanswered message · לא ענו לי |
 | --- | --- |
 | Add what you received as text or a screenshot. | Add the last message you sent and how long you have waited. |
 | Optionally adjust tone, context and wording. | Choose an illustrated time preset or a custom number of minutes, hours or days. |

@@ -160,18 +160,6 @@ const AUTH_ERROR_MESSAGE = 'לא הצלחנו להשלים את הבקשה. נס
 const DEEP_LINK_PREFILL_BANNER_TEXT = 'מילאנו לך התחלה. אפשר לערוך לפני שמייצרים.';
 const monthlyOnlyContextOptions = CONTEXT_OPTIONS.slice(FREE_CONTEXT_OPTION_COUNT);
 const monthlyOnlyToneOptions = TONE_OPTIONS.slice(FREE_TONE_OPTION_COUNT);
-const composeModeOptions: Array<{ value: ComposeMode; label: string; description: string }> = [
-  {
-    value: 'incoming',
-    label: 'קיבלתי הודעה',
-    description: 'לענות למה שכתבו לי',
-  },
-  {
-    value: 'no_reply',
-    label: 'שלחתי ולא ענו',
-    description: 'לנסח הודעת המשך',
-  },
-];
 const noReplyDurationPresets: Array<{ label: string; value: string; unit: NoReplyDurationUnit }> = [
   { label: 'חצי שעה', value: '30', unit: 'minutes' },
   { label: '3 שעות', value: '3', unit: 'hours' },
@@ -891,8 +879,8 @@ export default function Home({
     : isLoading
     ? 'מכינים 3 תשובות...'
     : isNoReplyMode
-      ? 'ליצור לי 3 הודעות המשך'
-      : 'ליצור לי 3 תשובות';
+      ? 'הכנת 3 הודעות המשך'
+      : 'הכנת 3 תשובות';
   const heroGenerateCtaLabel = 'יאללה, מתחילים לענות';
   const heroStartUsingCtaLabel = 'התחילו להשתמש עכשיו';
   const mobileComposeHelper = useMemo(() => {
@@ -3293,11 +3281,7 @@ export default function Home({
     const nextHash = window.location.hash;
     window.history.replaceState(null, '', `${nextUrl}${nextHash}`);
 
-    if (isCompactViewport()) {
-      window.requestAnimationFrame(() => {
-        scrollToMobileSection('compose', { source: 'system' });
-      });
-    }
+    scrollToComposeSection();
   }
 
   function handleRestoreReply(index: number) {
@@ -3395,40 +3379,15 @@ export default function Home({
         )}
 
         <section className="sb-workspace grid w-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-5">
-          {hasHydrated && canShowMobileResults ? (
-            <div className="sb-mobile-switch lg:hidden">
-              <button
-                type="button"
-                onClick={handleReturnToGenerator}
-                aria-pressed={mobilePrimaryView === 'compose'}
-                className={[
-                  `min-h-[42px] flex-1 rounded-[14px] px-3 py-2 text-sm font-semibold transition ${lightSurfaceFocusClass}`,
-                  mobilePrimaryView === 'compose'
-                    ? 'bg-[#181411] text-white shadow-[0_8px_18px_rgba(24,20,17,0.16)]'
-                    : 'bg-transparent text-[#5b4d42]',
-                ].join(' ')}
-              >
-                עריכת ההודעה
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (canShowMobileResults) {
-                    setMobilePrimaryView('results');
-                  }
-                }}
-                aria-pressed={mobilePrimaryView === 'results'}
-                disabled={!canShowMobileResults}
-                className={[
-                  `min-h-[42px] flex-1 rounded-[14px] px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${lightSurfaceFocusClass}`,
-                  mobilePrimaryView === 'results'
-                    ? 'bg-[#181411] text-white shadow-[0_8px_18px_rgba(24,20,17,0.16)]'
-                    : 'bg-transparent text-[#5b4d42]',
-                ].join(' ')}
-              >
-                התשובות
-              </button>
-            </div>
+          {hasHydrated && canShowMobileResults && mobilePrimaryView === 'compose' ? (
+            <button
+              type="button"
+              aria-controls="results-section"
+              onClick={() => scrollToMobileSection('results')}
+              className={`min-h-11 justify-self-end rounded-full px-3 text-sm font-bold underline underline-offset-4 lg:hidden ${lightSurfaceFocusClass}`}
+            >
+              התשובות
+            </button>
           ) : null}
 
           <div
@@ -3495,96 +3454,42 @@ export default function Home({
               </div>
             </div> : null}
 
-            <SavedConversationsRow
-              profiles={conversationProfiles}
-              activeId={activeConversationId}
-              disabled={isGenerating || isBillingLoading}
-              error={conversationProfilesError}
-              onSelect={handleConversationSelect}
-              onClear={handleConversationClear}
-              onManage={openConversationManagement}
-              onViewMemory={openConversationMemory}
-              onRetry={() => void refreshConversationProfiles()}
-            />
-
-            {conversationNotice ? (
-              <p className="rounded-2xl border border-[#f0df9d] bg-[#fff6d8] px-3 py-2 text-xs font-bold leading-5 text-[#5b4d42]">
-                {conversationNotice}
-              </p>
-            ) : null}
-
             <div className="w-full min-w-0 space-y-4">
-              {isGeneratorPrimaryMode ? (
-                <div className="sb-compose-mode sb-compose-mode-picker">
-                  <p className="sb-mode-question">מה קורה בשיחה?</p>
-                  <div className="sb-mode-options" role="group" aria-label="מצב כתיבה">
-                    {composeModeOptions.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        aria-label={option.label}
-                        aria-pressed={composeMode === option.value}
-                        onClick={() => handleComposeModeChange(option.value)}
-                      >
-                        <span className="sb-mode-icon"><DirectionIcon name={option.value === 'incoming' ? 'chat' : 'clock'} /></span>
-                        <span className="sb-mode-copy"><strong>{option.label}</strong><small>{option.description}</small></span>
-                        <span className="sb-mode-indicator" aria-hidden="true">{composeMode === option.value ? <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="m3 8 3 3 7-7" /></svg> : null}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-              <div className="rounded-[20px] border border-[#e4d8c8] bg-[#f8f3eb] p-3">
-                <p className="text-sm font-semibold text-[#241d18]">איך ממשיכים מכאן?</p>
-                <p className="mt-1 text-xs font-bold leading-5 text-[#6d6259]">
-                  בחרו מצב כתיבה כדי לראות רק את מה שצריך עכשיו.
-                </p>
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  {composeModeOptions.map((option) => {
-                    const isSelected = composeMode === option.value;
-
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        aria-pressed={isSelected}
-                        onClick={() => handleComposeModeChange(option.value)}
-                        className={[
-                          `min-h-[48px] rounded-2xl border px-3 py-2 text-right transition ${lightSurfaceFocusClass}`,
-                          isSelected
-                            ? 'border-[#181411] bg-[#181411] text-white shadow-[0_10px_20px_rgba(24,20,17,0.14)]'
-                            : 'border-[#ded2c3] bg-white text-[#241d18] hover:-translate-y-0.5 hover:bg-[#fffdfa]',
-                        ].join(' ')}
-                      >
-                        <span className="block text-sm font-semibold">{option.label}</span>
-                        <span
-                          className={[
-                            'mt-1 block text-xs font-bold leading-5',
-                            isSelected ? 'text-[#f8f3eb]' : 'text-[#6d6259]',
-                          ].join(' ')}
-                        >
-                          {option.description}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+              <div className="sb-compose-heading">
+                <h2 id="compose-question">{isNoReplyMode ? 'מה שלחת?' : 'מה כתבו לך?'}</h2>
+                <button
+                  type="button"
+                  onClick={() => handleComposeModeChange(isNoReplyMode ? 'incoming' : 'no_reply')}
+                  className={`sb-mode-switch ${lightSurfaceFocusClass}`}
+                >
+                  <DirectionIcon name={isNoReplyMode ? 'chat' : 'clock'} />
+                  {isNoReplyMode ? 'קיבלתי הודעה' : 'לא ענו לי'}
+                </button>
               </div>
-              )}
+
+              <SavedConversationsRow
+                profiles={conversationProfiles}
+                activeId={activeConversationId}
+                disabled={isGenerating || isBillingLoading}
+                error={conversationProfilesError}
+                onSelect={handleConversationSelect}
+                onClear={handleConversationClear}
+                onManage={openConversationManagement}
+                onViewMemory={openConversationMemory}
+                onRetry={() => void refreshConversationProfiles()}
+              />
+
+              {conversationNotice ? (
+                <p className="rounded-2xl border border-[#f0df9d] bg-[#fff6d8] px-3 py-2 text-xs font-bold leading-5 text-[#5b4d42]">
+                  {conversationNotice}
+                </p>
+              ) : null}
 
               {isNoReplyMode ? (
                 <div className="sb-input-zone sb-followup-input sb-motion-panel space-y-3">
-                  <div className="sb-compose-field-heading">
-                    <label htmlFor="last-outgoing-message" className="text-sm font-semibold text-[#241d18]">
-                      <span className="sb-compose-step" aria-hidden="true">1</span> ההודעה ששלחתם
-                    </label>
-                    <p className="text-xs font-bold text-[#6d6259]">
-                      הדביקו כאן את ההודעה שעדיין מחכה לתשובה.
-                    </p>
-                  </div>
-
                   <textarea
                     id="last-outgoing-message"
+                    aria-labelledby="compose-question"
                     ref={lastOutgoingInputRef}
                     value={lastOutgoingMessage}
                     onChange={handleLastOutgoingMessageChange}
@@ -3602,13 +3507,12 @@ export default function Home({
                     </p>
                   ) : null}
                   <div className="sb-followup-input-footer">
-                    <span>נשתמש בה כדי להבין את ההקשר.</span>
                     <span dir="ltr" aria-label={`${lastOutgoingMessageLength} מתוך ${MAX_LAST_OUTGOING_MESSAGE_LENGTH} תווים`}>{lastOutgoingMessageLength}/{MAX_LAST_OUTGOING_MESSAGE_LENGTH}</span>
                   </div>
 
                   <fieldset className="sb-duration" aria-label="כמה זמן עבר מאז ששלחת?">
                     <legend className="sb-duration-heading">
-                      <span className="sb-compose-step" aria-hidden="true">2</span> כמה זמן עבר?
+                      כמה זמן עבר?
                     </legend>
                     <div className="sb-duration-intro">
                       <p className="sb-duration-help">גם בערך זה בסדר.</p>
@@ -3720,49 +3624,42 @@ export default function Home({
                 </div>
               ) : (
                 <div className="sb-input-zone sb-incoming-input sb-motion-panel space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <p id="incoming-message-label" className="text-sm font-semibold text-[#241d18]">
-                        <span className="sb-compose-step" aria-hidden="true">1</span> {imageBase64 || isImageProcessing ? 'צילום השיחה שלכם' : 'ההודעה שקיבלתם'}
-                      </p>
-                      <p className="text-[11px] font-bold text-[#6d6259]">{imageBase64 ? 'נכין תשובות לפי השיחה שבתמונה.' : isImageProcessing ? 'עוד רגע, מכינים את התמונה בשבילכם.' : 'הדביקו את ההודעה, או צרפו צילום.'}</p>
-                    </div>
+                  {!imageBase64 && !isImageProcessing ? (
+                    <textarea
+                      id="incoming-message"
+                      aria-labelledby="compose-question"
+                      ref={messageInputRef}
+                      value={message}
+                      onChange={handleIncomingMessageChange}
+                      onPaste={handleMessagePaste}
+                      placeholder='למשל: "היי, מתאים לך שנדבר בערב?"'
+                      maxLength={MAX_INCOMING_MESSAGE_LENGTH}
+                      className={`sb-message-input min-h-28 w-full resize-none rounded-[22px] rounded-bl-[14px] border border-[#ded2c3] bg-white px-4 py-3 text-base leading-7 font-medium text-[#241d18] outline-none transition placeholder:text-[#9b8f83] focus:bg-[#fffdfa] sm:min-h-40 sm:py-4 ${lightSurfaceFocusClass}`}
+                    />
+                  ) : null}
+                  <div className="sb-input-tools">
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className={`min-h-[44px] shrink-0 rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-semibold text-[#241d18] transition hover:bg-[#f8f3eb] ${lightSurfaceFocusClass}`}
+                      className={`sb-attach-image ${lightSurfaceFocusClass}`}
                     >
                       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><circle cx="8" cy="9" r="1.5" /><path d="m4 17 5-5 4 4 3-3 5 5" /></svg>
-                      {imageBase64 ? 'החלפת צילום' : 'צילום מסך'}
+                      {imageBase64 ? 'החלפת צילום' : 'צירוף צילום מסך'}
                     </button>
+                    {!message.trim() && !imageBase64 && !isImageProcessing ? (
+                      <details className="sb-example-disclosure">
+                        <summary className={lightSurfaceFocusClass}>לנסות עם דוגמה</summary>
+                        <div className="sb-inline-examples">
+                          {examples.filter((item) => item.id !== 'ex-check-in').map((scenario) => (
+                            <button type="button" key={scenario.id} onClick={() => applyExample(scenario)}>{scenario.context === 'קראש' ? 'שיחה אישית' : scenario.context === 'לקוח' ? 'הודעה מלקוח' : 'קנייה ומכירה'}</button>
+                          ))}
+                        </div>
+                      </details>
+                    ) : null}
+                    {messageLength > 0 && !imageBase64 && !isImageProcessing ? (
+                      <span className="sb-input-count" dir="ltr" aria-label={`${messageLength} מתוך ${MAX_INCOMING_MESSAGE_LENGTH} תווים`}>{messageLength}/{MAX_INCOMING_MESSAGE_LENGTH}</span>
+                    ) : null}
                   </div>
-
-                  {!imageBase64 && !isImageProcessing ? (<>
-                  <textarea
-                    id="incoming-message"
-                    aria-labelledby="incoming-message-label"
-                    ref={messageInputRef}
-                    value={message}
-                    onChange={handleIncomingMessageChange}
-                    onPaste={handleMessagePaste}
-                    placeholder='למשל: "היי, מתאים לך שנדבר בערב?"'
-                    maxLength={MAX_INCOMING_MESSAGE_LENGTH}
-                    aria-describedby="incoming-message-help"
-                    className={`sb-message-input min-h-28 w-full resize-none rounded-[22px] rounded-bl-[14px] border border-[#ded2c3] bg-white px-4 py-3 text-base leading-7 font-medium text-[#241d18] outline-none transition placeholder:text-[#9b8f83] focus:bg-[#fffdfa] sm:min-h-40 sm:py-4 ${lightSurfaceFocusClass}`}
-                  />
-                  <div className="sb-input-footer" id="incoming-message-help">
-                    <span>טקסט או צילום מסך</span>
-                    <span dir="ltr">{messageLength}/{MAX_INCOMING_MESSAGE_LENGTH}</span>
-                  </div>
-                  {!message.trim() && !imageBase64 ? (
-                    <div className="sb-inline-examples">
-                      <span>אפשר להתחיל מדוגמה:</span>
-                      {examples.filter((item) => item.id !== 'ex-check-in').map((scenario) => (
-                        <button type="button" key={scenario.id} onClick={() => applyExample(scenario)}>{scenario.context === 'קראש' ? 'שיחה אישית' : scenario.context === 'לקוח' ? 'הודעה מלקוח' : 'קנייה ומכירה'}</button>
-                      ))}
-                    </div>
-                  ) : null}
-                  </>) : null}
 
                   <input
                     ref={fileInputRef}
@@ -3774,7 +3671,7 @@ export default function Home({
 
                   {isImageProcessing ? <p className="sb-status" role="status">מכינים את התמונה… <button type="button" onClick={clearImage} className="min-h-11 px-2 underline underline-offset-2">ביטול</button></p> : null}
                   {imageName && imageBase64 ? (
-                    <div className="rounded-[22px] border border-[#ded2c3] bg-[#fffdfa] p-3 sm:p-4" aria-labelledby="incoming-message-label">
+                    <div className="rounded-[22px] border border-[#ded2c3] bg-[#fffdfa] p-3 sm:p-4" aria-labelledby="compose-question">
                       <div className="flex justify-center overflow-hidden rounded-2xl bg-[#f3ede4] p-2">
                         <Image src={imageBase64} alt="צילום השיחה שהעליתם" width={360} height={240} unoptimized className="max-h-60 w-full rounded-lg object-contain sm:max-h-72" />
                       </div>
@@ -3785,7 +3682,6 @@ export default function Home({
                       {message.trim() ? <p className="text-xs leading-5 text-[#6d6259]">הטקסט שכתבתם שמור כאן. הוא יחזור כשתעברו לכתיבה.</p> : null}
                     </div>
                   ) : null}
-                  <p className="sb-status">ההודעה משמשת להכנת התשובות. <a href="/privacy" className="underline underline-offset-2">על הפרטיות</a></p>
 
                   {imageError ? <p role="alert" className="sb-error">{imageError}</p> : null}
                 </div>
@@ -3807,9 +3703,36 @@ export default function Home({
                   onChange={(mode, details) => setCommitmentChoice({ message, mode, details })}
                 />
               ) : null}
+              <div className="sb-generation-actions space-y-2.5">
+                <button
+                  type="button"
+                  onClick={handleMainSubmit}
+                  disabled={isGenerating || (isImageProcessing && !isNoReplyMode)}
+                  data-incomplete={(isNoReplyMode && !isNoReplyReady) || undefined}
+                  className={`sb-primary-button inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-[#ff5a2a] px-5 py-3 text-base font-semibold text-white shadow-[0_14px_26px_rgba(255,90,42,0.24)] transition duration-150 hover:bg-[#f04d1f] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 ${lightSurfaceFocusClass}`}
+                >
+                  {generateButtonLabel}
+                  {!isGenerating ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" /></svg> : null}
+                </button>
+                {accountStatusLine ? <p className="sb-status">{accountStatusLine}</p> : null}
+                {paymentNotice ? (
+                  <p className="rounded-2xl border border-[#e2d7c8] bg-[#fff6e8] px-4 py-3 text-sm font-semibold text-[#5b3d29]">
+                    {paymentNotice}
+                  </p>
+                ) : null}
+                {requestError ? (
+                  <p
+                    className="rounded-2xl border border-[#ffc4b5] bg-[#fff0ea] px-4 py-3 text-sm font-bold text-[#7a2d19]"
+                    role="alert"
+                  >
+                    {requestError}
+                  </p>
+                ) : null}
+              </div>
+
               <details className="sb-compose-preferences">
                 <summary>
-                  <span className="sb-preferences-label"><DirectionIcon name="wave" /><span>להתאים את הסגנון<small>לא חובה</small></span></span>
+                  <span className="sb-preferences-label"><DirectionIcon name="wave" /><span>התאמת הסגנון<small>לא חובה</small></span></span>
                   <span className="sb-preferences-value">{tone}{context ? ` · ${context}` : ''}<span aria-hidden="true">⌄</span></span>
                 </summary>
                 <ReplyDirectionControls
@@ -3847,33 +3770,6 @@ export default function Home({
                 />
               </details>
 
-              <div className="sb-generation-actions space-y-2.5">
-                <button
-                  type="button"
-                  onClick={handleMainSubmit}
-                  disabled={isGenerating || (isImageProcessing && !isNoReplyMode)}
-                  data-incomplete={(isNoReplyMode && !isNoReplyReady) || undefined}
-                  className={`sb-primary-button inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full bg-[#ff5a2a] px-5 py-3 text-base font-semibold text-white shadow-[0_14px_26px_rgba(255,90,42,0.24)] transition duration-150 hover:bg-[#f04d1f] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 ${lightSurfaceFocusClass}`}
-                >
-                  {generateButtonLabel}
-                  {!isGenerating ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" /></svg> : null}
-                </button>
-                {accountStatusLine ? <p className="sb-status">{accountStatusLine}</p> : null}
-                {paymentNotice ? (
-                  <p className="rounded-2xl border border-[#e2d7c8] bg-[#fff6e8] px-4 py-3 text-sm font-semibold text-[#5b3d29]">
-                    {paymentNotice}
-                  </p>
-                ) : null}
-                {requestError ? (
-                  <p
-                    className="rounded-2xl border border-[#ffc4b5] bg-[#fff0ea] px-4 py-3 text-sm font-bold text-[#7a2d19]"
-                    role="alert"
-                  >
-                    {requestError}
-                  </p>
-                ) : null}
-              </div>
-
             </div>
 
           </div>
@@ -3887,40 +3783,20 @@ export default function Home({
             ].join(' ')}
           >
             {result || isLoading ? (
-              <div>
-                <p className="sb-status">מכאן, המילים שלכם</p>
-                <h2 className="text-2xl font-bold">התשובות שלך</h2>
-                <p className="sb-status mt-1">בחרו מה מתאים לכם. אפשר לערוך לפני ששולחים.</p>
-              </div>
-            ) : null}
-            {result && resultIsStale ? <p className="sb-draft-notice" role="status">ההודעה או ההעדפות השתנו. התשובות כאן עדיין שייכות לבקשה הקודמת; צרו תשובות חדשות כדי לעדכן.</p> : null}
-            {resultsError ? <p className="sb-error" role="alert">{resultsError}</p> : null}
-
-            {isGeneratorPrimaryMode && mobilePrimaryView === 'results' && Boolean(result) && !isGenerating ? (
-              <div className="lg:hidden">
+              <div className="flex min-h-11 items-center justify-between gap-3">
+                <h2 className="text-2xl font-bold">3 תשובות</h2>
                 <button
                   type="button"
                   aria-controls="compose-section"
                   onClick={handleReturnToGenerator}
-                  className={`inline-flex min-h-[48px] w-full items-center justify-center gap-2 whitespace-nowrap rounded-full border border-[#e2d7c8] bg-[#fffdfa]/95 px-4 py-2 text-sm font-black text-[#241d18] transition hover:border-[#ffb29f] hover:bg-white ${lightSurfaceFocusClass}`}
+                  className={`min-h-11 shrink-0 rounded-lg px-2 text-sm font-bold underline underline-offset-4 ${lightSurfaceFocusClass}`}
                 >
-                  <svg
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-4 w-4 shrink-0 text-[#ff623d]"
-                  >
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
-                  </svg>
-                  <span>עריכת ההודעה והכיוונים</span>
+                  עריכת ההודעה
                 </button>
               </div>
             ) : null}
+            {result && resultIsStale ? <p className="sb-draft-notice" role="status">ההודעה או ההעדפות השתנו. התשובות כאן עדיין שייכות לבקשה הקודמת; צרו תשובות חדשות כדי לעדכן.</p> : null}
+            {resultsError ? <p className="sb-error" role="alert">{resultsError}</p> : null}
 
             <div aria-busy={isGenerating} className="space-y-3">
               <p className="sr-only" role="status" aria-live="polite">
@@ -3932,17 +3808,6 @@ export default function Home({
               </p>
               {result && !isLoading ? (
                 <div className="sb-results-ready w-full min-w-0 space-y-3">
-                <div className="sb-result-intent-card sb-result-intent-ready w-full min-w-0 rounded-[22px] border border-[#e2d7c8] bg-[#f8f3eb] p-3.5 shadow-[0_10px_28px_rgba(49,23,13,0.06)] sm:p-4">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold tracking-[0.08em] text-[#7a6e64]">
-                      {resultRequest?.noReplyMode ? 'הכיוון להודעת ההמשך' : 'הכיוון לשיחה'}
-                    </p>
-                    <p className="mt-1.5 text-base font-bold leading-6 text-[#241d18]">{result.intent}</p>
-                  </div>
-
-                </div>
-
-                <div className="w-full min-w-0 space-y-3">
                   {result.replies.map((reply, index) => (
                     <ReplyCard
                       key={index}
@@ -3965,37 +3830,41 @@ export default function Home({
                       onContinue={setContinueDialogReply}
                     />
                   ))}
-                </div>
+                  <details className="text-sm text-[#5b4d42]">
+                    <summary className={`min-h-11 cursor-pointer rounded-lg py-3 font-bold ${whiteSurfaceFocusClass}`}>למה הניסוחים האלה?</summary>
+                    <p className="pb-2 leading-6">{result.intent}</p>
+                  </details>
                   <div className="sb-result-toolbar">
-                      <button
-                        type="button"
-                        onClick={handleCopyAllReplies}
-                        className={`min-h-[40px] rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-semibold text-[#241d18] transition hover:bg-[#fffdfa] ${whiteSurfaceFocusClass}`}
-                      >
-                        {hasCopiedAllReplies ? 'הכל הועתק' : 'העתק הכל'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleGenerateMoreReplies}
-                        disabled={isGenerating}
-                        className={`min-h-[40px] rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1.5 text-xs font-semibold text-[#7a2d19] transition disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
-                      >
-                        עוד 3 תשובות · {usageActionHint}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleNewMessage}
-                        disabled={isGenerating}
-                        className={`min-h-[40px] rounded-full border border-[#e2d7c8] bg-[#fff6e8] px-3 py-1.5 text-xs font-semibold text-[#5b3d29] transition hover:bg-[#f6ead8] ${whiteSurfaceFocusClass}`}
-                      >
-                        הודעה חדשה
-                      </button>
+                    <button
+                      type="button"
+                      onClick={handleCopyAllReplies}
+                      className={`min-h-[40px] rounded-full border border-[#ded2c3] bg-white px-3 py-1.5 text-xs font-semibold text-[#241d18] transition hover:bg-[#fffdfa] ${whiteSurfaceFocusClass}`}
+                    >
+                      {hasCopiedAllReplies ? 'הכל הועתק' : 'העתק הכל'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleGenerateMoreReplies}
+                      disabled={isGenerating}
+                      className={`min-h-[40px] rounded-full border border-[#ffc4b5] bg-[#fff0ea] px-3 py-1.5 text-xs font-semibold text-[#7a2d19] transition disabled:cursor-not-allowed disabled:opacity-60 ${whiteSurfaceFocusClass}`}
+                    >
+                      עוד 3 תשובות · {usageActionHint}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNewMessage}
+                      disabled={isGenerating}
+                      className={`min-h-[40px] rounded-full border border-[#e2d7c8] bg-[#fff6e8] px-3 py-1.5 text-xs font-semibold text-[#5b3d29] transition hover:bg-[#f6ead8] ${whiteSurfaceFocusClass}`}
+                    >
+                      הודעה חדשה
+                    </button>
                   </div>
-                <div className="rounded-2xl border border-[#e2d7c8] bg-[#fffdf8] px-3 py-2.5 text-sm">
                   {activeConversation ? (
-                    <p className="font-semibold text-[#5b4d42]">ממשיכים עם {activeConversation.label}</p>
+                    <p className="rounded-2xl border border-[#e2d7c8] bg-[#fffdf8] px-3 py-2.5 text-sm font-semibold text-[#5b4d42]">
+                      ממשיכים עם {activeConversation.label}
+                    </p>
                   ) : lastSuccessfulConversationDefaults ? (
-                    <div>
+                    <div className="rounded-2xl border border-[#e2d7c8] bg-[#fffdf8] px-3 py-2.5 text-sm">
                       <p className="mb-2 text-center text-xs font-bold text-[#6d6259]">מדברים שוב עם אותו אדם?</p>
                       <button
                         type="button"
@@ -4011,7 +3880,6 @@ export default function Home({
                       </button>
                     </div>
                   ) : null}
-                </div>
                 </div>
               ) : isLoading ? (
                 <LoadingReplies isNoReplyMode={isNoReplyMode} />

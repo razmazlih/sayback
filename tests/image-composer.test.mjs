@@ -37,8 +37,8 @@ test('no-reply path uses its own text and cannot inherit image or incoming draft
   assert.equal(result.lastOutgoingMessage, 'מה קורה');
 });
 test('textarea and character count are only rendered in text mode, while draft is retained', () => {
-  assert.match(source, /!imageBase64 && !isImageProcessing \? \(<>[\s\S]*?id="incoming-message"[\s\S]*?id="incoming-message-help"[\s\S]*?<\/\>\) : null/);
+  assert.match(source, /!imageBase64 && !isImageProcessing \? \(\s*<textarea\s+id="incoming-message"\s+aria-labelledby="compose-question"/);
+  assert.match(source, /messageLength > 0 && !imageBase64 && !isImageProcessing \? \(\s*<span className="sb-input-count"/);
   assert.match(source, /הטקסט שכתבתם שמור כאן/);
-  assert.match(source, /aria-labelledby="incoming-message-label"/);
   assert.match(source, /onClick=\{clearImage\}[^>]*>חזרה לכתיבה/);
 });

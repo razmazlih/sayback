@@ -316,10 +316,6 @@ body {
     animation-delay: 5.6s;
   }
 
-  .sb-result-intent-ready {
-    animation: sb-result-in var(--motion-enter) var(--motion-ease) backwards;
-  }
-
   .sb-reply-card {
     animation: sb-result-in 180ms ease-out both;
   }
@@ -500,7 +496,6 @@ body {
   .sb-loading-pulse-dot,
   .sb-loading-word,
   .sb-loading-status-text,
-  .sb-result-intent-ready,
   .sb-reply-card {
     transition: none;
     animation: none;

@@ -159,6 +159,14 @@ NEXT_PUBLIC_GA4_MEASUREMENT_ID= NEXT_PUBLIC_GA_MEASUREMENT_ID= \
 NEXT_PUBLIC_CLARITY_PROJECT_ID= npm run dev -- --hostname 127.0.0.1 --port 3100
 ```
 
+With the server running, the focused mobile check exercises generation, copying,
+keyboard editing, custom AI refinement and restoring a reply at 390 × 844. It
+also checks that the first copy action fits in the viewport after generation.
+
+```sh
+node scripts/verify-conversation-experience.mjs --quick-replies
+```
+
 The browser runner intercepts Firebase authentication and all application APIs,
 blocks other external traffic, and uses synthetic data. It never validates live
 Firebase writes, AI responses, Stripe charges, or webhook delivery. Screenshots
