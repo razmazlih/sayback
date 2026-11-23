@@ -139,70 +139,6 @@ body {
   }
 }
 
-@keyframes sb-reply-loading-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes sb-skeleton-shimmer {
-  from {
-    transform: translateX(260%) skewX(-10deg);
-  }
-
-  to {
-    transform: translateX(-260%) skewX(-10deg);
-  }
-}
-
-@keyframes sb-loading-pulse {
-  0%,
-  100% {
-    opacity: 0.55;
-  }
-
-  50% {
-    opacity: 1;
-  }
-}
-
-@keyframes sb-loading-word-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-
-  to {
-    opacity: 0.88;
-    transform: translateY(0);
-  }
-}
-
-@keyframes sb-loading-status-in {
-  0% {
-    opacity: 0;
-    transform: translateY(3px);
-  }
-
-  6%,
-  32% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  38%,
-  100% {
-    opacity: 0;
-    transform: translateY(-3px);
-  }
-}
-
 @keyframes sb-result-in {
   from {
     opacity: 0;
@@ -215,105 +151,17 @@ body {
   }
 }
 
-.sb-loading-block {
-  position: relative;
-  overflow: hidden;
-  background: #eee4d8;
-}
-
-.sb-reply-loading-card::after,
-.sb-loading-intent::after {
-  position: absolute;
-  inset-block: 0;
-  left: 0;
-  z-index: 1;
-  width: 42%;
-  content: '';
-  pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.48), transparent);
-  transform: translateX(260%) skewX(-10deg);
-}
-
-.sb-loading-word {
-  display: inline-block;
-}
-
-.sb-loading-word {
-  opacity: 0.52;
-}
-
-.sb-loading-status-stack {
-  display: grid;
-  min-width: 126px;
-}
-
-.sb-loading-status-text {
-  grid-area: 1 / 1;
-  opacity: 0;
-}
-
-.sb-reply-loading-card {
-  min-height: 216px;
-}
-
-.sb-reply-loading-card {
-  height: 216px;
-}
-
-@media (min-width: 640px) {
-  .sb-reply-loading-card {
-    min-height: 188px;
-  }
-
-  .sb-reply-loading-card {
-    height: 188px;
-  }
+.sb-skeleton-fill {
+  background: #e8dfd3;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .sb-replies-loading {
-    animation: sb-fade-in var(--motion-fast) ease-out both;
+  @keyframes sb-skeleton-pulse {
+    50% { opacity: 0.55; }
   }
 
-  .sb-reply-loading-card {
-    animation: sb-reply-loading-in 180ms var(--motion-ease) both;
-  }
-
-  .sb-reply-loading-card--1 {
-    animation-delay: 0ms;
-  }
-
-  .sb-reply-loading-card--2 {
-    animation-delay: 40ms;
-  }
-
-  .sb-reply-loading-card--3 {
-    animation-delay: 80ms;
-  }
-
-  .sb-reply-loading-card::after,
-  .sb-loading-intent::after {
-    animation: sb-skeleton-shimmer 2.6s ease-in-out infinite;
-  }
-
-  .sb-loading-pulse-dot {
-    animation: sb-loading-pulse 1.8s ease-in-out infinite;
-  }
-
-  .sb-loading-word {
-    animation: sb-loading-word-in 180ms var(--motion-ease) both;
-  }
-
-  .sb-loading-status-text {
-    animation: sb-loading-status-in 8.4s ease-in-out infinite both;
-  }
-
-  .sb-loading-status-text--2 {
-    animation-delay: 2.8s;
-  }
-
-  .sb-loading-status-text--3 {
-    animation-delay: 5.6s;
+  .sb-skeleton-fill {
+    animation: sb-skeleton-pulse 1.8s ease-in-out infinite;
   }
 
   .sb-reply-card {
@@ -489,25 +337,9 @@ body {
 
   .sb-option-card,
   .sb-option-card__illustration,
-  .sb-replies-loading,
-  .sb-reply-loading-card,
-  .sb-reply-loading-card::after,
-  .sb-loading-intent::after,
-  .sb-loading-pulse-dot,
-  .sb-loading-word,
-  .sb-loading-status-text,
   .sb-reply-card {
     transition: none;
     animation: none;
-  }
-
-  .sb-loading-status-text:first-child {
-    opacity: 1;
-    transform: none;
-  }
-
-  .sb-loading-status-text:not(:first-child) {
-    display: none;
   }
 
   .sb-option-card,
