@@ -6,15 +6,13 @@ SayBack turns an incoming message into three short Hebrew reply suggestions. The
 
 ## 1. Add the message
 
-The composer starts with two visible mode choices: **קיבלתי הודעה** and **שלחתי ולא ענו**. Icons and a checked active state distinguish them. Choose the first for a message you received, or the second when your own message has not been answered.
-
-Paste text, choose a built-in example, or upload a screenshot. The text field grows with its contents. The incoming composer keeps the reply-direction controls and generation action together.
+The composer opens at **מה כתבו לך?**. Paste a message, attach a screenshot, or open **לנסות עם דוגמה** to try a sample. Select **הכנת 3 תשובות** to generate. For an unanswered outgoing message, choose **לא ענו לי** beside the heading.
 
 <img src="screenshots/design-home-mobile.png" alt="Mobile incoming-message composer with compact directions" width="360">
 
 ## 2. Choose only the guidance you need
 
-Open **להתאים את הסגנון**, then a direction button to choose tone, recipient context, goal, grammatical preferences, or conversation continuation. Background and some options depend on access level. A selection stays visible on its button; reset controls clear it.
+Open **התאמת הסגנון** below the generation button, then a direction button to choose tone, recipient context, goal, grammatical preferences, or conversation continuation. Background and some options depend on access level. A selection stays visible on its button; reset controls clear it.
 
 <table>
   <tr><th>Tone</th><th>Recipient</th><th>Goal</th></tr>
@@ -31,13 +29,13 @@ Single-choice options close their dialog after selection. Grammatical preference
 
 ## 3. Compare and refine
 
-Generation produces one short interpretation and exactly three reply cards. Review the text, copy what fits, or soften, sharpen, regenerate, or give a custom rewriting instruction. SayBack does not send the message for you. Changing the request marks existing replies as outdated; refinement retains the original request context.
+Generation opens three reply cards. Choose **העתקה** on a card to copy its text. Open **אפשרויות** for manual editing, sharing, continuation and AI refinement. The AI controls show the cost and accept a custom instruction. To read the short interpretation, open **למה הניסוחים האלה?** below the replies. SayBack does not send the message for you. Changing the request marks existing replies as outdated; refinement retains the original request context.
 
 <img src="screenshots/design-results-mobile.png" alt="Synthetic sample reply cards illustrating the comparison and refinement flow" width="360">
 
 ## 4. Follow up when there is no reply
 
-Choose **שלחתי ולא ענו**, paste the last message you sent, and select the elapsed time. One five-card picker offers half an hour, three hours, a day, three days, and **זמן אחר**. The custom option opens a compact number input and illustrated minutes/hours/days choices. Clicking an incomplete request guides you to its first missing detail. No time is selected by default.
+Choose **לא ענו לי**, paste the last message you sent, and select the elapsed time. One five-card picker offers half an hour, three hours, a day, three days, and **זמן אחר**. The custom option opens a compact number input and illustrated minutes/hours/days choices. Clicking an incomplete request guides you to its first missing detail. No time is selected by default.
 
 <img src="screenshots/followup-compose-mobile.png" alt="Follow-up mode with elapsed-time presets" width="360">
 
@@ -49,7 +47,7 @@ The account dialog displays current access and available actions, including emai
 
 ## Capture scope
 
-- Composer, follow-up and reply-results captures were refreshed locally on November 15, 2026 using synthetic authentication, billing and generation. They do not demonstrate the deployed website or live services. Direction-dialog and account screenshots are retained from the earlier local walkthrough.
+- Composer, follow-up and reply-results captures were refreshed locally on November 23, 2026 using synthetic authentication, billing and generation. They do not demonstrate the deployed website or live services. Direction-dialog and account screenshots are retained from the earlier local walkthrough.
 - The composers use the shared phone-first layout and collapsible optional preferences. Detailed viewport checks and keyboard-simulation limits are recorded in [visual verification](design-verification.md).
 - Reply-results and recorded-video responses are synthetic. Account and access examples may use stubbed services. They do not demonstrate live OpenAI quality, email delivery, subscriptions, or payment reconciliation.
 - Inputs are examples, not private customer conversations. No capture date is overlaid or used as a promotional label.

@@ -68,3 +68,19 @@ The composer records pointer versus navigation-key input without moving or blurr
 Removed the visible file-size copy and source-size rejection. A generated 14,725,370-byte PNG was compressed by the real browser encoder to a 3,533,627-character JPEG data URL (budget: 4,194,304), preserving 2200×2200 dimensions. The text header was inspected visually. Small PNG bytes were preserved; pre-start and in-flight aborts and corrupt/non-image failures were checked. `scripts/verify-image-compression.mjs` reproduces these codec checks offline.
 
 The actual 390px upload UI was also checked with a valid image larger than 4 MiB: busy submit guard, compressed generation payload, cancellation, replacement race, mode-change abort and no stale preview. Generation/billing were synthetic; no live AI was called. Lint, TypeScript, 176 regression tests and production build are the release gates. Physical-device memory limits and browser-unsupported image formats are not guaranteed by these desktop Chromium checks.
+
+## Shorter writing and results flow · November 23, 2026
+
+Google Chrome captured the same incoming message and synthetic replies on the baseline commit `d29f0c4` and the updated branch. Each comparison puts the baseline on the left and the update on the right.
+
+| Screen | Phone, 390 × 844 | Desktop, 1440 × 900 |
+| --- | --- | --- |
+| Composer | [Before and after](screenshots/compare-compose-mobile.png) | [Before and after](screenshots/compare-compose-desktop.png) |
+| Three replies | [Before and after](screenshots/compare-results-mobile.png) | |
+| Copy and options | [Before and after](screenshots/compare-options-mobile.png) | |
+| Follow-up | [Before and after](screenshots/compare-followup-mobile.png) | |
+| Attached screenshot | [Before and after](screenshots/compare-image-mobile.png) | |
+
+On the phone, the bottom edge of the first copy button moved from 552px to 372px below the top of the viewport after automatic results navigation. Both versions kept it on screen. The updated flow exposed all three copy actions in this fixture. One generation click and one copy click copied the selected text without opening preferences or a menu.
+
+Chrome exercised text paste, local image upload, and follow-up generation with a three-hour interval. All three preset refinements and a custom instruction replaced the chosen reply. Restoring its prior wording, saving a manual edit and falling back to manual copy after clipboard denial also passed. The updated interface received keyboard input for the examples disclosure and Tab navigation while the incoming field was focused at a simulated keyboard height of 450px. The captures used a local development server, intercepted anonymous Firebase sign-in, bearer-authenticated billing responses, synthetic generation, a clipboard fixture and reduced motion. Physical-device keyboards on iOS/Android, live AI and payment processing require separate verification.
