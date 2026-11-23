@@ -3784,7 +3784,9 @@ export default function Home({
           >
             {result || isLoading ? (
               <div className="flex min-h-11 items-center justify-between gap-3">
-                <h2 className="text-2xl font-bold">3 תשובות</h2>
+                <h2 className="text-2xl font-bold">
+                  {isLoading ? 'מכינים תשובות…' : '3 תשובות'}
+                </h2>
                 <button
                   type="button"
                   aria-controls="compose-section"
@@ -3798,14 +3800,10 @@ export default function Home({
             {result && resultIsStale ? <p className="sb-draft-notice" role="status">ההודעה או ההעדפות השתנו. התשובות כאן עדיין שייכות לבקשה הקודמת; צרו תשובות חדשות כדי לעדכן.</p> : null}
             {resultsError ? <p className="sb-error" role="alert">{resultsError}</p> : null}
 
+            <p className="sr-only" role="status">
+              {isLoading ? 'מכינים שלוש תשובות.' : result ? 'שלוש התשובות מוכנות.' : ''}
+            </p>
             <div aria-busy={isGenerating} className="space-y-3">
-              <p className="sr-only" role="status" aria-live="polite">
-                {isLoading
-                  ? 'מכינים שלוש תשובות. הפעולה עדיין מתבצעת.'
-                  : result
-                    ? 'שלוש התשובות מוכנות.'
-                    : 'אזור התשובות מוכן.'}
-              </p>
               {result && !isLoading ? (
                 <div className="sb-results-ready w-full min-w-0 space-y-3">
                   {result.replies.map((reply, index) => (
@@ -3882,7 +3880,7 @@ export default function Home({
                   ) : null}
                 </div>
               ) : isLoading ? (
-                <LoadingReplies isNoReplyMode={isNoReplyMode} />
+                <LoadingReplies />
               ) : (
                 <ConversationDemo />
               )}

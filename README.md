@@ -28,6 +28,8 @@ SayBack is a live, Hebrew-first web app for personal conversations, customer mes
 
 *Screenshots show the local app with non-sensitive sample data. The reply-results image uses synthetic responses and illustrates the results flow, not current live AI output. The video also uses local fixtures. Neither demonstrates live billing. [Image scope and limitations](docs/walkthrough.md#capture-scope).*
 
+While SayBack prepares the replies, three placeholders reserve space for their text and actions. The loading animation respects reduced-motion preferences. [Mobile loading screen](docs/screenshots/reply-loading-mobile.png).
+
 ## Built around real conversations
 
 - **Reply in your own direction.** Focused dialogs offer tone, context, goals, conversation continuation, and optional background. Open **התאמת הסגנון** for optional direction controls; its summary retains the tone and recipient context.

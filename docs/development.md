@@ -159,9 +159,7 @@ NEXT_PUBLIC_GA4_MEASUREMENT_ID= NEXT_PUBLIC_GA_MEASUREMENT_ID= \
 NEXT_PUBLIC_CLARITY_PROJECT_ID= npm run dev -- --hostname 127.0.0.1 --port 3100
 ```
 
-With the server running, the focused mobile check exercises generation, copying,
-keyboard editing, custom AI refinement and restoring a reply at 390 × 844. It
-also checks that the first copy action fits in the viewport after generation.
+The focused check holds the generation response open and compares the three loading cards with single-line replies at 390 × 844 and 1440 × 844. At phone width it also checks copying, keyboard editing, custom AI refinement, restoration and the visibility of the first copy action.
 
 ```sh
 node scripts/verify-conversation-experience.mjs --quick-replies

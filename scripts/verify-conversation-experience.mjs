@@ -108,6 +108,7 @@ async function fixture(kind = "initial_free", width = 390, query = "", profiles 
         } : null,
       });
       case "/api/generate":
+        await state.pendingGeneration;
         if (state.delayGenerationMs) await new Promise((resolve) => setTimeout(resolve, state.delayGenerationMs));
         if (kind === "blocked") return fulfill({ error: "המכסה החינמית הסתיימה.", billing: state.billing }, 402);
         if (state.failGeneration) return fulfill({ error: "בדיקת כשל: לא הצלחנו לשפר את התשובה." }, 500);
@@ -190,7 +191,7 @@ async function screenshot(page, name) {
 }
 
 async function verifyConversation() {
-  for (const width of quickRepliesOnly ? [390] : [360, 390, 768, 1024, 1440]) {
+  for (const width of quickRepliesOnly ? [390, 1440] : [360, 390, 768, 1024, 1440]) {
     const app = await fixture("initial_free", width);
     await app.page.getByRole("heading", { name: /יש הודעה.*יש מה לענות/ }).waitFor();
     await noOverflow(app.page);
@@ -202,14 +203,44 @@ async function verifyConversation() {
       });
     }
     await app.page.locator("#incoming-message").fill(incoming);
+    let releaseGeneration;
+    app.state.pendingGeneration = new Promise((resolve) => { releaseGeneration = resolve; });
     await generateButton(app.page).click();
+    const placeholders = app.page.locator(".sb-reply-skeleton");
+    let loadingOffsets;
+    const cardOffsets = (cards) => cards.evaluateAll((elements) => elements.map((element) => {
+      const panel = element.closest("#results-section");
+      return element.getBoundingClientRect().top - panel.getBoundingClientRect().top;
+    }));
+    try {
+      await placeholders.nth(2).waitFor();
+      assert.equal(await placeholders.count(), 3);
+      assert.ok(await placeholders.evaluateAll((cards) => cards.every((card) =>
+        card.closest('[aria-hidden="true"]') && card.getAnimations({ subtree: true }).length === 0
+      )), "Reduced-motion placeholders are decorative and static");
+      await noOverflow(app.page);
+      loadingOffsets = await cardOffsets(placeholders);
+      if (width === 390 || width === 1440) {
+        await app.page.screenshot({
+          path: fileURLToPath(new URL(`reply-loading-${width}.png`, outputDir)),
+          style: "nextjs-portal { display: none !important; }",
+        });
+      }
+    } finally {
+      releaseGeneration();
+    }
     await app.page.getByRole("button", { name: "העתקה של תשובה 3", exact: true }).waitFor();
     assert.equal(await app.page.getByRole("button", { name: /^העתקה של תשובה [123]$/ }).count(), 3);
+    const readyOffsets = await cardOffsets(app.page.locator(".sb-reply-card"));
+    const shifts = readyOffsets.map((top, index) => Math.abs(top - loadingOffsets[index]));
+    measurements[`loadingCardShifts${width}`] = shifts;
+    assert.ok(shifts.every((shift) => shift <= 1), `Short reply cards align with their skeletons at ${width}px: ${shifts}`);
+    assert.equal(await placeholders.count(), 0);
     assert.equal(generations(app.state)[0].payload.message, incoming);
     await noOverflow(app.page);
     await screenshot(app.page, `conversation-${width}-results`);
     // Documentation captures use the same synthetic fixture after generation.
-    if (width === 360 || width === 1440) {
+    if (!quickRepliesOnly && (width === 360 || width === 1440)) {
       if (width === 360) await showComposer(app.page);
       await openDirection(app.page, "tone");
       await noOverflow(app.page);
