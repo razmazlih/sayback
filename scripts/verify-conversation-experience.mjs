@@ -10,6 +10,7 @@ const { chromium } = await import(process.env.SAYBACK_PLAYWRIGHT_MODULE ?? "play
 // identity request is intercepted; all other external traffic is denied.
 const baseUrl = process.env.SAYBACK_SMOKE_BASE_URL ?? "http://127.0.0.1:3100";
 const origin = new URL(baseUrl).origin;
+const quickRepliesOnly = process.argv.includes("--quick-replies");
 assert.ok(["127.0.0.1", "localhost", "[::1]"].includes(new URL(baseUrl).hostname), "Use a local app URL");
 const outputDir = new URL("../output/playwright/", import.meta.url);
 await mkdir(outputDir, { recursive: true });
@@ -51,7 +52,7 @@ function token() {
 }
 
 async function fixture(kind = "initial_free", width = 390, query = "", profiles = []) {
-  const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: "reduce", serviceWorkers: "block" });
+  const context = await browser.newContext({ viewport: { width, height: quickRepliesOnly ? 844 : 900 }, reducedMotion: "reduce", serviceWorkers: "block" });
   context.setDefaultTimeout(15_000);
   const state = { billing: billingFor(kind), calls: [], identityCalls: 0, identityRequests: [], profiles: structuredClone(profiles), delayGenerationMs: 0, failGeneration: false, errors: [], unexpected: [] };
   await context.addInitScript(() => {
@@ -130,7 +131,7 @@ async function fixture(kind = "initial_free", width = 390, query = "", profiles 
 }
 
 function generations(state) { return state.calls.filter((call) => call.path === "/api/generate"); }
-function generateButton(page) { return page.getByRole("button", { name: /(?:תנו לי|ליצור|קבלו|יוצרים|לייצר).*3/ }).first(); }
+function generateButton(page) { return page.getByRole("button", { name: /^הכנת 3 (?:תשובות|הודעות המשך)$/ }).first(); }
 async function noOverflow(page) {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, "No horizontal document overflow");
 }
@@ -188,8 +189,8 @@ async function screenshot(page, name) {
   await page.screenshot({ path: fileURLToPath(new URL(`${name}.png`, outputDir)), fullPage: true, style: "nextjs-portal { display: none !important; }" });
 }
 
-try {
-  for (const width of [360, 390, 768, 1024, 1440]) {
+async function verifyConversation() {
+  for (const width of quickRepliesOnly ? [390] : [360, 390, 768, 1024, 1440]) {
     const app = await fixture("initial_free", width);
     await app.page.getByRole("heading", { name: /יש הודעה.*יש מה לענות/ }).waitFor();
     await noOverflow(app.page);
@@ -202,8 +203,8 @@ try {
     }
     await app.page.locator("#incoming-message").fill(incoming);
     await generateButton(app.page).click();
-    await app.page.getByRole("button", { name: "העתק תשובה 3", exact: true }).waitFor();
-    assert.equal(await app.page.getByRole("button", { name: /^העתק תשובה [123]$/ }).count(), 3);
+    await app.page.getByRole("button", { name: "העתקה של תשובה 3", exact: true }).waitFor();
+    assert.equal(await app.page.getByRole("button", { name: /^העתקה של תשובה [123]$/ }).count(), 3);
     assert.equal(generations(app.state)[0].payload.message, incoming);
     await noOverflow(app.page);
     await screenshot(app.page, `conversation-${width}-results`);
@@ -218,16 +219,60 @@ try {
       });
       if (width === 360) {
         await showResults(app.page);
-        await app.page.getByRole("button", { name: "העתק תשובה 3", exact: true }).scrollIntoViewIfNeeded();
+        await app.page.getByRole("button", { name: "העתקה של תשובה 3", exact: true }).scrollIntoViewIfNeeded();
         await app.page.locator("#results-section").screenshot({
           path: fileURLToPath(new URL("direction-results-mobile.png", outputDir)),
           style: "nextjs-portal { display: none !important; }",
         });
       }
     }
+    if (width === 390) {
+      const first = app.page.getByRole("article", { name: "תשובה 1", exact: true });
+      const copy = first.locator("[data-reply-copy]");
+      await app.page.waitForFunction(() => {
+        const bounds = document.querySelector("[data-reply-copy]")?.getBoundingClientRect();
+        return bounds && bounds.top >= 0 && bounds.bottom <= window.innerHeight;
+      });
+      const firstBounds = await first.boundingBox();
+      assert.ok(firstBounds.y >= 0, "The reply text and copy action are visible without scrolling");
+      await copy.click();
+      assert.equal(await app.page.evaluate(() => window.__copiedText), replyTexts[0]);
+      assert.equal(generations(app.state).length, 1, "One generate and one copy complete the default flow");
+      assert.equal(await first.getByRole("button").count(), 2, "Only copy and options are visible on a fresh reply");
+      const why = app.page.locator("details").filter({ has: app.page.locator("summary", { hasText: "למה הניסוחים האלה?" }) });
+      assert.equal(await why.evaluate((element) => element.open), false);
+      const options = first.getByRole("button", { name: "אפשרויות נוספות לתשובה 1" });
+      await options.press("Enter");
+      await first.getByRole("button", { name: "עריכה שלי" }).press("Enter");
+      const editor = first.getByRole("textbox", { name: "עריכת תשובה 1" });
+      const editedReply = "נדבר בערב, תודה!";
+      await editor.fill(editedReply);
+      await first.getByRole("button", { name: "שמור עריכה" }).press("Enter");
+      await copy.press("Enter");
+      await first.getByText("הועתק", { exact: true }).waitFor();
+      assert.equal(await app.page.evaluate(() => window.__copiedText), editedReply);
+      assert.equal(generations(app.state).length, 1, "Editing and copying locally incur no generation");
+      await options.press("Enter");
+      const ai = first.getByRole("group", { name: "שיפור בעזרת AI" });
+      await ai.getByText("שימוש אחד", { exact: true }).waitFor();
+      const instruction = ai.getByRole("textbox", { name: "איך לשנות?" });
+      await instruction.fill("קצר יותר");
+      await Promise.all([
+        app.page.waitForResponse((response) => response.url().endsWith("/api/generate")),
+        instruction.press("Enter"),
+      ]);
+      assert.equal(generations(app.state).at(-1).payload.refineInstruction, "קצר יותר");
+      await first.locator("summary").click();
+      await first.getByRole("button", { name: "להחזיר את הנוסח הקודם" }).click();
+      await first.getByText(editedReply, { exact: true }).first().waitFor();
+      assert.equal(generations(app.state).length, 2, "Restoring the previous wording incurs no generation");
+    }
     await finish(app);
     checks.push(`RTL, no overflow, generation and 3 replies at ${width}px`);
+    if (width === 390) checks.push("First reply visible, one-tap copy, keyboard edit, custom refinement, cost disclosure and undo");
   }
+
+  if (quickRepliesOnly) return;
 
   const directions = await fixture("monthly", 360);
   const dp = directions.page;
@@ -289,7 +334,7 @@ try {
   await dp.getByRole("button", { name: "יש לי פרטים", exact: true }).click();
   await dp.locator("#commitment-details").fill("250 ש״ח, בלי משלוח");
   await generateButton(dp).click();
-  await dp.getByRole("button", { name: "העתק תשובה 3", exact: true }).waitFor();
+  await dp.getByRole("button", { name: "העתקה של תשובה 3", exact: true }).waitFor();
   const directionPayload = generations(directions.state).at(-1).payload;
   assert.equal(directionPayload.tone, "ענייני");
   assert.equal(directionPayload.context, "שכנים");
@@ -314,14 +359,13 @@ try {
   await dp.locator("#commitment-details").fill("300 ש״ח, בלי משלוח");
   await showResults(dp);
   await staleNotice(dp).waitFor();
-  await dp.getByRole("button", { name: "לשפר ניסוח" }).first().click();
+  await dp.getByRole("button", { name: "אפשרויות נוספות לתשובה 1", exact: true }).click();
   await dp.getByRole("button", { name: "עדין יותר", exact: true }).first().click();
   await dp.getByText(`ניסוח מעודכן: ${replyTexts[0]}`, { exact: true }).first().waitFor();
   const originalRefinement = generations(directions.state).at(-1).payload;
   assert.equal(originalRefinement.commitmentDetails, "250 ש״ח, בלי משלוח", "Refine uses original commitment despite changed draft");
   assert.deepEqual(originalRefinement.languagePreferences, directionPayload.languagePreferences);
   assert.equal(originalRefinement.conversationBackground, background);
-  await dp.getByRole("button", { name: "אפשרויות נוספות לתשובה 1", exact: true }).click();
   await dp.getByRole("button", { name: "ענו לי", exact: true }).first().click();
   const continueDialog = dp.getByRole("dialog", { name: "ענו לך? ממשיכים מכאן", exact: true });
   await continueDialog.getByRole("textbox", { name: "מה שלחת בפועל?", exact: true }).fill("המחיר הוא 250 ש״ח, בלי משלוח");
@@ -330,7 +374,7 @@ try {
   await continueDialog.getByRole("button", { name: "להשתמש בהמשך הזה", exact: true }).click();
   assert.equal(generations(directions.state).length, countBeforeContinuation, "Conversation continuation does not auto-generate");
   await generateButton(dp).click();
-  await dp.getByRole("button", { name: "העתק תשובה 3", exact: true }).waitFor();
+  await dp.getByRole("button", { name: "העתקה של תשובה 3", exact: true }).waitFor();
   assert.equal(generations(directions.state).at(-1).payload.previousOutgoingMessage, "המחיר הוא 250 ש״ח, בלי משלוח");
   assert.equal(generations(directions.state).at(-1).payload.commitmentMode, undefined, "A new conversation turn clears prior commitment");
   await showComposer(dp);
@@ -338,7 +382,7 @@ try {
   await dp.getByRole("button", { name: "להמשיך בלי ההקשר הקודם", exact: true }).click();
   await showResults(dp);
   await staleNotice(dp).waitFor();
-  await dp.getByRole("button", { name: "לשפר ניסוח" }).first().click();
+  await dp.getByRole("button", { name: "אפשרויות נוספות לתשובה 1", exact: true }).click();
   await dp.getByRole("button", { name: "עדין יותר", exact: true }).first().click();
   await dp.getByText(`ניסוח מעודכן: ${replyTexts[0]}`, { exact: true }).first().waitFor();
   assert.equal(generations(directions.state).at(-1).payload.previousOutgoingMessage, "המחיר הוא 250 ש״ח, בלי משלוח", "Refining after removal retains original previous outgoing context");
@@ -352,7 +396,7 @@ try {
   await directionSummariesVisible(dp);
   const clearedBefore = generations(directions.state).length;
   await generateButton(dp).click();
-  await dp.getByRole("button", { name: "העתק תשובה 3", exact: true }).waitFor();
+  await dp.getByRole("button", { name: "העתקה של תשובה 3", exact: true }).waitFor();
   assert.equal(generations(directions.state).length, clearedBefore + 1);
   const cleared = generations(directions.state).at(-1).payload;
   assert.equal(cleared.tone, "זורם");
@@ -408,20 +452,20 @@ try {
 
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
   await page.locator('input[type="file"]').setInputFiles({ name: "fixture.png", mimeType: "image/png", buffer: png });
-  await page.getByRole("img", { name: /תצוגה מקדימה/ }).waitFor();
-  await page.getByRole("button", { name: "הסרת צילום", exact: true }).click();
-  assert.equal(await page.getByRole("img", { name: /תצוגה מקדימה/ }).count(), 0);
+  await page.getByRole("img", { name: "צילום השיחה שהעליתם", exact: true }).waitFor();
+  await page.getByRole("button", { name: "חזרה לכתיבה", exact: true }).click();
+  assert.equal(await page.getByRole("img", { name: "צילום השיחה שהעליתם", exact: true }).count(), 0);
   checks.push("Screenshot preview and removal");
 
   await generateButton(page).click();
-  await page.getByRole("button", { name: "העתק תשובה 1", exact: true }).waitFor();
+  await page.getByRole("button", { name: "העתקה של תשובה 1", exact: true }).waitFor();
   // Return to writing, edit the draft, then refine the existing result. The
   // refinement must retain the context that produced that result.
   const writeNav = page.getByRole("button", { name: "עריכת ההודעה", exact: true }).first();
   await writeNav.click();
   await page.locator("#incoming-message").fill("זו הודעה אחרת שעוד לא נשלחה");
   await page.getByRole("button", { name: "התשובות", exact: true }).first().click();
-  await page.getByRole("button", { name: "לשפר ניסוח" }).first().click();
+  await page.getByRole("button", { name: "אפשרויות נוספות לתשובה 1", exact: true }).click();
   for (const [label, action] of [["עדין יותר", "softer"], ["חד יותר", "sharper"], ["ניסוח חדש", "retry"]]) {
     const before = generations(state).length;
     await Promise.all([
@@ -437,9 +481,9 @@ try {
   state.failGeneration = true;
   await page.getByRole("button", { name: "עדין יותר", exact: true }).first().click();
   await page.getByText("בדיקת כשל: לא הצלחנו לשפר את התשובה.", { exact: true }).first().waitFor();
-  assert.equal(await page.getByRole("button", { name: /^העתק תשובה [123]$/ }).count(), 3, "Failure preserves result cards");
+  assert.equal(await page.getByRole("button", { name: /^העתקה של תשובה [123]$/ }).count(), 3, "Failure preserves result cards");
   await page.evaluate(() => { window.__clipboardFail = true; });
-  await page.getByRole("button", { name: "העתק תשובה 1", exact: true }).click();
+  await page.getByRole("button", { name: "העתקה של תשובה 1", exact: true }).click();
   await page.getByLabel("העתקה ידנית של תשובה 1").waitFor();
   await screenshot(page, "conversation-copy-fallback");
   checks.push("Navigation preserves drafts; all refine actions retain result context; refine and clipboard failures visible");
@@ -457,20 +501,24 @@ try {
     if (kind === "blocked") {
       await current.page.getByRole("dialog").waitFor();
       assert.equal(generations(current.state).length, 1, "Server access denial opens access choices");
-      assert.equal(await current.page.getByRole("button", { name: /^העתק תשובה [123]$/ }).count(), 0, "Access denial creates no replies");
+      assert.equal(await current.page.getByRole("button", { name: /^העתקה של תשובה [123]$/ }).count(), 0, "Access denial creates no replies");
       await current.page.keyboard.press("Escape");
       await current.page.getByRole("dialog").waitFor({ state: "hidden" });
       await current.page.locator("#incoming-message").waitFor({ state: "visible" });
       assert.equal(await current.page.locator("#incoming-message").inputValue(), incoming, "Closing access dialog restores the draft after402");
     } else {
-      await current.page.getByRole("button", { name: "העתק תשובה 3", exact: true }).waitFor();
+      await current.page.getByRole("button", { name: "העתקה של תשובה 3", exact: true }).waitFor();
     }
     await finish(current);
     checks.push(`${kind} access state`);
   }
 
   const sample = await fixture("initial_free", 1440);
-  await sample.page.getByRole("button", { name: "שיחה אישית", exact: true }).click();
+  const examples = sample.page.locator(".sb-example-disclosure");
+  assert.equal(await examples.evaluate((element) => element.open), false);
+  await examples.locator("summary").press("Enter");
+  assert.equal(await examples.getByRole("button").count(), 3);
+  await examples.getByRole("button", { name: "שיחה אישית", exact: true }).click();
   assert.match(await sample.page.locator("#incoming-message").inputValue(), /נעלמתי קצת/);
   assert.equal(generations(sample.state).length, 0, "Selecting a sample does not submit it");
   await finish(sample);
@@ -482,17 +530,20 @@ try {
   checks.push("Sample and deep link prefill without automatic generation");
 
   const followUp = await fixture("monthly");
-  await followUp.page.getByRole("button", { name: "לא ענו? פולו־אפ", exact: true }).click();
+  await followUp.page.getByRole("button", { name: "לא ענו לי", exact: true }).click();
   assert.equal(await directionTrigger(followUp.page, "continue").count(), 0, "No-reply mode omits continuation preference");
   await openDirection(followUp.page, "goal");
   assert.deepEqual(await directionEditor(followUp.page).locator('[data-direction-option]').evaluateAll((elements) => elements.map((element) => element.dataset.directionOption)), ["תזכורת עדינה", "בדיקת סטטוס", "שחרור מכבד"]);
   await directionEditor(followUp.page).locator('[data-direction-option="בדיקת סטטוס"]').click();
   await followUp.page.locator("#last-outgoing-message").fill("היי, רציתי לבדוק אם ההצעה מתאימה לך");
-  assert.equal(await generateButton(followUp.page).isDisabled(), true, "Follow-up needs a duration and unit");
-  await followUp.page.locator("#no-reply-duration-value").fill("2");
-  await followUp.page.locator("#no-reply-duration-unit").selectOption("days");
   await generateButton(followUp.page).click();
-  await followUp.page.getByRole("button", { name: "העתק תשובה 3", exact: true }).waitFor();
+  await followUp.page.getByText("בחרו בערך כמה זמן עבר.", { exact: true }).waitFor();
+  assert.equal(generations(followUp.state).length, 0, "Follow-up needs a duration and unit");
+  await followUp.page.getByRole("button", { name: "זמן אחר", exact: true }).click();
+  await followUp.page.locator("#no-reply-duration-value").fill("2");
+  await followUp.page.getByRole("radio", { name: "ימים", exact: true }).check();
+  await generateButton(followUp.page).click();
+  await followUp.page.getByRole("button", { name: "העתקה של תשובה 3", exact: true }).waitFor();
   const followUpPayload = generations(followUp.state)[0].payload;
   assert.equal(followUpPayload.noReplyMode, true);
   assert.equal(followUpPayload.goal, "בדיקת סטטוס");
@@ -524,7 +575,7 @@ try {
   await openDirection(downgraded.page, "background");
   await downgraded.page.locator("#direction-conversation-background").fill("רקע לדוגמה הזמין רק למנוי חודשי");
   await generateButton(downgraded.page).click();
-  await downgraded.page.getByRole("button", { name: "העתק תשובה 3", exact: true }).waitFor();
+  await downgraded.page.getByRole("button", { name: "העתקה של תשובה 3", exact: true }).waitFor();
   assert.equal(generations(downgraded.state)[0].payload.tone, "רשמי");
   assert.ok(generations(downgraded.state)[0].payload.conversationBackground);
   downgraded.state.billing = billingFor("credits");
@@ -535,7 +586,7 @@ try {
   ]);
   await downgraded.page.getByRole("dialog").getByText("השימוש הבא ירד מיתרת הקרדיטים.", { exact: true }).waitFor();
   await downgraded.page.keyboard.press("Escape");
-  await downgraded.page.getByRole("button", { name: "לשפר ניסוח" }).first().click();
+  await downgraded.page.getByRole("button", { name: "אפשרויות נוספות לתשובה 1", exact: true }).click();
   downgraded.state.delayGenerationMs = 1500;
   const refinementResponse = downgraded.page.waitForResponse((response) => response.url().endsWith("/api/generate"));
   const [pendingRefinement] = await Promise.all([
@@ -572,7 +623,7 @@ try {
   await saved.page.keyboard.press("Escape");
   await saved.page.locator("#incoming-message").fill(incoming);
   await generateButton(saved.page).click();
-  await saved.page.getByRole("button", { name: "העתק תשובה 3", exact: true }).waitFor();
+  await saved.page.getByRole("button", { name: "העתקה של תשובה 3", exact: true }).waitFor();
   assert.equal(generations(saved.state)[0].payload.conversationId, person.id, "The selected saved person reaches generation");
   await saved.page.getByRole("button", { name: "החשבון שלי", exact: true }).click();
   await saved.page.getByLabel("שמירת גישה באימייל", { exact: true }).fill("fixture@example.test");
@@ -584,7 +635,12 @@ try {
   await finish(saved);
   checks.push("Saved-person selection/rename/generation context and mocked email-recovery request");
 
-  await writeFile(new URL("conversation-verification.json", outputDir), JSON.stringify({ mocked: true, baseUrl, measurements, checks }, null, 2));
+}
+
+try {
+  await verifyConversation();
+  const reportFile = quickRepliesOnly ? "quick-replies-verification.json" : "conversation-verification.json";
+  await writeFile(new URL(reportFile, outputDir), JSON.stringify({ mocked: true, baseUrl, measurements, checks }, null, 2));
   console.log(JSON.stringify({ ok: true, mocked: true, measurements, checks }, null, 2));
 } catch (error) {
   const failedPage = browser.contexts().at(-1)?.pages().at(-1);
