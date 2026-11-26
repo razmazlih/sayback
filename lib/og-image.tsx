@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { ImageResponse } from "next/og";
 
 export const OG_IMAGE_SIZE = {
@@ -23,12 +25,15 @@ type SayBackOgImageInput = {
   cta?: string;
 };
 
-export function createSayBackOgImage({
+export async function createSayBackOgImage({
   title,
   subtitle,
   badge = "SayBack",
   cta = "נסו עכשיו בחינם",
 }: SayBackOgImageInput) {
+  // This is the 180px version of the original logo used on the site.
+  const logo = await readFile(join(process.cwd(), "app", "apple-icon.png"), "base64");
+  const logoSrc = `data:image/png;base64,${logo}`;
   return new ImageResponse(
     (
       <div
@@ -120,23 +125,8 @@ export function createSayBackOgImage({
                   gap: 18,
                 }}
               >
-                <div
-                  style={{
-                    width: 92,
-                    height: 92,
-                    borderRadius: 28,
-                    background: "#181411",
-                    color: "#b7f36a",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 50,
-                    fontWeight: 900,
-                    boxShadow: "0 8px 0 #ff5a2a",
-                  }}
-                >
-                  ?
-                </div>
+                {/* eslint-disable-next-line @next/next/no-img-element -- Next Image is not supported in ImageResponse. */}
+                <img src={logoSrc} alt="" width={92} height={92} />
                 <div
                   style={{
                     display: "flex",

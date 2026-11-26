@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   ],
   icons: {
     icon: "/sayback-logo.png",
-    apple: "/apple-icon.png",
+    apple: { url: "/apple-icon.png?v=site-logo-v2", sizes: "180x180", type: "image/png" },
   },
   openGraph: {
     siteName: SITE_NAME,
